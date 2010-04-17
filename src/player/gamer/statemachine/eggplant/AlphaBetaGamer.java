@@ -3,10 +3,8 @@ package player.gamer.statemachine.eggplant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 
 import player.gamer.statemachine.StateMachineGamer;
-import util.gdl.grammar.GdlSentence;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -22,6 +20,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	private int leafNodesSearched;
 	private int cacheHit, cacheMissed;
 	private HashMap<MachineState, ValuedMove> cache;
+	private boolean cacheEnabled = true;
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
@@ -36,7 +35,6 @@ public class AlphaBetaGamer extends StateMachineGamer {
 		leafNodesSearched = statesSearched = 0;
 		cacheHit = cacheMissed = 0;
 
-		
 		ValuedMove result = alphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100);
 
 		long stop = System.currentTimeMillis();
@@ -47,14 +45,18 @@ public class AlphaBetaGamer extends StateMachineGamer {
 
 	private ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta) throws MoveDefinitionException,
 			TransitionDefinitionException, GoalDefinitionException {
-		if (cache.containsKey(state)) {
-			cacheHit++;
-			return cache.get(state);
+		if (cacheEnabled) {
+			if (cache.containsKey(state)) {
+				cacheHit++;
+				return cache.get(state);
+			} else {
+				cacheMissed++;
+				ValuedMove result = alphaBeta(machine, state, role, alpha, beta);
+				cache.put(state, result);
+				return result;
+			}
 		} else {
-			cacheMissed++;
-			ValuedMove result = alphaBeta(machine, state, role, alpha, beta);
-			cache.put(state, result);
-			return result;
+			return alphaBeta(machine, state, role, alpha, beta);
 		}
 	}
 
