@@ -1,9 +1,12 @@
 package player.gamer.statemachine.eggplant;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
 import player.gamer.statemachine.StateMachineGamer;
+import util.gdl.grammar.GdlSentence;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -17,10 +20,13 @@ import apps.player.detail.DetailPanel;
 public class AlphaBetaGamer extends StateMachineGamer {
 	private int statesSearched;
 	private int leafNodesSearched;
+	private int cacheHit, cacheMissed;
+	private HashMap<MachineState, ValuedMove> cache;
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// do nothing
+		cache = new HashMap<MachineState, ValuedMove>();
 	}
 
 	/* Implements Minimax search, currently ignores clock */
@@ -28,16 +34,32 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		long start = System.currentTimeMillis();
 		leafNodesSearched = statesSearched = 0;
+		cacheHit = cacheMissed = 0;
 
-		ValuedMove result = alphabeta(getStateMachine(), getCurrentState(), getRole(), 0, 100);
+		
+		ValuedMove result = alphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100);
 
 		long stop = System.currentTimeMillis();
 		notifyObservers(new EggplantMoveSelectionEvent(statesSearched, leafNodesSearched, stop - start, result.value, result.move));
+		System.out.println("Cache Hit: " + cacheHit + "\tCache Missed: " + cacheMissed);
 		return result.move;
 	}
 
-	private ValuedMove alphabeta(StateMachine machine, MachineState state, Role role, int alpha, int beta) throws MoveDefinitionException, TransitionDefinitionException,
-			GoalDefinitionException {
+	private ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta) throws MoveDefinitionException,
+			TransitionDefinitionException, GoalDefinitionException {
+		if (cache.containsKey(state)) {
+			cacheHit++;
+			return cache.get(state);
+		} else {
+			cacheMissed++;
+			ValuedMove result = alphaBeta(machine, state, role, alpha, beta);
+			cache.put(state, result);
+			return result;
+		}
+	}
+
+	private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta) throws MoveDefinitionException,
+			TransitionDefinitionException, GoalDefinitionException {
 		statesSearched++;
 		if (machine.isTerminal(state)) {
 			leafNodesSearched++;
@@ -46,26 +68,30 @@ public class AlphaBetaGamer extends StateMachineGamer {
 
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
-		Collections.shuffle(possibleMoves); //TODO: Remove this line
+		Collections.shuffle(possibleMoves); // TODO: Remove this line
 		for (Move move : possibleMoves) {
 			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
-			Collections.shuffle(jointMoves); //TODO: Remove this line
+			Collections.shuffle(jointMoves); // TODO: Remove this line
 			int min = 100;
 			int newBeta = beta;
 			for (List<Move> jointMove : jointMoves) {
 				MachineState nextState = machine.getNextState(state, jointMove);
-				int value = alphabeta(machine, nextState, role, alpha, newBeta).value;
+				int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta).value;
 				if (value < min) {
 					min = value;
-					if (min <= alpha) break;
-					if (min < newBeta) newBeta = min;
+					if (min <= alpha)
+						break;
+					if (min < newBeta)
+						newBeta = min;
 				}
 			}
 			if (min > maxMove.value) {
 				maxMove.value = min;
 				maxMove.move = move;
-				if (maxMove.value >= beta) break;
-				if (maxMove.value > alpha) alpha = maxMove.value;
+				if (maxMove.value >= beta)
+					break;
+				if (maxMove.value > alpha)
+					alpha = maxMove.value;
 			}
 		}
 		return maxMove;
@@ -80,11 +106,10 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	public String getName() {
 		return "AlphaBeta";
 	}
-	
+
 	@Override
 	public DetailPanel getDetailPanel() {
 		return new EggplantDetailPanel();
 	}
 
 }
-
