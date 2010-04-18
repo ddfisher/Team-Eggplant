@@ -1,5 +1,7 @@
 package player.gamer.statemachine.eggplant;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 import player.gamer.statemachine.StateMachineGamer;
@@ -16,10 +18,15 @@ import apps.player.detail.DetailPanel;
 public class MinimaxGamer extends StateMachineGamer {
 	private int statesSearched;
 	private int leafNodesSearched;
+	private int cacheHit, cacheMissed;
+	private HashMap<MachineState, ValuedMove> cache;
+	private boolean cacheEnabled = true;
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// do nothing
+		cache = new HashMap<MachineState, ValuedMove>();
+		cacheHit = cacheMissed = 0;
 	}
 
 	/* Implements Minimax search, currently ignores clock */
@@ -32,7 +39,27 @@ public class MinimaxGamer extends StateMachineGamer {
 
 		long stop = System.currentTimeMillis();
 		notifyObservers(new EggplantMoveSelectionEvent(statesSearched, leafNodesSearched, stop - start, result.value, result.move));
+		System.out.println("Cache Hit: " + cacheHit + "\tCache Missed: " + cacheMissed);
 		return result.move;
+	}
+	
+	private ValuedMove memoizedMinimax(StateMachine machine, MachineState state, Role role) throws MoveDefinitionException, TransitionDefinitionException,
+			GoalDefinitionException {
+		if (cacheEnabled) {
+			if (cache.containsKey(state)) {
+				cacheHit++;
+				return cache.get(state);
+			}
+			else {
+				cacheMissed++;
+				ValuedMove move = minimax(machine, state, role);
+				cache.put(state, move);
+				return move;
+			}
+		}
+		else {
+			return minimax(machine, state, role);
+		}
 	}
 
 	private ValuedMove minimax(StateMachine machine, MachineState state, Role role) throws MoveDefinitionException, TransitionDefinitionException,
@@ -45,12 +72,14 @@ public class MinimaxGamer extends StateMachineGamer {
 
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
+		Collections.shuffle(possibleMoves); // TODO: Remove this line
 		for (Move move : possibleMoves) {
 			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
+			Collections.shuffle(jointMoves); // TODO: Remove this line
 			int min = 100;
 			for (List<Move> jointMove : jointMoves) {
 				MachineState nextState = machine.getNextState(state, jointMove);
-				int value = minimax(machine, nextState, role).value;
+				int value = memoizedMinimax(machine, nextState, role).value;
 				if (value < min) {
 					min = value;
 				}
