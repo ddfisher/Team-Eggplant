@@ -23,11 +23,16 @@ public final class EggplantDetailPanel extends DetailPanel
 		super(new GridBagLayout());
 
 		DefaultTableModel model = new DefaultTableModel();
+
+		model.addColumn("Move");
+		model.addColumn("Minimax Value");
+		model.addColumn("Computation Time");
 		model.addColumn("States Expanded");
 		model.addColumn("Leaves Expanded");
-		model.addColumn("Computation Time");
-		model.addColumn("Minimax Value");
-		model.addColumn("Move");
+		model.addColumn("Cache Hits");
+		model.addColumn("Cache Misses");
+
+
 
 		moveTable = new JZebraTable(model)
 		{
@@ -64,13 +69,15 @@ public final class EggplantDetailPanel extends DetailPanel
 
 	private void observe(EggplantMoveSelectionEvent event)
 	{
+		String move = event.getSelection().toString();
+		String value = Integer.toString(event.getValue());
+		String computationTime = Long.toString(event.getTime()) + " ms";
 		String states = Integer.toString(event.getStatesSearched());
 		String leaves = Integer.toString(event.getLeavesSearched());
-		String computationTime = Long.toString(event.getTime()) + " ms";
-		String value = Integer.toString(event.getValue());
-		String move = event.getSelection().toString();
-
+		String cacheHits = Integer.toString(event.getCacheHits());
+		String cacheMisses = Integer.toString(event.getCacheMisses());
+		
 		DefaultTableModel model = (DefaultTableModel) moveTable.getModel();
-		model.addRow(new String[] { states, leaves, computationTime, value, move });
+		model.addRow(new String[] { move, value, computationTime, states, leaves, cacheHits, cacheMisses });
 	}
 }

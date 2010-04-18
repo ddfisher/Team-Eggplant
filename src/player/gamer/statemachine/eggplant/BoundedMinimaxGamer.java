@@ -31,7 +31,7 @@ public class BoundedMinimaxGamer extends StateMachineGamer {
 		ValuedMove result = minimax(getStateMachine(), getCurrentState(), getRole());
 
 		long stop = System.currentTimeMillis();
-		notifyObservers(new EggplantMoveSelectionEvent(statesSearched, leafNodesSearched, stop - start, result.value, result.move));
+		notifyObservers(new EggplantMoveSelectionEvent(result.move, result.value, stop-start, statesSearched, leafNodesSearched, 0, 0));
 		return result.move;
 	}
 
