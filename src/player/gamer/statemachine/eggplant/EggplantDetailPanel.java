@@ -23,8 +23,8 @@ public final class EggplantDetailPanel extends DetailPanel
 		super(new GridBagLayout());
 
 		DefaultTableModel model = new DefaultTableModel();
-		model.addColumn("States Searched");
-		model.addColumn("Leaves Searched");
+		model.addColumn("States Expanded");
+		model.addColumn("Leaves Expanded");
 		model.addColumn("Computation Time");
 		model.addColumn("Minimax Value");
 		model.addColumn("Move");

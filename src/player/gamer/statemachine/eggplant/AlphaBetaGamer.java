@@ -19,22 +19,23 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	private int statesSearched;
 	private int leafNodesSearched;
 	private int cacheHit, cacheMissed;
+	//NOTE: Hashcode is NOT overridden by GDLSentence - this will only check if the sentences are actually the same objects in memory
 	private HashMap<MachineState, ValuedMove> cache;
 	private boolean cacheEnabled = true;
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// do nothing
-		cache = new HashMap<MachineState, ValuedMove>();
 	}
 
 	/* Implements Minimax search, currently ignores clock */
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		long start = System.currentTimeMillis();
+		cache = new HashMap<MachineState, ValuedMove>();
 		leafNodesSearched = statesSearched = 0;
 		cacheHit = cacheMissed = 0;
-
+		
 		ValuedMove result = alphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100);
 
 		long stop = System.currentTimeMillis();
@@ -70,10 +71,10 @@ public class AlphaBetaGamer extends StateMachineGamer {
 
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
-		Collections.shuffle(possibleMoves); // TODO: Remove this line
+//		Collections.shuffle(possibleMoves); // TODO: Remove this line
 		for (Move move : possibleMoves) {
 			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
-			Collections.shuffle(jointMoves); // TODO: Remove this line
+//			Collections.shuffle(jointMoves); // TODO: Remove this line
 			int min = 100;
 			int newBeta = beta;
 			for (List<Move> jointMove : jointMoves) {
