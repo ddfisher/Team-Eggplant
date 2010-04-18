@@ -1,5 +1,6 @@
 package player.gamer.statemachine.eggplant;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -22,10 +23,11 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	// NOTE: Hashcode is NOT overridden by GDLSentence - this will only check if
 	// the sentences are actually the same objects in memory
 	private EggplantConfigPanel config = new EggplantConfigPanel();
-
+	private HashMap<MachineState, ValuedMove> cache = null;
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// do nothing
+		cache = new HashMap<MachineState, ValuedMove>();
 	}
 
 	/* Implements Minimax search, currently ignores clock */
@@ -33,19 +35,18 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		long start = System.currentTimeMillis();
 
-		HashMap<MachineState, ValuedMove> cache = null;
-		if (config.useCache()) {
-			cache = new HashMap<MachineState, ValuedMove>();
-		}
-
 		leafNodesSearched = statesSearched = 0;
 		cacheHits = cacheMisses = 0;
 
 		ValuedMove result = alphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, cache);
+		ValuedMove noncachedResult = alphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, null);
+		if (!result.move.toString().equals(noncachedResult.move.toString()) || result.value != noncachedResult.value) {
+			System.out.println(result.move + " " + noncachedResult.move);
+		}
 
 		long stop = System.currentTimeMillis();
 
-		System.out.println("States/leaves searched: " + statesSearched + " / " + leafNodesSearched + " Cache size: " + cache.size() + " Cache Hit: " + cacheHit + "\tCache Missed: " + cacheMissed);
+		System.out.println("States/leaves searched: " + statesSearched + " / " + leafNodesSearched + " Cache size: " + cache.size() + " Cache Hit: " + cacheHits + "\tCache Missed: " + cacheMisses);
 		notifyObservers(new EggplantMoveSelectionEvent(result.move, result.value, stop-start, statesSearched, leafNodesSearched, cacheHits, cacheMisses));
 		return result.move;
 	}
@@ -77,21 +78,16 @@ public class AlphaBetaGamer extends StateMachineGamer {
 
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
-		// Collections.shuffle(possibleMoves); // TODO: Remove this line
+		Collections.shuffle(possibleMoves); // TODO: Remove this line
 		for (Move move : possibleMoves) {
 			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
-			// Collections.shuffle(jointMoves); // TODO: Remove this line
+			Collections.shuffle(jointMoves); // TODO: Remove this line
 			int min = 100;
 			int newBeta = beta;
 			for (List<Move> jointMove : jointMoves) {
 				MachineState nextState = machine.getNextState(state, jointMove);
-				ValuedMove memoizedMove = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta);
+				ValuedMove memoizedMove = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, cache);
 				int value = memoizedMove.value;
-				cacheEnabled = false;
-				ValuedMove normalMove = alphaBeta(machine, nextState, role, alpha, newBeta);
-				assert (value == normalMove.value);
-				assert (normalMove.move.toString().equals(memoizedMove.move.toString()));
-				cacheEnabled = true;
 				if (value < min) {
 					min = value;
 					if (min <= alpha)
