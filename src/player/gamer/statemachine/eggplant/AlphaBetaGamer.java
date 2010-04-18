@@ -1,6 +1,5 @@
 package player.gamer.statemachine.eggplant;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -20,11 +19,10 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	private int statesSearched;
 	private int leafNodesSearched;
 	private int cacheHits, cacheMisses;
-	// NOTE: Hashcode is NOT overridden by GDLSentence - this will only check if
-	// the sentences are actually the same objects in memory
 	private EggplantConfigPanel config = new EggplantConfigPanel();
-
 	private HashMap<MachineState, CacheValue> keptCache;
+	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
+	// the sentences are actually the same objects in memory
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
@@ -46,7 +44,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 		leafNodesSearched = statesSearched = 0;
 		cacheHits = cacheMisses = 0;
 
-		ValuedMove result = alphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, cache);
+		ValuedMove result = memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, cache);
 
 		long stop = System.currentTimeMillis();
 		notifyObservers(new EggplantMoveSelectionEvent(result.move, result.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
@@ -86,16 +84,15 @@ public class AlphaBetaGamer extends StateMachineGamer {
 
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
-		Collections.shuffle(possibleMoves); // TODO: Remove this line
+//		Collections.shuffle(possibleMoves); // TODO: Remove this line
 		for (Move move : possibleMoves) {
 			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
-			Collections.shuffle(jointMoves); // TODO: Remove this line
+//			Collections.shuffle(jointMoves); // TODO: Remove this line
 			int min = 100;
 			int newBeta = beta;
 			for (List<Move> jointMove : jointMoves) {
 				MachineState nextState = machine.getNextState(state, jointMove);
-				ValuedMove memoizedMove = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, cache);
-				int value = memoizedMove.value;
+				int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, cache).value;
 				if (value < min) {
 					min = value;
 					if (min <= alpha)
