@@ -26,7 +26,6 @@ public class MinimaxGamer extends StateMachineGamer {
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// do nothing
 		cache = new HashMap<MachineState, ValuedMove>();
-		cacheHit = cacheMissed = 0;
 	}
 
 	/* Implements Minimax search, currently ignores clock */
@@ -34,7 +33,8 @@ public class MinimaxGamer extends StateMachineGamer {
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		long start = System.currentTimeMillis();
 		leafNodesSearched = statesSearched = 0;
-
+		cacheHit = cacheMissed = 0;
+		
 		ValuedMove result = minimax(getStateMachine(), getCurrentState(), getRole());
 
 		long stop = System.currentTimeMillis();

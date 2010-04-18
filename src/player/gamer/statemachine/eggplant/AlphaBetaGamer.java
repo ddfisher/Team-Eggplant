@@ -39,7 +39,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 
 		long stop = System.currentTimeMillis();
 		notifyObservers(new EggplantMoveSelectionEvent(statesSearched, leafNodesSearched, stop - start, result.value, result.move));
-		System.out.println("Cache Hit: " + cacheHit + "\tCache Missed: " + cacheMissed);
+		System.out.println("States/leaves searched: " + statesSearched + " / " + leafNodesSearched + " Cache size: " + cache.size() + " Cache Hit: " + cacheHit + "\tCache Missed: " + cacheMissed);
 		return result.move;
 	}
 
@@ -78,7 +78,13 @@ public class AlphaBetaGamer extends StateMachineGamer {
 			int newBeta = beta;
 			for (List<Move> jointMove : jointMoves) {
 				MachineState nextState = machine.getNextState(state, jointMove);
-				int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta).value;
+				ValuedMove memoizedMove = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta);
+				int value = memoizedMove.value;
+				cacheEnabled = false;
+				ValuedMove normalMove = alphaBeta(machine, nextState, role, alpha, newBeta);
+				assert (value == normalMove.value);
+				assert (normalMove.move.toString().equals(memoizedMove.move.toString()));
+				cacheEnabled = true;
 				if (value < min) {
 					min = value;
 					if (min <= alpha)
