@@ -6,18 +6,35 @@ import util.statemachine.Move;
 public final class EggplantMoveSelectionEvent extends Event
 {
 
+	private final Move selection;
+	private final int value;
+	private final long time;
 	private final int statesSearched;
 	private final int leavesSearched;
-	private final long time;
-	private final int value;
-	private final Move selection;
+	private final int cacheHits;
+	private final int cacheMisses;
 	
-	public EggplantMoveSelectionEvent(int statesSearched, int leavesSearched, long time, int value, Move selection) {
+	public EggplantMoveSelectionEvent(Move selection, int value, long time, int statesSearched, int leavesSearched, int cacheHits, int cacheMisses) {
+		super();
+		this.selection = selection;
+		this.value = value;
+		this.time = time;
 		this.statesSearched = statesSearched;
 		this.leavesSearched = leavesSearched;
-		this.time = time;
-		this.value = value;
-		this.selection = selection;
+		this.cacheHits = cacheHits;
+		this.cacheMisses = cacheMisses;
+	}
+
+	public Move getSelection() {
+		return selection;
+	}
+
+	public int getValue() {
+		return value;
+	}
+
+	public long getTime() {
+		return time;
 	}
 
 	public int getStatesSearched() {
@@ -28,16 +45,13 @@ public final class EggplantMoveSelectionEvent extends Event
 		return leavesSearched;
 	}
 
-	public long getTime() {
-		return time;
+	public int getCacheHits() {
+		return cacheHits;
 	}
 
-	public int getValue() {
-		return value;
+	public int getCacheMisses() {
+		return cacheMisses;
 	}
 
-	public Move getSelection() {
-		return selection;
-	}
-
+	
 }
