@@ -10,3 +10,17 @@ class ValuedMove{
 		this.move = move;
 	}
 }
+
+class CacheValue {
+	public ValuedMove valuedMove;
+	public int alpha;
+	public int beta;
+	
+	public CacheValue(ValuedMove valuedMove, int alpha, int beta) {
+		super();
+		this.valuedMove = valuedMove;
+		this.alpha = alpha;
+		this.beta = beta;
+	}
+	
+}
