@@ -44,12 +44,38 @@ public class MTDFGamer extends StateMachineGamer {
 		leafNodesSearched = statesSearched = 0;
 		cacheHits = cacheMisses = 0;
 
-		ValuedMove result = memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, cache);
+		ValuedMove result = mtdf(getStateMachine(), getCurrentState(), getRole(), 0, 100, cache);
 
 		long stop = System.currentTimeMillis();
 		notifyObservers(new EggplantMoveSelectionEvent(result.move, result.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
 				cacheMisses));
 		return result.move;
+	}
+	
+	private ValuedMove mtdf(
+							StateMachine machine,
+							MachineState state,
+							Role role,
+							int alpha,
+							int beta,
+							HashMap<MachineState, CacheValue> cache)
+	throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+		int upperBound = 100;
+		int lowerBound = 0;
+		ValuedMove currMove = new ValuedMove(50, null); // initial guess		
+		while (lowerBound < upperBound) {
+			int guess = currMove.value;
+			if (currMove.value == lowerBound)
+				guess++;
+			currMove = memoizedAlphaBeta(machine, state, role, guess - 1, guess, cache);
+			if (currMove.value < guess) {
+				upperBound = currMove.value;
+			}
+			else {
+				lowerBound = currMove.value;
+			}
+		}
+		return currMove;
 	}
 
 	private ValuedMove memoizedAlphaBeta(
