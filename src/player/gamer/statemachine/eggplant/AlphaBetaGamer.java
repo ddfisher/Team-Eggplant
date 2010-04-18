@@ -39,7 +39,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 
 		HashMap<MachineState, CacheValue> cache = null;
 		if (config.useCache()) {
-//			cache = new HashMap<MachineState, CacheValue>();
+			// cache = new HashMap<MachineState, CacheValue>();
 			cache = keptCache;
 		}
 
@@ -47,13 +47,8 @@ public class AlphaBetaGamer extends StateMachineGamer {
 		cacheHits = cacheMisses = 0;
 
 		ValuedMove result = alphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, cache);
-		ValuedMove noncachedResult = alphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, null);
-		if (!result.move.toString().equals(noncachedResult.move.toString()) || result.value != noncachedResult.value) {
-			System.out.println(result.move + " " + noncachedResult.move);
-		}
 
 		long stop = System.currentTimeMillis();
-		System.out.println("States/leaves searched: " + statesSearched + " / " + leafNodesSearched + " Cache size: " + cache.size() + " Cache Hit: " + cacheHits + "\tCache Missed: " + cacheMisses);
 		notifyObservers(new EggplantMoveSelectionEvent(result.move, result.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
 				cacheMisses));
 		return result.move;
@@ -68,7 +63,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 					cacheHits++;
 					return cached.valuedMove;
 				} else {
-					//Alpha-beta bounds are incompatible
+					// Alpha-beta bounds are incompatible
 //					System.out.println("Alpha: " + alpha + "\tBeta: " + beta + "\tCached Alpha: " + cached.alpha + "\tCached Beta: " + cached.beta);
 				}
 			}
