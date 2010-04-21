@@ -24,3 +24,6 @@ class CacheValue {
 	}
 	
 }
+
+@SuppressWarnings("serial")
+class TimeUpException extends Exception { }

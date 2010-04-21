@@ -1,5 +1,6 @@
 package player.gamer.statemachine.eggplant;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -21,13 +22,18 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	private int cacheHits, cacheMisses;
 	private EggplantConfigPanel config = new EggplantConfigPanel();
 	private HashMap<MachineState, CacheValue> keptCache;
+	private final long GRACE_PERIOD = 200;
 	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
 	// the sentences are actually the same objects in memory
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		// do nothing
+		// initialize cache
 		keptCache = new HashMap<MachineState, CacheValue>();
+		
+		try {
+			memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, getCache(), timeout-50);
+		} catch(TimeUpException e){}
 	}
 
 	/* Implements Minimax search, currently ignores clock */
@@ -35,16 +41,19 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		long start = System.currentTimeMillis();
 
-		HashMap<MachineState, CacheValue> cache = null;
-		if (config.useCache()) {
-			// cache = new HashMap<MachineState, CacheValue>();
-			cache = keptCache;
-		}
+		HashMap<MachineState, CacheValue> cache = getCache();
 
 		leafNodesSearched = statesSearched = 0;
 		cacheHits = cacheMisses = 0;
 
-		ValuedMove result = memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, cache);
+		ValuedMove result = null;
+		try {
+			result = memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, cache, timeout-GRACE_PERIOD);
+		} catch(TimeUpException e) {
+			List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
+			Collections.shuffle(moves);
+			result = new ValuedMove(-1, moves.get(0));
+		}
 
 		long stop = System.currentTimeMillis();
 		notifyObservers(new EggplantMoveSelectionEvent(result.move, result.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
@@ -53,7 +62,10 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	}
 
 	private ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta,
-			HashMap<MachineState, CacheValue> cache) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+			HashMap<MachineState, CacheValue> cache, long endTime) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException,
+			TimeUpException{
+		if (System.currentTimeMillis() > endTime)
+			throw new TimeUpException();
 		if (cache != null) {
 			if (cache.containsKey(state)) {
 				CacheValue cached = cache.get(state);
@@ -66,16 +78,16 @@ public class AlphaBetaGamer extends StateMachineGamer {
 				}
 			}
 			cacheMisses++;
-			ValuedMove result = alphaBeta(machine, state, role, alpha, beta, cache);
+			ValuedMove result = alphaBeta(machine, state, role, alpha, beta, cache, endTime);
 			cache.put(state, new CacheValue(result, alpha, beta));
 			return result;
 		} else {
-			return alphaBeta(machine, state, role, alpha, beta, cache);
+			return alphaBeta(machine, state, role, alpha, beta, cache, endTime);
 		}
 	}
 
-	private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, HashMap<MachineState, CacheValue> cache)
-			throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+	private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, HashMap<MachineState, CacheValue> cache, long endTime)
+			throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
 		statesSearched++;
 		if (machine.isTerminal(state)) {
 			leafNodesSearched++;
@@ -92,7 +104,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 			int newBeta = beta;
 			for (List<Move> jointMove : jointMoves) {
 				MachineState nextState = machine.getNextState(state, jointMove);
-				int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, cache).value;
+				int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, cache, endTime).value;
 				if (value < min) {
 					min = value;
 					if (min <= alpha)
@@ -131,6 +143,15 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	@Override
 	public ConfigPanel getConfigPanel() {
 		return config;
+	}
+	
+	private HashMap<MachineState, CacheValue> getCache() {
+		HashMap<MachineState, CacheValue> cache = null;
+		if (config.useCache()) {
+			// cache = new HashMap<MachineState, CacheValue>();
+			cache = keptCache;
+		}
+		return cache;
 	}
 
 }
