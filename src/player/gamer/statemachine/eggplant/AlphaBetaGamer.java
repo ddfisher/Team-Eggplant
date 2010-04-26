@@ -34,7 +34,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
     // initialize cache, evaluators
     keptCache = new HashMap<MachineState, CacheValue>();
     expansionEvaluator = new DepthLimitedExpansionEvaluator(3);
-    heuristicEvaluator = new MobilityHeuristicEvaluator();
+    heuristicEvaluator = new MonteCarloHeuristicEvaluator(10);
 
     try {
       memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, Integer.MIN_VALUE, getCache(), timeout - 50);
