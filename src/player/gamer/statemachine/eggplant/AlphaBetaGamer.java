@@ -22,14 +22,19 @@ public class AlphaBetaGamer extends StateMachineGamer {
   private int cacheHits, cacheMisses;
   private EggplantConfigPanel config = new EggplantConfigPanel();
   private HashMap<MachineState, CacheValue> keptCache;
+  private ExpansionEvaluator expansionEvaluator;
+  private HeuristicEvaluator heuristicEvaluator;
+  
   private final long GRACE_PERIOD = 200;
   // TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
   // the sentences are actually the same objects in memory
 
   @Override
   public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-    // initialize cache
+    // initialize cache, evaluators
     keptCache = new HashMap<MachineState, CacheValue>();
+    expansionEvaluator = new DepthLimitedExpansionEvaluator(3);
+    heuristicEvaluator = new MobilityHeuristicEvaluator();
 
     try {
       memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, Integer.MIN_VALUE, getCache(), timeout - 50);
@@ -93,8 +98,8 @@ public class AlphaBetaGamer extends StateMachineGamer {
       leafNodesSearched++;
       return new ValuedMove(machine.getGoal(state, role), null);
     }
-    if (!expandState(machine, state, role, alpha, beta, depth)) { // expansion should stop
-      return new ValuedMove(heuristicEvalState(machine, state, role, alpha, beta, depth), null);
+    if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion should stop
+      return new ValuedMove(heuristicEvaluator.eval(machine, state, role, alpha, beta, depth), null);
     }
 
     ValuedMove maxMove = new ValuedMove(-1, null);
@@ -128,15 +133,6 @@ public class AlphaBetaGamer extends StateMachineGamer {
     return maxMove;
   }
 
-  private boolean expandState(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth) {
-    return depth < 3;
-  }
-  
-  private int heuristicEvalState(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth) {
-    System.out.println("Heuristic: Alpha = " + alpha + " Beta = " + beta);
-    return alpha;
-  }
-  
   @Override
   public StateMachine getInitialStateMachine() {
     return new CachedProverStateMachine();
