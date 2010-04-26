@@ -32,7 +32,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
     keptCache = new HashMap<MachineState, CacheValue>();
 
     try {
-      memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, getCache(), timeout - 50);
+      memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, Integer.MIN_VALUE, getCache(), timeout - 50);
     } catch(TimeUpException e){}
   }
 
@@ -48,7 +48,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 
     ValuedMove result = null;
     try {
-      result = memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, cache, timeout - GRACE_PERIOD);
+      result = memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, 0, cache, timeout - GRACE_PERIOD);
     } catch(TimeUpException e) {
       List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
       Collections.shuffle(moves);
@@ -61,9 +61,8 @@ public class AlphaBetaGamer extends StateMachineGamer {
     return result.move;
   }
 
-  private ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta,
-      HashMap<MachineState, CacheValue> cache, long endTime) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException,
-      TimeUpException{
+  private ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, HashMap<MachineState, CacheValue> cache, long endTime)
+      throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
     if (System.currentTimeMillis() > endTime)
       throw new TimeUpException();
     if (cache != null) {
@@ -78,33 +77,37 @@ public class AlphaBetaGamer extends StateMachineGamer {
         }
       }
       cacheMisses++;
-      ValuedMove result = alphaBeta(machine, state, role, alpha, beta, cache, endTime);
-      cache.put(state, new CacheValue(result, alpha, beta));
+      ValuedMove result = alphaBeta(machine, state, role, alpha, beta, depth, cache, endTime);
+      if (result.move != null)
+        cache.put(state, new CacheValue(result, alpha, beta));
       return result;
     } else {
-      return alphaBeta(machine, state, role, alpha, beta, cache, endTime);
+      return alphaBeta(machine, state, role, alpha, beta, depth, cache, endTime);
     }
   }
 
-  private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, HashMap<MachineState, CacheValue> cache, long endTime)
+  private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, HashMap<MachineState, CacheValue> cache, long endTime)
   throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
     statesSearched++;
     if (machine.isTerminal(state)) {
       leafNodesSearched++;
       return new ValuedMove(machine.getGoal(state, role), null);
     }
+    if (!expandState(machine, state, role, alpha, beta, depth)) { // expansion should stop
+      return new ValuedMove(heuristicEvalState(machine, state, role, alpha, beta, depth), null);
+    }
 
     ValuedMove maxMove = new ValuedMove(-1, null);
     List<Move> possibleMoves = machine.getLegalMoves(state, role);
-    //		Collections.shuffle(possibleMoves); // TODO: Remove this line
+    Collections.shuffle(possibleMoves); // TODO: Remove this line
     for (Move move : possibleMoves) {
       List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
-      //			Collections.shuffle(jointMoves); // TODO: Remove this line
+      Collections.shuffle(jointMoves); // TODO: Remove this line
       int min = 100;
       int newBeta = beta;
       for (List<Move> jointMove : jointMoves) {
         MachineState nextState = machine.getNextState(state, jointMove);
-        int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, cache, endTime).value;
+        int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, depth + 1, cache, endTime).value;
         if (value < min) {
           min = value;
           if (min <= alpha)
@@ -125,6 +128,15 @@ public class AlphaBetaGamer extends StateMachineGamer {
     return maxMove;
   }
 
+  private boolean expandState(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth) {
+    return depth < 3;
+  }
+  
+  private int heuristicEvalState(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth) {
+    System.out.println("Heuristic: Alpha = " + alpha + " Beta = " + beta);
+    return alpha;
+  }
+  
   @Override
   public StateMachine getInitialStateMachine() {
     return new CachedProverStateMachine();
@@ -148,8 +160,8 @@ public class AlphaBetaGamer extends StateMachineGamer {
   private HashMap<MachineState, CacheValue> getCache() {
     HashMap<MachineState, CacheValue> cache = null;
     if (config.useCache()) {
-      // cache = new HashMap<MachineState, CacheValue>();
-      cache = keptCache;
+      cache = new HashMap<MachineState, CacheValue>();
+      //cache = keptCache;
     }
     return cache;
   }
