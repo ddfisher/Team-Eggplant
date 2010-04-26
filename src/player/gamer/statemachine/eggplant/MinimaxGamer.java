@@ -82,10 +82,10 @@ public class MinimaxGamer extends StateMachineGamer {
 
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
-//		Collections.shuffle(possibleMoves); // TODO: Remove this line
+		Collections.shuffle(possibleMoves); // TODO: Remove this line
 		for (Move move : possibleMoves) {
 			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
-//			Collections.shuffle(jointMoves); // TODO: Remove this line
+			Collections.shuffle(jointMoves); // TODO: Remove this line
 			int min = 100;
 			for (List<Move> jointMove : jointMoves) {
 				MachineState nextState = machine.getNextState(state, jointMove);
