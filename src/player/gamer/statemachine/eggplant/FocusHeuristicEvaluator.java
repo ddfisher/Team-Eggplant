@@ -4,7 +4,8 @@ import util.statemachine.MachineState;
 import util.statemachine.Role;
 import util.statemachine.StateMachine;
 
-public class FocusHeuristicEvaluator implements HeuristicEvaluator {
+public class FocusHeuristicEvaluator implements HeuristicEvaluator, MobilityTracker 
+{
 	
 	private MobilityHeuristicEvaluator mob;
 	
@@ -19,6 +20,8 @@ public class FocusHeuristicEvaluator implements HeuristicEvaluator {
 	public void updateAverage(int factor) {
 		mob.updateAverage(factor);
 	}
+	
+	public int depthLimit() { return mob.depthLimit(); }
 	
 	public void setDepthLimit(int depthLimit) {
 		mob.setDepthLimit(depthLimit);

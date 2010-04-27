@@ -9,7 +9,7 @@ import util.statemachine.exceptions.TransitionDefinitionException;
 
 import java.util.*;
 
-public class MobilityHeuristicEvaluator implements HeuristicEvaluator {
+public class MobilityHeuristicEvaluator implements HeuristicEvaluator, MobilityTracker {
 
 	private double averageBranching;
 	private int samples = 0;
@@ -95,6 +95,8 @@ public class MobilityHeuristicEvaluator implements HeuristicEvaluator {
 		averageBranching = samples / (double)(samples + 1) * averageBranching + factor / (double)(samples + 1);
 		samples++;
 	}
+	
+	public int depthLimit() { return depthLimit; }
 	
 	public void setDepthLimit(int depthLimit) {
 		if (depthLimit > 0) this.depthLimit = depthLimit;
