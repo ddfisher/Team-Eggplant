@@ -32,7 +32,6 @@ public class MTDFGamer extends AlphaBetaGamer {
     ValuedMove result = iterativeDeepening(getStateMachine(), getCurrentState(), getRole(), 0, 100, timeout - GRACE_PERIOD);
 
     long stop = System.currentTimeMillis();
-    System.out.println(statesSearched);
     notifyObservers(new EggplantMoveSelectionEvent(result.move, result.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
         cacheMisses));
     return result.move;
@@ -45,10 +44,8 @@ public class MTDFGamer extends AlphaBetaGamer {
       for (int depth = 1; ; depth++) {
         expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
         //ValuedMove move = mtdf(machine, state, role, bestMove.value == -1 ? 50 : bestMove.value, 0, getCache(), endTime);
-        ValuedMove move = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime);
-        if (move.value > bestMove.value)
-          bestMove = move;
-        System.out.println("After depth " + depth + "; best = " + bestMove + " " + statesSearched);
+        bestMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime);
+        //System.out.println("After depth " + depth + "; best = " + bestMove + " " + statesSearched);
       }
     }
     catch (TimeUpException ex) {

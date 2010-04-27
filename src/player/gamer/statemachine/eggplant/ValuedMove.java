@@ -17,7 +17,7 @@ class ValuedMove{
 	
 	@Override
 	public String toString() {
-	  return this.move.toString() + " @ " + this.value;
+	  return this.move + " @ " + this.value;
 	}
 }
 
@@ -35,7 +35,7 @@ class CacheValue {
 	
 	@Override
     public String toString() {
-      return this.valuedMove.toString() + " : (" + this.alpha + ", " + this.beta + ")";
+      return this.valuedMove + " : (" + this.alpha + ", " + this.beta + ")";
     }
 }
 

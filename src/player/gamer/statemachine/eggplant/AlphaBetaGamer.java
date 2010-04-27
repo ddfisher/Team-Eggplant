@@ -46,7 +46,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
   public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
     long start = System.currentTimeMillis();
 
-    HashMap<MachineState, CacheValue> cache = getCache();
+    HashMap<MachineState, CacheValue> cache = new HashMap<MachineState, CacheValue>();
 
     leafNodesSearched = statesSearched = 0;
     cacheHits = cacheMisses = 0;
@@ -74,10 +74,10 @@ public class AlphaBetaGamer extends StateMachineGamer {
       }
     
       List<Move> possibleMoves = machine.getLegalMoves(state, role);
-      Collections.shuffle(possibleMoves); // TODO: Remove this line
+//      Collections.shuffle(possibleMoves); // TODO: Remove this line
       for (Move move : possibleMoves) {
         List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
-        Collections.shuffle(jointMoves); // TODO: Remove this line
+//        Collections.shuffle(jointMoves); // TODO: Remove this line
         int min = 100;
         int newBeta = beta;
         for (List<Move> jointMove : jointMoves) {
