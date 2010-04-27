@@ -38,12 +38,10 @@ public class MobilityHeuristicEvaluator implements HeuristicEvaluator {
 	 * evaluator function will produce a result of 73.
 	 */
 	private int judgeMobility(double mobility) {
-		//System.out.println("avg br " + averageBranching + ", mob " + mobility + ", samples" + samples);
-		//System.out.println("result " + 1 / (1 + Math.exp(-averageBranching/4 * (mobility-averageBranching))) * 100);
-		int res = (int) Math.round(
-				(1 / (double)(1 + Math.exp(-(averageBranching / 4) * (mobility - averageBranching)))) * 100);
-		//System.out.println(res);
-		return res;
+		//System.out.println("avg br " + averageBranching + ", samples " + samples + ", mob " + mobility);
+		//System.out.println("result " + 1 / (1 + Math.exp(-1.0/(averageBranching/4) * (mobility-averageBranching))) * 100);
+		return (int) Math.round((1 / (double)(1 + Math.exp(-1.0/(averageBranching / 4) * 
+				(mobility - averageBranching)))) * 100);
 	}
 	
 	private int evalNStep(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth) 
@@ -55,7 +53,6 @@ public class MobilityHeuristicEvaluator implements HeuristicEvaluator {
 	
 	private int evalOneStep(StateMachine machine, MachineState state, Role role, int alpha, int beta) 
 	throws MoveDefinitionException, TransitionDefinitionException {
-		System.out.println("Hey");
 		return evalNStep(machine, state, role, alpha, beta, 0);
 	}
 	
@@ -65,8 +62,8 @@ public class MobilityHeuristicEvaluator implements HeuristicEvaluator {
 	private BranchingData getBranchingData(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int depth) throws MoveDefinitionException, TransitionDefinitionException {
 		if (depth == 0) {
-			List<List<Move>> joints = machine.getLegalJointMoves(state);
-			return new BranchingData(1, joints.size());
+			List<Move> moves = machine.getLegalMoves(state, role);
+			return new BranchingData(1, moves.size());
 		}
 		List<List<Move>> joints = machine.getLegalJointMoves(state);
 		int samples = 0, total = 0;
