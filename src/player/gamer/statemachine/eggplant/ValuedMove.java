@@ -14,6 +14,11 @@ class ValuedMove{
 	public ValuedMove(int value, Move move) {
 		this(value, move, true);
 	}
+	
+	@Override
+	public String toString() {
+	  return this.move.toString() + " @ " + this.value;
+	}
 }
 
 class CacheValue {
@@ -28,6 +33,10 @@ class CacheValue {
 		this.beta = beta;
 	}
 	
+	@Override
+    public String toString() {
+      return this.valuedMove.toString() + " : (" + this.alpha + ", " + this.beta + ")";
+    }
 }
 
 @SuppressWarnings("serial")
