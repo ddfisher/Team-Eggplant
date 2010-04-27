@@ -74,6 +74,10 @@ public class AlphaBetaGamer extends StateMachineGamer {
 
     List<Move> possibleMoves = machine.getLegalMoves(state, role);
 //      Collections.shuffle(possibleMoves); // TODO: Remove this line
+    int pmsize = possibleMoves.size();
+    if (heuristicEvaluator instanceof MobilityHeuristicEvaluator && pmsize > 1) {
+    	((MobilityHeuristicEvaluator)heuristicEvaluator).updateAverage(pmsize);
+    }
     for (Move move : possibleMoves) {
       List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
 //        Collections.shuffle(jointMoves); // TODO: Remove this line
@@ -154,7 +158,10 @@ public class AlphaBetaGamer extends StateMachineGamer {
     ValuedMove maxMove = new ValuedMove(-1, null);
     List<Move> possibleMoves = machine.getLegalMoves(state, role);
 //    Collections.shuffle(possibleMoves); // TODO: Remove this line
-
+    int pmsize = possibleMoves.size();
+    if (heuristicEvaluator instanceof MobilityHeuristicEvaluator && pmsize > 1) {
+    	((MobilityHeuristicEvaluator)heuristicEvaluator).updateAverage(pmsize);
+    }
     if (debug)
       System.out.println("At depth " + depth + "; searched " + statesSearched + "; moves: " + possibleMoves);
     for (Move move : possibleMoves) {

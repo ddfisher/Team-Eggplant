@@ -34,12 +34,16 @@ public class MobilityHeuristicEvaluator implements HeuristicEvaluator {
 	}
 	
 	/* Uses a scaled logistic function to judge mobility against the average on a scale of 0 to 100.
-	 * With an advantage of (averageBranching / 5) moves between the current and average mobility, the
+	 * With an advantage of (averageBranching / 4) moves between the current and average mobility, the
 	 * evaluator function will produce a result of 73.
 	 */
 	private int judgeMobility(double mobility) {
-		return (int) Math.round(
-				(1 / (double)(1 + Math.exp(averageBranching / 5 * (mobility - averageBranching)))) * 100);
+		//System.out.println("avg br " + averageBranching + ", mob " + mobility + ", samples" + samples);
+		//System.out.println("result " + 1 / (1 + Math.exp(-averageBranching/4 * (mobility-averageBranching))) * 100);
+		int res = (int) Math.round(
+				(1 / (double)(1 + Math.exp(-(averageBranching / 4) * (mobility - averageBranching)))) * 100);
+		//System.out.println(res);
+		return res;
 	}
 	
 	private int evalNStep(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth) 
@@ -51,6 +55,7 @@ public class MobilityHeuristicEvaluator implements HeuristicEvaluator {
 	
 	private int evalOneStep(StateMachine machine, MachineState state, Role role, int alpha, int beta) 
 	throws MoveDefinitionException, TransitionDefinitionException {
+		System.out.println("Hey");
 		return evalNStep(machine, state, role, alpha, beta, 0);
 	}
 	
@@ -90,7 +95,7 @@ public class MobilityHeuristicEvaluator implements HeuristicEvaluator {
 	}
 	
 	public void updateAverage(int factor) {
-		averageBranching = samples / (double)(samples + 1) * factor / (double)(samples + 1);
+		averageBranching = samples / (double)(samples + 1) * averageBranching + factor / (double)(samples + 1);
 		samples++;
 	}
 	
