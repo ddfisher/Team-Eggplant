@@ -14,7 +14,7 @@ public class DepthLimitedExpansionEvaluator implements ExpansionEvaluator {
   
   @Override
   public boolean eval(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth) {
-    return depth < limit;
+    return depth <= limit;
   }
   
 }

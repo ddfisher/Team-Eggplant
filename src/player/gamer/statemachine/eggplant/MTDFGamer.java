@@ -17,7 +17,6 @@ import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
 
 public class MTDFGamer extends AlphaBetaGamer {
-  private EggplantConfigPanel config = new EggplantConfigPanel();
   private final long GRACE_PERIOD = 200;
   // TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
   // the sentences are actually the same objects in memory
@@ -29,38 +28,38 @@ public class MTDFGamer extends AlphaBetaGamer {
     leafNodesSearched = statesSearched = 0;
     cacheHits = cacheMisses = 0;
 
-    ValuedMove result = iterativeDeepening(getStateMachine(), getCurrentState(), getRole(), 0, 100, timeout - GRACE_PERIOD);
-
-    long stop = System.currentTimeMillis();
-    notifyObservers(new EggplantMoveSelectionEvent(result.move, result.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
-        cacheMisses));
-    return result.move;
-  }
-  
-  protected ValuedMove iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, long endTime)
-  throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
-    ValuedMove bestMove = new ValuedMove(-1, machine.getRandomMove(state, role));
+    bestWorkingMove = new ValuedMove(-1, getStateMachine().getRandomMove(getCurrentState(), getRole()));
+    maxDepth = 1;
+    
     try {
-      for (int depth = 1; ; depth++) {
-        expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
-        //ValuedMove move = mtdf(machine, state, role, bestMove.value == -1 ? 50 : bestMove.value, 0, getCache(), endTime);
-        bestMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime);
-        //System.out.println("After depth " + depth + "; best = " + bestMove + " " + statesSearched);
-      }
+      iterativeDeepening(getStateMachine(), getCurrentState(), getRole(), 0, 100, timeout - GRACE_PERIOD);
     }
     catch (TimeUpException ex) {
     }
-    return bestMove;
+    
+    long stop = System.currentTimeMillis();
+    notifyObservers(new EggplantMoveSelectionEvent(bestWorkingMove.move, bestWorkingMove.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
+        cacheMisses));
+    return bestWorkingMove.move;
+  }
+  
+  protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, long endTime)
+  throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
+    // be courteous: if we only have one move and don't use data from previous searches, bunt
+    if (machine.getLegalMoves(state, role).size() == 1) { 
+      bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
+      return;
+    }
+    for (int depth = 1; depth <= maxDepth; depth++) {
+      expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
+      int alreadySearched = statesSearched;
+      //bestMove = mtdf(machine, state, role, bestMove.value == -1 ? 50 : bestMove.value, 0, new HashMap<MachineState, CacheValue>()    , endTime);
+      bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, false);
+      System.out.println("After depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched) + " new states");
+    }
   }
 
-  private ValuedMove mtdf(
-      StateMachine machine,
-      MachineState state,
-      Role role,
-      int initialGuess,
-      int depth, 
-      HashMap<MachineState, CacheValue> cache,
-      long endTime)
+  private ValuedMove mtdf(StateMachine machine, MachineState state, Role role, int initialGuess, int depth, HashMap<MachineState, CacheValue> cache, long endTime)
   throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
     ValuedMove currMove = new ValuedMove(initialGuess, null); // initial guess
     int lowerBound = 0;
@@ -69,7 +68,7 @@ public class MTDFGamer extends AlphaBetaGamer {
       int guess = currMove.value;
       if (currMove.value == lowerBound)
         guess++;
-      currMove = memoizedAlphaBeta(machine, state, role, guess - 1, guess, depth, cache, endTime);
+      currMove = memoizedAlphaBeta(machine, state, role, guess - 1, guess, depth, cache, endTime, false);
       if (currMove.value < guess) {
         upperBound = currMove.value;
       }
@@ -189,32 +188,10 @@ public class MTDFGamer extends AlphaBetaGamer {
     return maxMove;
   }
    */
-  @Override
-  public StateMachine getInitialStateMachine() {
-    return new CachedProverStateMachine();
-  }
 
   @Override
   public String getName() {
     return "MTD(f)";
   }
 
-  @Override
-  public DetailPanel getDetailPanel() {
-    return new EggplantDetailPanel();
-  }
-
-  @Override
-  public ConfigPanel getConfigPanel() {
-    return config;
-  }
-
-  private HashMap<MachineState, CacheValue> getCache() {
-    HashMap<MachineState, CacheValue> cache = null;
-    if (config.useCache()) {
-      cache = new HashMap<MachineState, CacheValue>();
-      // cache = keptCache;
-    }
-    return cache;
-  }
 }
