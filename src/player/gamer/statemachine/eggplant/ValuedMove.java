@@ -5,9 +5,14 @@ import util.statemachine.Move;
 class ValuedMove{
 	public int value;
 	public Move move;
-	public ValuedMove(int value, Move move){
+	public boolean terminal;
+	public ValuedMove(int value, Move move, boolean terminal){
 		this.value=value;
 		this.move = move;
+		this.terminal = terminal;
+	}
+	public ValuedMove(int value, Move move) {
+		this(value, move, true);
 	}
 }
 
