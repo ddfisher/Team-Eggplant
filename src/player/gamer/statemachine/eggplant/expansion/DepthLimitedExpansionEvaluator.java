@@ -1,4 +1,4 @@
-package player.gamer.statemachine.eggplant;
+package player.gamer.statemachine.eggplant.expansion;
 
 import util.statemachine.MachineState;
 import util.statemachine.Role;

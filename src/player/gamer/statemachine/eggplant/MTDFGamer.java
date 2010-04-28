@@ -1,10 +1,15 @@
 package player.gamer.statemachine.eggplant;
 
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 
-import player.gamer.statemachine.StateMachineGamer;
+import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
+import player.gamer.statemachine.eggplant.heuristic.Heuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityType;
+import player.gamer.statemachine.eggplant.misc.CacheValue;
+import player.gamer.statemachine.eggplant.misc.TimeUpException;
+import player.gamer.statemachine.eggplant.misc.ValuedMove;
+import player.gamer.statemachine.eggplant.ui.EggplantMoveSelectionEvent;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -12,9 +17,6 @@ import util.statemachine.StateMachine;
 import util.statemachine.exceptions.GoalDefinitionException;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
-import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
-import apps.player.config.ConfigPanel;
-import apps.player.detail.DetailPanel;
 
 public class MTDFGamer extends AlphaBetaGamer {
   private final long GRACE_PERIOD = 200;
@@ -52,8 +54,7 @@ public class MTDFGamer extends AlphaBetaGamer {
     }
     for (int depth = 1; depth <= maxDepth; depth++) {
       expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
-      heuristicEvaluators = new HeuristicEvaluator[numPlayers];
-      for (int i = 0; i < numPlayers; i++) heuristicEvaluators[i] = new MobilityHeuristicEvaluator();
+      heuristic = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers);
       int alreadySearched = statesSearched;
       //bestMove = mtdf(machine, state, role, bestMove.value == -1 ? 50 : bestMove.value, 0, new HashMap<MachineState, CacheValue>()    , endTime);
       bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, bestWorkingMove, false);

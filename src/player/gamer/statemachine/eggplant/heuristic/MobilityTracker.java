@@ -1,4 +1,4 @@
-package player.gamer.statemachine.eggplant;
+package player.gamer.statemachine.eggplant.heuristic;
 
 public interface MobilityTracker {
 

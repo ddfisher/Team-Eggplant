@@ -4,6 +4,17 @@ import java.util.HashMap;
 import java.util.List;
 
 import player.gamer.statemachine.StateMachineGamer;
+import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
+import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
+import player.gamer.statemachine.eggplant.heuristic.Heuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityType;
+import player.gamer.statemachine.eggplant.misc.CacheValue;
+import player.gamer.statemachine.eggplant.misc.TimeUpException;
+import player.gamer.statemachine.eggplant.misc.ValuedMove;
+import player.gamer.statemachine.eggplant.ui.EggplantConfigPanel;
+import player.gamer.statemachine.eggplant.ui.EggplantDetailPanel;
+import player.gamer.statemachine.eggplant.ui.EggplantMoveSelectionEvent;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -20,11 +31,12 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected int leafNodesSearched;
 	protected int cacheHits, cacheMisses;
 	protected EggplantConfigPanel config = new EggplantConfigPanel();
-	private HashMap<MachineState, CacheValue> keptCache;
 	protected ExpansionEvaluator expansionEvaluator;
-	protected HeuristicEvaluator heuristicEvaluator;
+	protected Heuristic heuristic;
 	protected ValuedMove bestWorkingMove;
 	protected int maxDepth;
+	protected int numPlayers;
+	protected int absDepth;
 
 	private final long GRACE_PERIOD = 200;
 
@@ -34,59 +46,54 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// initialize cache, evaluators
-		keptCache = new HashMap<MachineState, CacheValue>();
+		absDepth = -1;
+		StateMachine machine = getStateMachine();
+		numPlayers = machine.getRoles().size();
 		expansionEvaluator = new DepthLimitedExpansionEvaluator(10);
-		heuristicEvaluator = new MobilityHeuristicEvaluator();
-
-		// try {
-		// memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0,
-		// 100, Integer.MIN_VALUE, getCache(), timeout - 50, false);
-		// } catch(TimeUpException e){}
 	}
-
-	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
-	// the sentences are actually the same objects in memory
 
 	@Override
-	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		long start = System.currentTimeMillis();
+	  public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	    long start = System.currentTimeMillis();
+	
+	    leafNodesSearched = statesSearched = 0;
+	    cacheHits = cacheMisses = 0;
+	    
+	    absDepth++;
+	
+	    bestWorkingMove = new ValuedMove(-1, getStateMachine().getRandomMove(getCurrentState(), getRole()));
+	    maxDepth = 1;
+	    
+	    try {
+	      iterativeDeepening(getStateMachine(), getCurrentState(), getRole(), 0, 100, timeout - GRACE_PERIOD);
+	    }
+	    catch (TimeUpException ex) {
+	    }
+	    
+	    long stop = System.currentTimeMillis();
+	    notifyObservers(new EggplantMoveSelectionEvent(bestWorkingMove.move, bestWorkingMove.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
+	        cacheMisses));
+	    return bestWorkingMove.move;
+	  }
 
-		leafNodesSearched = statesSearched = 0;
-		cacheHits = cacheMisses = 0;
+	protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, long endTime)
+	  throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
+	    // be courteous: if we only have one move and don't use data from previous searches, bunt
+	    if (machine.getLegalMoves(state, role).size() == 1) { 
+	      bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
+	      return;
+	    }
+	    for (int depth = 1; depth <= maxDepth; depth++) {
+	      expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
+	      heuristic = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers);
+	      int alreadySearched = statesSearched;
+	      //bestMove = mtdf(machine, state, role, bestMove.value == -1 ? 50 : bestMove.value, 0, new HashMap<MachineState, CacheValue>()    , endTime);
+	      bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, bestWorkingMove, false);
+	      System.out.println("After depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched) + " new states");
+	    }
+	  }
 
-		bestWorkingMove = new ValuedMove(-1, getStateMachine().getRandomMove(getCurrentState(), getRole()));
-		maxDepth = 1;
-
-		try {
-			iterativeDeepening(getStateMachine(), getCurrentState(), getRole(), 0, 100, timeout - GRACE_PERIOD);
-		} catch (TimeUpException ex) {
-		}
-
-		long stop = System.currentTimeMillis();
-		notifyObservers(new EggplantMoveSelectionEvent(bestWorkingMove.move, bestWorkingMove.value, stop - start, statesSearched, leafNodesSearched,
-				cacheHits, cacheMisses));
-		return bestWorkingMove.move;
-	}
-
-	private void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, long endTime)
-			throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
-		// be courteous: if we only have one move and don't use data from
-		// previous searches, bunt
-		// TODO: Remove this once we care about the PV
-		if (machine.getLegalMoves(state, role).size() == 1) {
-			bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
-			return;
-		}
-		for (int depth = 1; depth <= maxDepth; depth++) {
-			expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
-			int alreadySearched = statesSearched;
-			bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, bestWorkingMove, false);
-			System.out.println("After depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched)
-					+ " new states");
-		}
-	}
-
-	private ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth,
+	protected ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth,
 			HashMap<MachineState, CacheValue> cache, long endTime, ValuedMove primary, boolean debug) throws MoveDefinitionException, TransitionDefinitionException,
 			GoalDefinitionException, TimeUpException {
 		if (System.currentTimeMillis() > endTime)
@@ -119,6 +126,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		}
 	}
 
+
+
 	private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth,
 			HashMap<MachineState, CacheValue> cache, long endTime, ValuedMove primary, boolean debug) throws MoveDefinitionException, TransitionDefinitionException,
 			GoalDefinitionException, TimeUpException {
@@ -139,24 +148,22 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 																					// stop
 			if (debug)
 				System.out.println("Stopping expanding at depth " + depth);
-			return new ValuedMove(heuristicEvaluator.eval(machine, state, role, alpha, beta, depth), null);
+			return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, absDepth), null);
 		}
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
 		// Collections.shuffle(possibleMoves); // TODO: Remove this line
-		int pmsize = possibleMoves.size();
-		if (heuristicEvaluator instanceof MobilityTracker && pmsize > 1) {
-			((MobilityTracker) heuristicEvaluator).updateAverage(pmsize);
-		}
+		heuristic.update(machine, state, role, alpha, beta, depth, absDepth);
 		if (debug)
 			System.out.println("At depth " + depth + "; searched " + statesSearched + "; moves: " + possibleMoves);
-		
-		//search best move first
+
+		// search best move first
 		if (primary != null) {
-			if (possibleMoves.remove(primary.move)){
+			if (possibleMoves.remove(primary.move)) {
 				possibleMoves.add(0, primary.move);
 			}
 		}
+
 		for (Move move : possibleMoves) {
 			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
 			int min = 100;
@@ -185,6 +192,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 
 	@Override
+	  public String getName() {
+	    return "EGGPLANT";
+	  }
+
+	@Override
 	public StateMachine getInitialStateMachine() {
 		return new CachedProverStateMachine();
 	}
@@ -197,23 +209,6 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	@Override
 	public ConfigPanel getConfigPanel() {
 		return config;
-	}
-
-	private HashMap<MachineState, CacheValue> getCache() {
-		HashMap<MachineState, CacheValue> cache = null;
-		if (config.useCache()) {
-			cache = new HashMap<MachineState, CacheValue>();
-			// cache = keptCache;
-		}
-		return cache;
-	}
-
-	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
-	// the sentences are actually the same objects in memory
-
-	@Override
-	public String getName() {
-		return "EGGPLANT";
 	}
 
 }
