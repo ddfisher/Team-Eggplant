@@ -52,7 +52,8 @@ public class MTDFGamer extends AlphaBetaGamer {
     }
     for (int depth = 1; depth <= maxDepth; depth++) {
       expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
-      heuristicEvaluator = new MobilityHeuristicEvaluator();
+      heuristicEvaluators = new HeuristicEvaluator[numPlayers];
+      for (int i = 0; i < numPlayers; i++) heuristicEvaluators[i] = new MobilityHeuristicEvaluator();
       int alreadySearched = statesSearched;
       //bestMove = mtdf(machine, state, role, bestMove.value == -1 ? 50 : bestMove.value, 0, new HashMap<MachineState, CacheValue>()    , endTime);
       bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, false);
