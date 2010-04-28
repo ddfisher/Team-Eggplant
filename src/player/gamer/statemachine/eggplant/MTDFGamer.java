@@ -56,7 +56,7 @@ public class MTDFGamer extends AlphaBetaGamer {
       for (int i = 0; i < numPlayers; i++) heuristicEvaluators[i] = new MobilityHeuristicEvaluator();
       int alreadySearched = statesSearched;
       //bestMove = mtdf(machine, state, role, bestMove.value == -1 ? 50 : bestMove.value, 0, new HashMap<MachineState, CacheValue>()    , endTime);
-      bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, false);
+      bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, bestWorkingMove, false);
       System.out.println("After depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched) + " new states");
     }
   }
@@ -70,7 +70,7 @@ public class MTDFGamer extends AlphaBetaGamer {
       int guess = currMove.value;
       if (currMove.value == lowerBound)
         guess++;
-      currMove = memoizedAlphaBeta(machine, state, role, guess - 1, guess, depth, cache, endTime, false);
+      currMove = memoizedAlphaBeta(machine, state, role, guess - 1, guess, depth, cache, endTime, bestWorkingMove, false);
       if (currMove.value < guess) {
         upperBound = currMove.value;
       }
