@@ -11,7 +11,7 @@ import java.util.*;
 
 public class MobilityHeuristicEvaluator implements HeuristicEvaluator, MobilityTracker {
 
-	private double averageBranching;
+	private long total = 0;
 	private int samples = 0;
 	private int depthLimit = 1;
 	private final MobilityType type;
@@ -38,9 +38,10 @@ public class MobilityHeuristicEvaluator implements HeuristicEvaluator, MobilityT
 	 * evaluator function will produce a result of 73.
 	 */
 	private int judgeMobility(double mobility) {
+		double averageBranching  = (double)total / samples;
 		//System.out.println("avg br " + averageBranching + ", samples " + samples + ", mob " + mobility);
-		//System.out.println("result " + 1 / (1 + Math.exp(-1.0/(averageBranching/4) * (mobility-averageBranching))) * 100);
-		return (int) Math.round((1 / (double)(1 + Math.exp(-1.0/(averageBranching / 4) * 
+		//System.out.println("result " + 1 / (1 + Math.exp(-1.0/(averageBranching/3) * (mobility-averageBranching))) * 100);
+		return (int) Math.round((1 / (double)(1 + Math.exp(-1.0/(averageBranching / 3) * 
 				(mobility - averageBranching)))) * 100);
 	}
 	
@@ -92,7 +93,7 @@ public class MobilityHeuristicEvaluator implements HeuristicEvaluator, MobilityT
 	}
 	
 	public void updateAverage(int factor) {
-		averageBranching = samples / (double)(samples + 1) * averageBranching + factor / (double)(samples + 1);
+		total += factor;
 		samples++;
 	}
 	

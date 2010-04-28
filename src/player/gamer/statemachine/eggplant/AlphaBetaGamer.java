@@ -1,6 +1,6 @@
 package player.gamer.statemachine.eggplant;
 
-import java.util.Collections;
+import java.util.*;
 import java.util.HashMap;
 import java.util.List;
 
@@ -23,9 +23,11 @@ public class AlphaBetaGamer extends StateMachineGamer {
   protected EggplantConfigPanel config = new EggplantConfigPanel();
   private HashMap<MachineState, CacheValue> keptCache;
   protected ExpansionEvaluator expansionEvaluator;
-  protected HeuristicEvaluator heuristicEvaluator;
+  protected HeuristicEvaluator[] heuristicEvaluators;
   protected ValuedMove bestWorkingMove;
   protected int maxDepth;
+  protected int numPlayers;
+  protected int absDepth;
   
   private final long GRACE_PERIOD = 200;
   // TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
@@ -34,13 +36,17 @@ public class AlphaBetaGamer extends StateMachineGamer {
   @Override
   public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
     // initialize cache, evaluators
+	absDepth = 0;
+	StateMachine machine = getStateMachine();
+	numPlayers = machine.getRoles().size();
     keptCache = new HashMap<MachineState, CacheValue>();
     expansionEvaluator = new DepthLimitedExpansionEvaluator(10);
-    heuristicEvaluator = new MobilityHeuristicEvaluator();
+    heuristicEvaluators = new HeuristicEvaluator[numPlayers];
+    for (int i = 0; i < numPlayers; i++) heuristicEvaluators[i] = new MobilityHeuristicEvaluator();
 
-    try {
-      memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0, 100, Integer.MIN_VALUE, getCache(), timeout - 50, false);
-    } catch(TimeUpException e){}
+    /* try {
+      memoizedAlphaBeta(machine, getCurrentState(), getRole(), 0, 100, Integer.MIN_VALUE, getCache(), timeout - 50, false);
+    } catch(TimeUpException e){} */
   }
 
   /* Implements Minimax search, currently ignores clock */
@@ -65,19 +71,18 @@ public class AlphaBetaGamer extends StateMachineGamer {
     long stop = System.currentTimeMillis();
     notifyObservers(new EggplantMoveSelectionEvent(bestWorkingMove.move, bestWorkingMove.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
         cacheMisses));
+    absDepth++;
     return bestWorkingMove.move;
   }
   
   protected void getBestMove(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, HashMap<MachineState, CacheValue> cache, long endTime)
   throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
     statesSearched++;
-
     List<Move> possibleMoves = machine.getLegalMoves(state, role);
 //      Collections.shuffle(possibleMoves); // TODO: Remove this line
     int pmsize = possibleMoves.size();
-    if (heuristicEvaluator instanceof MobilityTracker && pmsize > 1) {
-    	((MobilityTracker)heuristicEvaluator).updateAverage(pmsize);
-    }
+    HeuristicEvaluator cEval = heuristicEvaluators[getHeuristicIndex(depth)];
+    if (cEval instanceof MobilityTracker) ((MobilityTracker)cEval).updateAverage(pmsize);
     for (Move move : possibleMoves) {
       List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
 //        Collections.shuffle(jointMoves); // TODO: Remove this line
@@ -135,6 +140,12 @@ public class AlphaBetaGamer extends StateMachineGamer {
       return alphaBeta(machine, state, role, alpha, beta, depth, cache, endTime, debug);
     }
   }
+  
+  private int getHeuristicIndex(long depth) {
+	  //System.out.println("index: " + (absDepth + depth) % numPlayers);
+	  //System.out.println("absDepth: " + absDepth + ", depth " + depth + ", numPlayers: " + numPlayers);
+	  return (int)((absDepth + depth) % numPlayers);
+  }
 
   private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, HashMap<MachineState, CacheValue> cache, long endTime, boolean debug)
   throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
@@ -153,15 +164,14 @@ public class AlphaBetaGamer extends StateMachineGamer {
     if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion should stop
       if (debug)
         System.out.println("Stopping expanding at depth " + depth);
-      return new ValuedMove(heuristicEvaluator.eval(machine, state, role, alpha, beta, depth), null);
+      return new ValuedMove(heuristicEvaluators[getHeuristicIndex(depth)].eval(machine, state, role, alpha, beta, depth), null);
     }
     ValuedMove maxMove = new ValuedMove(-1, null);
     List<Move> possibleMoves = machine.getLegalMoves(state, role);
 //    Collections.shuffle(possibleMoves); // TODO: Remove this line
     int pmsize = possibleMoves.size();
-    if (heuristicEvaluator instanceof MobilityTracker && pmsize > 1) {
-    	((MobilityTracker)heuristicEvaluator).updateAverage(pmsize);
-    }
+    HeuristicEvaluator cEval = heuristicEvaluators[getHeuristicIndex(depth)];
+    if (cEval instanceof MobilityTracker) ((MobilityTracker)cEval).updateAverage(pmsize);
     if (debug)
       System.out.println("At depth " + depth + "; searched " + statesSearched + "; moves: " + possibleMoves);
     for (Move move : possibleMoves) {
