@@ -1,6 +1,5 @@
 package player.gamer.statemachine.eggplant;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -16,8 +15,34 @@ import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
 import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
 
-public class EggplantPrimaryGamer extends AlphaBetaGamer {
+public class EggplantPrimaryGamer extends StateMachineGamer {
+	protected int statesSearched;
+	protected int leafNodesSearched;
+	protected int cacheHits, cacheMisses;
+	protected EggplantConfigPanel config = new EggplantConfigPanel();
+	private HashMap<MachineState, CacheValue> keptCache;
+	protected ExpansionEvaluator expansionEvaluator;
+	protected HeuristicEvaluator heuristicEvaluator;
+	protected ValuedMove bestWorkingMove;
+	protected int maxDepth;
+
 	private final long GRACE_PERIOD = 200;
+
+	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
+	// the sentences are actually the same objects in memory
+
+	@Override
+	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+		// initialize cache, evaluators
+		keptCache = new HashMap<MachineState, CacheValue>();
+		expansionEvaluator = new DepthLimitedExpansionEvaluator(10);
+		heuristicEvaluator = new MobilityHeuristicEvaluator();
+
+		// try {
+		// memoizedAlphaBeta(getStateMachine(), getCurrentState(), getRole(), 0,
+		// 100, Integer.MIN_VALUE, getCache(), timeout - 50, false);
+		// } catch(TimeUpException e){}
+	}
 
 	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
 	// the sentences are actually the same objects in memory
@@ -43,10 +68,11 @@ public class EggplantPrimaryGamer extends AlphaBetaGamer {
 		return bestWorkingMove.move;
 	}
 
-	protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, long endTime)
+	private void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, long endTime)
 			throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
 		// be courteous: if we only have one move and don't use data from
 		// previous searches, bunt
+		// TODO: Remove this once we care about the PV
 		if (machine.getLegalMoves(state, role).size() == 1) {
 			bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 			return;
@@ -54,89 +80,140 @@ public class EggplantPrimaryGamer extends AlphaBetaGamer {
 		for (int depth = 1; depth <= maxDepth; depth++) {
 			expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
 			int alreadySearched = statesSearched;
-			// bestMove = mtdf(machine, state, role, bestMove.value == -1 ? 50 :
-			// bestMove.value, 0, new HashMap<MachineState, CacheValue>() ,
-			// endTime);
-			bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, false);
+			bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, bestWorkingMove, false);
 			System.out.println("After depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched)
 					+ " new states");
 		}
 	}
 
-	private ValuedMove mtdf(StateMachine machine, MachineState state, Role role, int initialGuess, int depth,
-			HashMap<MachineState, CacheValue> cache, long endTime) throws MoveDefinitionException, TransitionDefinitionException,
+	private ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth,
+			HashMap<MachineState, CacheValue> cache, long endTime, ValuedMove primary, boolean debug) throws MoveDefinitionException, TransitionDefinitionException,
 			GoalDefinitionException, TimeUpException {
-		ValuedMove currMove = new ValuedMove(initialGuess, null); // initial
-																	// guess
-		int lowerBound = 0;
-		int upperBound = 100;
-		while (lowerBound < upperBound) {
-			int guess = currMove.value;
-			if (currMove.value == lowerBound)
-				guess++;
-			currMove = memoizedAlphaBeta(machine, state, role, guess - 1, guess, depth, cache, endTime, false);
-			if (currMove.value < guess) {
-				upperBound = currMove.value;
-			} else {
-				lowerBound = currMove.value;
+		if (System.currentTimeMillis() > endTime)
+			throw new TimeUpException();
+		if (cache != null) {
+			if (cache.containsKey(state)) {
+				CacheValue cached = cache.get(state);
+				if (alpha >= cached.alpha && beta <= cached.beta) {
+					if (debug)
+						System.out.println("Cache hit: " + cached);
+					cacheHits++;
+					return cached.valuedMove;
+				} else {
+					// Alpha-beta bounds are incompatible
+					// System.out.println("Alpha: " + alpha + "\tBeta: " + beta
+					// + "\tCached Alpha: " + cached.alpha + "\tCached Beta: " +
+					// cached.beta);
+				}
 			}
+			cacheMisses++;
+			ValuedMove result = alphaBeta(machine, state, role, alpha, beta, depth, cache, endTime, primary, debug);
+			if (debug) {
+				System.out.println("AlphaBeta returned with " + result + " " + state + " " + cache);
+			}
+			if (result.move != null)
+				cache.put(state, new CacheValue(result, alpha, beta));
+			return result;
+		} else {
+			return alphaBeta(machine, state, role, alpha, beta, depth, cache, endTime, primary, debug);
 		}
-		return currMove;
 	}
 
-	/*
-	 * Alternate implementation of alpha beta private ValuedMove
-	 * memoizedAlphaBeta( StateMachine machine, MachineState state, Role role,
-	 * int alpha, int beta, HashMap<MachineState, CacheValue> cache) throws
-	 * MoveDefinitionException, TransitionDefinitionException,
-	 * GoalDefinitionException { if (cache != null) { if
-	 * (cache.containsKey(state)) { // Cache stores lower-bound in alpha,
-	 * upper-bound in beta CacheValue cached = cache.get(state); if
-	 * (cached.alpha >= beta) { cacheHits++; return cached.valuedMove; } if
-	 * (cached.beta <= alpha) { cacheHits++; return cached.valuedMove; } if
-	 * (cached.alpha > alpha) alpha = cached.alpha; if (cached.beta < beta) beta
-	 * = cached.beta; } cacheMisses++;
-	 * 
-	 * ValuedMove maxMove = alphaBeta(machine, state, role, alpha, beta, cache);
-	 * if (maxMove.value <= alpha) { if (cache.containsKey(state)) {
-	 * cache.get(state).beta = maxMove.value; } else { cache.put(state, new
-	 * CacheValue(maxMove, -1, maxMove.value)); } } else if (maxMove.value >
-	 * alpha && maxMove.value < beta) { if (cache.containsKey(state)) {
-	 * cache.get(state).alpha = cache.get(state).beta = maxMove.value; } else {
-	 * cache.put(state, new CacheValue(maxMove, maxMove.value, maxMove.value));
-	 * } } else if (maxMove.value >= beta) { if (cache.containsKey(state)) {
-	 * cache.get(state).alpha = maxMove.value; } else { cache.put(state, new
-	 * CacheValue(maxMove, maxMove.value, 101)); } } return maxMove; } else {
-	 * return alphaBeta(machine, state, role, alpha, beta, cache); } }
-	 * 
-	 * private ValuedMove alphaBeta(StateMachine machine, MachineState state,
-	 * Role role, int alpha, int beta, HashMap<MachineState, CacheValue> cache)
-	 * throws MoveDefinitionException, TransitionDefinitionException,
-	 * GoalDefinitionException { statesSearched++; if
-	 * (machine.isTerminal(state)) { leafNodesSearched++; return new
-	 * ValuedMove(machine.getGoal(state, role), null); }
-	 * 
-	 * ValuedMove maxMove = new ValuedMove(-1, null); if
-	 * (machine.isTerminal(state)) { leafNodesSearched++; maxMove = new
-	 * ValuedMove(machine.getGoal(state, role), null); } else { List<Move>
-	 * possibleMoves = machine.getLegalMoves(state, role); //
-	 * Collections.shuffle(possibleMoves); // TODO: Remove this line for (Move
-	 * move : possibleMoves) { List<List<Move>> jointMoves =
-	 * machine.getLegalJointMoves(state, role, move); //
-	 * Collections.shuffle(jointMoves); // TODO: Remove this line int min = 101;
-	 * int newBeta = beta; for (List<Move> jointMove : jointMoves) {
-	 * MachineState nextState = machine.getNextState(state, jointMove); int
-	 * value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta,
-	 * cache).value; if (value < min) { min = value; if (min <= alpha) break; if
-	 * (min < newBeta) newBeta = min; } } if (min > maxMove.value) {
-	 * maxMove.value = min; maxMove.move = move; if (maxMove.value >= beta)
-	 * break; if (maxMove.value > alpha) alpha = maxMove.value; } } } return
-	 * maxMove; }
-	 */
+	private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth,
+			HashMap<MachineState, CacheValue> cache, long endTime, ValuedMove primary, boolean debug) throws MoveDefinitionException, TransitionDefinitionException,
+			GoalDefinitionException, TimeUpException {
+		statesSearched++;
+		if (debug)
+			System.out.println("At depth " + depth + "; searched " + statesSearched + "; searching " + state);
+		if (machine.isTerminal(state)) {
+			leafNodesSearched++;
+			return new ValuedMove(machine.getGoal(state, role), null);
+		}
+
+		if (depth > maxDepth) {
+			maxDepth = depth;
+		}
+
+		if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion
+																					// should
+																					// stop
+			if (debug)
+				System.out.println("Stopping expanding at depth " + depth);
+			return new ValuedMove(heuristicEvaluator.eval(machine, state, role, alpha, beta, depth), null);
+		}
+		ValuedMove maxMove = new ValuedMove(-1, null);
+		List<Move> possibleMoves = machine.getLegalMoves(state, role);
+		// Collections.shuffle(possibleMoves); // TODO: Remove this line
+		int pmsize = possibleMoves.size();
+		if (heuristicEvaluator instanceof MobilityTracker && pmsize > 1) {
+			((MobilityTracker) heuristicEvaluator).updateAverage(pmsize);
+		}
+		if (debug)
+			System.out.println("At depth " + depth + "; searched " + statesSearched + "; moves: " + possibleMoves);
+		
+		//search best move first
+		if (primary != null) {
+			if (possibleMoves.remove(primary.move)){
+				possibleMoves.add(0, primary.move);
+			}
+		}
+		for (Move move : possibleMoves) {
+			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
+			int min = 100;
+			int newBeta = beta;
+			for (List<Move> jointMove : jointMoves) {
+				MachineState nextState = machine.getNextState(state, jointMove);
+				int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, depth + 1, cache, endTime, null, debug).value;
+				if (value < min) {
+					min = value;
+					if (min <= alpha)
+						break;
+					if (min < newBeta)
+						newBeta = min;
+				}
+			}
+			if (min > maxMove.value) {
+				maxMove.value = min;
+				maxMove.move = move;
+				if (maxMove.value >= beta)
+					break;
+				if (maxMove.value > alpha)
+					alpha = maxMove.value;
+			}
+		}
+		return maxMove;
+	}
+
+	@Override
+	public StateMachine getInitialStateMachine() {
+		return new CachedProverStateMachine();
+	}
+
+	@Override
+	public DetailPanel getDetailPanel() {
+		return new EggplantDetailPanel();
+	}
+
+	@Override
+	public ConfigPanel getConfigPanel() {
+		return config;
+	}
+
+	private HashMap<MachineState, CacheValue> getCache() {
+		HashMap<MachineState, CacheValue> cache = null;
+		if (config.useCache()) {
+			cache = new HashMap<MachineState, CacheValue>();
+			// cache = keptCache;
+		}
+		return cache;
+	}
+
+	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
+	// the sentences are actually the same objects in memory
 
 	@Override
 	public String getName() {
-		return "MTD(f)";
+		return "EGGPLANT";
 	}
 
 }
