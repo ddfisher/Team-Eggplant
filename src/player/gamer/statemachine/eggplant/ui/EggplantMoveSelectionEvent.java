@@ -1,4 +1,4 @@
-package player.gamer.statemachine.eggplant;
+package player.gamer.statemachine.eggplant.ui;
 
 import util.observer.Event;
 import util.statemachine.Move;

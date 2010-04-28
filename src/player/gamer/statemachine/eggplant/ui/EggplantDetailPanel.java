@@ -1,4 +1,4 @@
-package player.gamer.statemachine.eggplant;
+package player.gamer.statemachine.eggplant.ui;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;

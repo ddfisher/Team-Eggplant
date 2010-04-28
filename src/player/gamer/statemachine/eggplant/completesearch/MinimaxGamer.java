@@ -1,10 +1,14 @@
-package player.gamer.statemachine.eggplant;
+package player.gamer.statemachine.eggplant.completesearch;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
 import player.gamer.statemachine.StateMachineGamer;
+import player.gamer.statemachine.eggplant.misc.ValuedMove;
+import player.gamer.statemachine.eggplant.ui.EggplantConfigPanel;
+import player.gamer.statemachine.eggplant.ui.EggplantDetailPanel;
+import player.gamer.statemachine.eggplant.ui.EggplantMoveSelectionEvent;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
