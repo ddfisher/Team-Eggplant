@@ -6,9 +6,11 @@ import util.statemachine.StateMachine;
 
 public class MobilityMCWeightedHeuristicEvaluator implements HeuristicEvaluator, MobilityTracker{
 	
-	MobilityHeuristicEvaluator mob;
-	MonteCarloHeuristicEvaluator mc;
+	private MobilityHeuristicEvaluator mob;
+	private MonteCarloHeuristicEvaluator mc;
 	private static final int DEFAULT_TRIALS = 4;
+	private static final double MONTE_CARLO_WEIGHT = 0.7;
+	private static final double MOBILITY_WEIGHT = 0.3;
 	
 	public MobilityMCWeightedHeuristicEvaluator(MobilityType type, int trials) {
 		mob = new MobilityHeuristicEvaluator(type);
@@ -20,8 +22,9 @@ public class MobilityMCWeightedHeuristicEvaluator implements HeuristicEvaluator,
 	@Override
 	public int eval(StateMachine machine, MachineState state, Role role,
 			int alpha, int beta, int depth) {
-		return (int)Math.round((mob.eval(machine, state, role, alpha, beta, depth) + 
-				mc.eval(machine, state, role, alpha, beta, depth)) / 2.0);
+		return (int) Math.round(
+		    MOBILITY_WEIGHT * (mob.eval(machine, state, role, alpha, beta, depth) + 
+			MONTE_CARLO_WEIGHT * mc.eval(machine, state, role, alpha, beta, depth)));
 	}
 
 	@Override

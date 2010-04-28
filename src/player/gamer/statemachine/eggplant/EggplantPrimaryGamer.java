@@ -136,7 +136,7 @@ public class EggplantPrimaryGamer extends AlphaBetaGamer {
 
 	@Override
 	public String getName() {
-		return "MTD(f)";
+		return "EGGPLANT";
 	}
 
 }

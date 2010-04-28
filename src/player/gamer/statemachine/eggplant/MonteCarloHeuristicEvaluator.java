@@ -26,17 +26,21 @@ public class MonteCarloHeuristicEvaluator implements HeuristicEvaluator {
         MachineState currState = state;
         while (!machine.isTerminal(currState)) {
           currState = machine.getRandomNextState(currState);
+          //currState = machine.getNextStateDestructively(currState, machine.getRandomJointMove(currState));
         }
         sum += machine.getGoal(currState, role);
         successfulTrials++;
       }
       catch (GoalDefinitionException ex) {
+        ex.printStackTrace();
         continue;
       }
       catch (MoveDefinitionException ex) {
+        ex.printStackTrace();
         continue;
       }
       catch (TransitionDefinitionException ex) {
+        ex.printStackTrace();
         continue;
       }
     }
