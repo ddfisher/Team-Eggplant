@@ -49,6 +49,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// initialize cache, evaluators
 		rootDepth = 0;
+		nextStartDepth = 1;
 		numPlayers = getStateMachine().getRoles().size();
 		expansionEvaluator = new DepthLimitedExpansionEvaluator(10);
 		principalMovesCache = new HashMap<MachineState, CacheValue>();
@@ -85,7 +86,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
 	  int depth = nextStartDepth;
 	  maxSearchDepth = depth;
-	  System.out.println("Turn " + rootDepth + ", starting search at " + depth);
+	  if (principalMovesCache.containsKey(state)) {
+	    bestWorkingMove = principalMovesCache.get(state).valuedMove;
+	  }
+	  System.out.println("Turn " + rootDepth + ", starting search at " + depth + " with best = " + bestWorkingMove);
 	  try {
 	    while (depth <= maxSearchDepth) {
 	      expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
@@ -97,18 +101,17 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	        bestWorkingMove = move;
 	      }
 	      principalMovesCache = currentCache;
-	      System.out.println("Turn " + rootDepth + ", after depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched) + " new states");
+	      System.out.println("Turn " + rootDepth + ", after depth " + depth + " (abs " + (rootDepth + depth) + "); best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched) + " new states");
 	      depth++;
 	    }
 	  }
 	  catch (TimeUpException ex) {
 	    if (preemptiveSearch) {
 	      bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
-	      nextStartDepth = depth - 1;
 	    }
-	    else {
+	    nextStartDepth = depth - 2;
+	    if (nextStartDepth < 1)
 	      nextStartDepth = 1;
-	    }
 	  }
 	}
 
