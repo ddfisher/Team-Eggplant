@@ -104,7 +104,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	  catch (TimeUpException ex) {
 	    if (preemptiveSearch) {
 	      bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
-	      nextStartDepth = depth;
+	      nextStartDepth = depth - 1;
 	    }
 	    else {
 	      nextStartDepth = 1;
