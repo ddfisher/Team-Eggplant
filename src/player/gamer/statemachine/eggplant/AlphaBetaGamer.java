@@ -36,7 +36,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	protected ValuedMove bestWorkingMove;
 	protected int maxDepth;
 	protected int numPlayers;
-	protected int absDepth;
+	protected int rootDepth;
 
 	private final long GRACE_PERIOD = 200;
 
@@ -46,7 +46,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// initialize cache, evaluators
-		absDepth = 0;
+		rootDepth = 0;
 		StateMachine machine = getStateMachine();
 		numPlayers = machine.getRoles().size();
 		expansionEvaluator = new DepthLimitedExpansionEvaluator(10);
@@ -79,7 +79,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 		long stop = System.currentTimeMillis();
 		notifyObservers(new EggplantMoveSelectionEvent(bestWorkingMove.move, bestWorkingMove.value, stop - start, statesSearched, leafNodesSearched,
 				cacheHits, cacheMisses));
-		absDepth++;
+		rootDepth++;
 		return bestWorkingMove.move;
 	}
 
@@ -89,7 +89,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 		statesSearched++;
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
 		// Collections.shuffle(possibleMoves); // TODO: Remove this line
-		heuristic.update(machine, state, role, alpha, beta, depth, absDepth);
+		heuristic.update(machine, state, role, alpha, beta, depth, rootDepth);
 		for (Move move : possibleMoves) {
 			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
 			// Collections.shuffle(jointMoves); // TODO: Remove this line
@@ -155,7 +155,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 		// System.out.println("index: " + (absDepth + depth) % numPlayers);
 		// System.out.println("absDepth: " + absDepth + ", depth " + depth +
 		// ", numPlayers: " + numPlayers);
-		return (int) ((absDepth + depth) % numPlayers);
+		return (int) ((rootDepth + depth) % numPlayers);
 	}
 
 	private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth,
@@ -178,12 +178,12 @@ public class AlphaBetaGamer extends StateMachineGamer {
 																					// stop
 			if (debug)
 				System.out.println("Stopping expanding at depth " + depth);
-			return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, absDepth), null);
+			return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth), null);
 		}
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
 		// Collections.shuffle(possibleMoves); // TODO: Remove this line
-		heuristic.update(machine, state, role, alpha, beta, depth, absDepth);
+		heuristic.update(machine, state, role, alpha, beta, depth, rootDepth);
 		if (debug)
 			System.out.println("At depth " + depth + "; searched " + statesSearched + "; moves: " + possibleMoves);
 

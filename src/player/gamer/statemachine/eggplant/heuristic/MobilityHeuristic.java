@@ -15,7 +15,7 @@ public class MobilityHeuristic implements Heuristic {
 	private int[] samples;
 	private int numPlayers;
 	private int depthLimit;
-	private final MobilityType type;
+	protected final MobilityType type;
 
 	public MobilityHeuristic(MobilityType type, int numPlayers) {
 		this(type, numPlayers, 1);
@@ -46,7 +46,7 @@ public class MobilityHeuristic implements Heuristic {
 	 * between the current and average mobility, the evaluator function will
 	 * produce a result of 73.
 	 */
-	private int judgeMobility(double mobility, int index) {
+	protected int judgeMobility(double mobility, int index) {
 		double averageBranching = (double) totalBranchingFactor[index] / samples[index];
 		// System.out.println("avg br " + averageBranching + ", samples " +
 		// samples + ", mob " + mobility);
@@ -57,14 +57,14 @@ public class MobilityHeuristic implements Heuristic {
 				.round((1 / (double) (1 + Math.exp(-1.0 / (averageBranching / 3) * (mobility - averageBranching)))) * 100);
 	}
 
-	private int evalNStep(StateMachine machine, MachineState state, Role role, int alpha, int beta, int properDepth, int evalDepth)
+	protected int evalNStep(StateMachine machine, MachineState state, Role role, int alpha, int beta, int properDepth, int evalDepth)
 			throws MoveDefinitionException, TransitionDefinitionException {
 		BranchingData data = getBranchingData(machine, state, role, alpha, beta, evalDepth);
 		double avg = data.total / (double) data.samples;
 		return judgeMobility(avg, getIndex(properDepth));
 	}
 
-	private int evalOneStep(StateMachine machine, MachineState state, Role role, int alpha, int beta, int properDepth)
+	protected int evalOneStep(StateMachine machine, MachineState state, Role role, int alpha, int beta, int properDepth)
 			throws MoveDefinitionException, TransitionDefinitionException {
 		return evalNStep(machine, state, role, alpha, beta, properDepth, 0);
 	}
@@ -118,13 +118,13 @@ public class MobilityHeuristic implements Heuristic {
 		}
 	}
 
-	private void updateAverage(int branchingFactor, int properDepth) {
+	protected void updateAverage(int branchingFactor, int properDepth) {
 		int index = getIndex(properDepth);
 		totalBranchingFactor[index] += branchingFactor;
 		samples[index]++;
 	}
 
-	private int getIndex(long properDepth) {
+	protected int getIndex(long properDepth) {
 		return (int) (properDepth % numPlayers);
 	}
 
