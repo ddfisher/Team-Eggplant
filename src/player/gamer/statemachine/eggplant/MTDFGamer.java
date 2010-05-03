@@ -58,7 +58,7 @@ public class MTDFGamer extends AlphaBetaGamer {
       int alreadySearched = statesSearched;
       //bestMove = mtdf(machine, state, role, bestMove.value == -1 ? 50 : bestMove.value, 0, new HashMap<MachineState, CacheValue>()    , endTime);
       bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, bestWorkingMove, false);
-      System.out.println("After depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched) + " new states");
+      System.out.println("After depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched) + " new states, " + statesSearched + " total states, " + cacheHits + " cache hits");
     }
   }
 

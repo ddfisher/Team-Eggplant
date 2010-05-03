@@ -33,10 +33,12 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected EggplantConfigPanel config = new EggplantConfigPanel();
 	protected ExpansionEvaluator expansionEvaluator;
 	protected Heuristic heuristic;
-	protected ValuedMove bestWorkingMove;
-	protected int maxDepth;
+	protected int maxSearchDepth;
 	protected int numPlayers;
-	protected int absDepth;
+	protected int rootDepth;
+	protected ValuedMove bestWorkingMove;
+	protected int nextStartDepth;
+	protected HashMap<MachineState, CacheValue> principalMovesCache;
 
 	private final long GRACE_PERIOD = 200;
 
@@ -46,10 +48,15 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// initialize cache, evaluators
-		absDepth = -1;
-		StateMachine machine = getStateMachine();
-		numPlayers = machine.getRoles().size();
+		rootDepth = 0;
+		numPlayers = getStateMachine().getRoles().size();
 		expansionEvaluator = new DepthLimitedExpansionEvaluator(10);
+		principalMovesCache = new HashMap<MachineState, CacheValue>();
+
+        StateMachine machine = getStateMachine();
+        MachineState state = getCurrentState();
+        Role role = getRole();
+		iterativeDeepening(machine, state, role, 0, 100, true, timeout);
 	}
 
 	@Override
@@ -59,42 +66,54 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	    leafNodesSearched = statesSearched = 0;
 	    cacheHits = cacheMisses = 0;
 	    
-	    absDepth++;
 	
-	    bestWorkingMove = new ValuedMove(-1, getStateMachine().getRandomMove(getCurrentState(), getRole()));
-	    maxDepth = 1;
+	    StateMachine machine = getStateMachine();
+	    MachineState state = getCurrentState();
+	    Role role = getRole();
+	    bestWorkingMove = new ValuedMove(-1, machine.getRandomMove(state, role));
 	    
-	    try {
-	      iterativeDeepening(getStateMachine(), getCurrentState(), getRole(), 0, 100, timeout - GRACE_PERIOD);
-	    }
-	    catch (TimeUpException ex) {
-	    }
-	    
+	    iterativeDeepening(machine, state, role, 0, 100, machine.getLegalMoves(state, role).size() == 1, timeout - GRACE_PERIOD);
+        rootDepth++;
+        
 	    long stop = System.currentTimeMillis();
 	    notifyObservers(new EggplantMoveSelectionEvent(bestWorkingMove.move, bestWorkingMove.value, stop - start, statesSearched, leafNodesSearched, cacheHits,
 	        cacheMisses));
 	    return bestWorkingMove.move;
 	  }
 
-	protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, long endTime)
-	  throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
-	    // be courteous: if we only have one move and don't use data from previous searches, bunt
-	    if (machine.getLegalMoves(state, role).size() == 1) { 
-	      bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
-	      return;
-	    }
-	    for (int depth = 1; depth <= maxDepth; depth++) {
+	protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, boolean preemptiveSearch, long endTime)
+	throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+	  int depth = nextStartDepth;
+	  maxSearchDepth = depth;
+	  System.out.println("Turn " + rootDepth + ", starting search at " + depth);
+	  try {
+	    while (depth <= maxSearchDepth) {
 	      expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
 	      heuristic = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers);
 	      int alreadySearched = statesSearched;
-	      //bestMove = mtdf(machine, state, role, bestMove.value == -1 ? 50 : bestMove.value, 0, new HashMap<MachineState, CacheValue>()    , endTime);
-	      bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, new HashMap<MachineState, CacheValue>(), endTime, bestWorkingMove, false);
-	      System.out.println("After depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched) + " new states");
+	      HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
+	      ValuedMove move = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, currentCache, principalMovesCache, endTime, false);
+	      if (!preemptiveSearch) {
+	        bestWorkingMove = move;
+	      }
+	      principalMovesCache = currentCache;
+	      System.out.println("Turn " + rootDepth + ", after depth " + depth + "; best = " + bestWorkingMove + " searched " + (statesSearched - alreadySearched) + " new states");
+	      depth++;
 	    }
 	  }
+	  catch (TimeUpException ex) {
+	    if (preemptiveSearch) {
+	      bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
+	      nextStartDepth = depth;
+	    }
+	    else {
+	      nextStartDepth = 1;
+	    }
+	  }
+	}
 
 	protected ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth,
-			HashMap<MachineState, CacheValue> cache, long endTime, ValuedMove primary, boolean debug) throws MoveDefinitionException, TransitionDefinitionException,
+			HashMap<MachineState, CacheValue> cache, HashMap<MachineState, CacheValue> principalMoves, long endTime, boolean debug) throws MoveDefinitionException, TransitionDefinitionException,
 			GoalDefinitionException, TimeUpException {
 		if (System.currentTimeMillis() > endTime)
 			throw new TimeUpException();
@@ -114,7 +133,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				}
 			}
 			cacheMisses++;
-			ValuedMove result = alphaBeta(machine, state, role, alpha, beta, depth, cache, endTime, primary, debug);
+			ValuedMove result = alphaBeta(machine, state, role, alpha, beta, depth, cache, principalMoves, endTime, debug);
 			if (debug) {
 				System.out.println("AlphaBeta returned with " + result + " " + state + " " + cache);
 			}
@@ -122,14 +141,14 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				cache.put(state, new CacheValue(result, alpha, beta));
 			return result;
 		} else {
-			return alphaBeta(machine, state, role, alpha, beta, depth, cache, endTime, primary, debug);
+			return alphaBeta(machine, state, role, alpha, beta, depth, cache, principalMoves, endTime, debug);
 		}
 	}
 
 
 
 	private ValuedMove alphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth,
-			HashMap<MachineState, CacheValue> cache, long endTime, ValuedMove primary, boolean debug) throws MoveDefinitionException, TransitionDefinitionException,
+			HashMap<MachineState, CacheValue> cache, HashMap<MachineState, CacheValue> principalMovesCache, long endTime, boolean debug) throws MoveDefinitionException, TransitionDefinitionException,
 			GoalDefinitionException, TimeUpException {
 		statesSearched++;
 		if (debug)
@@ -139,28 +158,27 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			return new ValuedMove(machine.getGoal(state, role), null);
 		}
 
-		if (depth > maxDepth) {
-			maxDepth = depth;
+		if (depth > maxSearchDepth) {
+			maxSearchDepth = depth;
 		}
 
-		if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion
-																					// should
-																					// stop
+		if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion should stop
 			if (debug)
 				System.out.println("Stopping expanding at depth " + depth);
-			return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, absDepth), null);
+			return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth), null);
 		}
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
 		// Collections.shuffle(possibleMoves); // TODO: Remove this line
-		heuristic.update(machine, state, role, alpha, beta, depth, absDepth);
+		heuristic.update(machine, state, role, alpha, beta, depth, rootDepth);
 		if (debug)
 			System.out.println("At depth " + depth + "; searched " + statesSearched + "; moves: " + possibleMoves);
 
 		// search best move first
-		if (primary != null) {
-			if (possibleMoves.remove(primary.move)) {
-				possibleMoves.add(0, primary.move);
+		CacheValue principalMove = principalMovesCache.get(state);
+		if (principalMove != null) {
+			if (possibleMoves.remove(principalMove.valuedMove.move)) {
+				possibleMoves.add(0, principalMove.valuedMove.move);
 			}
 		}
 
@@ -170,7 +188,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			int newBeta = beta;
 			for (List<Move> jointMove : jointMoves) {
 				MachineState nextState = machine.getNextState(state, jointMove);
-				int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, depth + 1, cache, endTime, null, debug).value;
+				int value = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, depth + 1, cache, principalMovesCache, endTime, debug).value;
 				if (value < min) {
 					min = value;
 					if (min <= alpha)
