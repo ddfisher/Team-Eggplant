@@ -20,15 +20,15 @@ public class ValuedMove{
   }
   
   public ValuedMove(int value, Move move, int depth){
-    this(value, move, depth, true); 
+    this(value, move, depth, false); 
   }
 
   public ValuedMove(int value, Move move) {
-    this(value, move, true);
+    this(value, move, false);
   }
 
   @Override
   public String toString() {
-    return this.move + " @ " + this.value + ", d = " + this.depth;
+    return this.move + " @ " + this.value + (this.terminal ? "T" : "") + ", d = " + this.depth;
   }
 }

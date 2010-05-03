@@ -71,7 +71,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
     StateMachine machine = getStateMachine();
     MachineState state = getCurrentState();
     Role role = getRole();
-    bestWorkingMove = new ValuedMove(-1, machine.getRandomMove(state, role));
+    bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 
     iterativeDeepening(machine, state, role, 0, 100, machine.getLegalMoves(state, role).size() == 1, timeout - GRACE_PERIOD);
     rootDepth++;
@@ -84,10 +84,13 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
   protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, boolean preemptiveSearch, long endTime)
   throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
-    int depth = nextStartDepth;
-    maxSearchDepth = depth;
+    int depth;
     if (principalMovesCache.containsKey(state)) {
       bestWorkingMove = principalMovesCache.get(state).valuedMove;
+      depth = maxSearchDepth = nextStartDepth;
+    }
+    else { // this state was not previously explored due to alpha-beta pruning; start at root 
+      depth = maxSearchDepth = 1;
     }
     System.out.println("Turn " + rootDepth + ", starting search at " + depth + " with best = " + bestWorkingMove);
     try {
@@ -158,7 +161,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       System.out.println("At depth " + depth + "; searched " + statesSearched + "; searching " + state);
     if (machine.isTerminal(state)) {
       leafNodesSearched++;
-      return new ValuedMove(machine.getGoal(state, role), null, rootDepth + depth);
+      return new ValuedMove(machine.getGoal(state, role), null, rootDepth + depth, true);
     }
 
     if (depth > maxSearchDepth) {
@@ -168,7 +171,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
     if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion should stop
       if (debug)
         System.out.println("Stopping expanding at depth " + depth);
-      return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth), null, rootDepth + depth);
+      return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth), null, rootDepth + depth, false);
     }
     ValuedMove maxMove = new ValuedMove(-1, null);
     List<Move> possibleMoves = machine.getLegalMoves(state, role);
@@ -195,7 +198,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
         ValuedMove bestMove = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, depth + 1, cache, principalMovesCache, endTime, debug);
         int bestMoveValue = bestMove.value;
         int bestMoveDepth = bestMove.depth;
-        if (bestMoveValue < min || (bestMoveValue == min && (bestMoveValue >= 50 && bestMoveDepth < minDepth || bestMoveValue <= 50 && bestMoveDepth > minDepth))) { // heuristic to break ties
+        
+        if (bestMoveValue < min || (bestMoveValue == min && (bestMoveValue >= 50 && bestMoveDepth > minDepth || bestMoveValue <= 50 && bestMoveDepth < minDepth))) { // heuristic to break ties
+          if (debug && bestMoveValue == min) {
+            System.out.println("Tie broken inside: curr depth " + minDepth + "; best = " + bestMove);
+          }          
           min = bestMoveValue;
           minDepth = bestMoveDepth;
           if (min <= alpha)
@@ -205,6 +212,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
         }
       }
       if (maxMove.value < min || (maxMove.value == min && (maxMove.value >= 50 && minDepth < maxMove.depth || maxMove.value <= 50 && minDepth > maxMove.depth))) { // heuristic to break ties
+        if (debug && maxMove.value == min) {
+          System.out.println("Tie broken outside: curr depth " + minDepth + "; best = " + maxMove);
+        }
         maxMove.value = min;
         maxMove.depth = minDepth;
         maxMove.move = move;
