@@ -76,7 +76,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
     leafNodesSearched = statesSearched = 0;
     cacheHits = cacheMisses = 0;
 
-
+System.out.println(timeout);
     StateMachine machine = getStateMachine();
     MachineState state = getCurrentState();
     Role role = getRole();

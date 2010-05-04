@@ -54,8 +54,8 @@ public class OpeningBook {
 		    	HashMap<MachineState, ValuedMove> tCache = new HashMap<MachineState, ValuedMove>();
 		    	numPlayers = machine.getRoles().size();
 		    	heuristic = new WeightedHeuristic(
-		    			new Heuristic[]{ new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
-		    				new FocusHeuristic(MobilityType.ONE_STEP, numPlayers) },
+		    			new Heuristic[]{ new MobilityHeuristic(MobilityType.VAR_STEP, numPlayers),
+		    				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) },
 		    			new double[] { 0.3, 0.7 });
 		    	memoizedMiniMax(machine, state, role, 0, depth, tCache, endTime);
 		    	if (tCache.size() == cache.size()) break;
