@@ -49,6 +49,7 @@ public class OpeningBook {
 	  throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
 		// dig until you run out of time
 	    try {
+	    	int cSize = cache.size();
 		    for (int depth = bookDepth + 1; ; depth++) {
 		    	HashMap<MachineState, ValuedMove> tCache = new HashMap<MachineState, ValuedMove>();
 		    	numPlayers = machine.getRoles().size();
@@ -57,6 +58,7 @@ public class OpeningBook {
 		    				new FocusHeuristic(MobilityType.ONE_STEP, numPlayers) },
 		    			new double[] { 0.3, 0.7 });
 		    	memoizedMiniMax(machine, state, role, 0, depth, tCache, endTime);
+		    	if (tCache.size() == cache.size()) break;
 		    	cache = tCache;
 		    	bookDepth = depth;
 		    	if (VERBOSE) System.out.println("Expanded opening book to depth " + bookDepth + 

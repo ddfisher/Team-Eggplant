@@ -11,6 +11,8 @@ import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityType;
+import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
@@ -91,6 +93,13 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
     }
     return bestWorkingMove.move;
   }
+  
+  private Heuristic getPlayerMobilityOpponentFocusHeuristic() {
+	  return new WeightedHeuristic(
+		  new Heuristic[] { new MobilityHeuristic(MobilityType.VAR_STEP, numPlayers), 
+				  new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) },
+		  new double[] { 0.3, 0.7 });
+  }
 
   protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, boolean preemptiveSearch, long endTime)
   throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
@@ -117,7 +126,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       boolean hasLost = false;
       while (depth <= maxSearchDepth) {
         expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
-        heuristic = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers);
+        heuristic = getPlayerMobilityOpponentFocusHeuristic(); // new MobilityHeuristic(MobilityType.VAR_STEP, numPlayers);
         int alreadySearched = statesSearched;
         HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
         ValuedMove move = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, currentCache, principalMovesCache, endTime, false);
@@ -125,7 +134,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
           bestWorkingMove = move;
         }
         principalMovesCache = currentCache;
-        System.out.println("Turn " + rootDepth + ", after depth " + depth + " (abs " + (rootDepth + depth) + "); working = " + move + " searched " + (statesSearched - alreadySearched) + " new states");
+        System.out.println("Turn " + rootDepth + ", after depth " + depth + " (abs " + (rootDepth + depth) + 
+        		"); working = " + move + " searched " + (statesSearched - alreadySearched) + " new states");
         if (move.value == 0) {
           hasLost = true;
           break;
@@ -167,7 +177,7 @@ loop0:for (Move move0 : possibleMoves0) {
           if (!machine.isTerminal(state1)) {
             List<MachineState> states2 = machine.getNextStates(state1);
             for (MachineState state2 : states2) {
-              heuristic = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers);
+              heuristic = getPlayerMobilityOpponentFocusHeuristic(); // new MobilityHeuristic(MobilityType.VAR_STEP, numPlayers);
               ValuedMove move = memoizedAlphaBeta(machine, state2, role, 0, 1, 2, new HashMap<MachineState, CacheValue>(), principalMovesCache, endTime, false);
               if (move.value == 0) {
                 count++;
