@@ -1,5 +1,6 @@
 package player.gamer.statemachine.eggplant;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -58,7 +59,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
     StateMachine machine = getStateMachine();
     MachineState state = getCurrentState();
     Role role = getRole();
-    //iterativeDeepening(machine, state, role, 0, 100, true, timeout);
+    iterativeDeepening(machine, state, role, 0, 100, true, timeout);
   }
 
   @Override
@@ -121,7 +122,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       // Iterative blunder approach: give opponent more and more ways to blunder
       if (hasLost && !preemptiveSearch) {
         System.out.println("Trying desperate measures...");
-        findFarthestLoss(machine, state, role, alpha, beta, depth, endTime, false);
+        findFarthestLoss(machine, state, role, alpha, beta, depth, endTime, true);
       }
     }
     catch (TimeUpException ex) {
@@ -141,8 +142,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       List<Move> possibleMoves0 = machine.getLegalMoves(state, role);
       expansionEvaluator = new DepthLimitedExpansionEvaluator(firstLosingDepth + 2);
       int minCount = Integer.MAX_VALUE;
+      Collections.shuffle(possibleMoves0);
 loop0:for (Move move0 : possibleMoves0) {
-        
+        if (debug)
+          System.out.println("Testing move " + move0);
         List<List<Move>> jointMoves0 = machine.getLegalJointMoves(state, role, move0);
         int count = 0;
         for (List<Move> jointMove0 : jointMoves0) {
@@ -151,7 +154,7 @@ loop0:for (Move move0 : possibleMoves0) {
             List<MachineState> states2 = machine.getNextStates(state1);
             for (MachineState state2 : states2) {
               heuristic = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers);
-              ValuedMove move = memoizedAlphaBeta(machine, state2, role, 0, 100, 2, new HashMap<MachineState, CacheValue>(), principalMovesCache, endTime, false);
+              ValuedMove move = memoizedAlphaBeta(machine, state2, role, 0, 1, 2, new HashMap<MachineState, CacheValue>(), principalMovesCache, endTime, false);
               if (move.value == 0) {
                 count++;
                 if (debug)
@@ -161,7 +164,7 @@ loop0:for (Move move0 : possibleMoves0) {
               }
             }
           }
-          else { // must be a losing move
+          else { // must be a losing joint move; no need to keep searching
             continue loop0;
           }
         }
@@ -169,6 +172,9 @@ loop0:for (Move move0 : possibleMoves0) {
           System.out.println("Best = " + move0 + " has " + count + " ways to lose");
           minCount = count;
           bestMove = new ValuedMove(-3, move0);
+          if (count == 1) { // we know that every move has at least 1 way to lose   
+            break;
+          }
         }
       }
     }
