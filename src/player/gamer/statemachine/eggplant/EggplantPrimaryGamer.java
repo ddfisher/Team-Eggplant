@@ -10,6 +10,7 @@ import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityType;
+import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
 import player.gamer.statemachine.eggplant.misc.ValuedMove;
@@ -34,6 +35,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
   protected EggplantConfigPanel config = new EggplantConfigPanel();
   protected ExpansionEvaluator expansionEvaluator;
   protected Heuristic heuristic;
+  protected OpeningBook openingBook;
   protected int maxSearchDepth;
   protected int numPlayers;
   protected int rootDepth;
@@ -58,7 +60,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
     StateMachine machine = getStateMachine();
     MachineState state = getCurrentState();
     Role role = getRole();
-    //iterativeDeepening(machine, state, role, 0, 100, true, timeout);
+    openingBook = new OpeningBook(machine, state, role);
+    long time = System.currentTimeMillis();
+    openingBook.expandBook(time + (timeout - time) / 2);
+    iterativeDeepening(machine, state, role, 0, 100, true, timeout);
   }
 
   @Override
@@ -89,12 +94,21 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
   protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, boolean preemptiveSearch, long endTime)
   throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
     int depth;
-    if (principalMovesCache.containsKey(state)) {
+    int bd = openingBook.bookDepth();
+    if (rootDepth < bd) {
+    	ValuedMove vm = openingBook.cachedValuedMove(machine, state, role);
+    	if (vm != null) {
+    		bestWorkingMove = vm;
+    		depth = maxSearchDepth = bd - rootDepth + 1;
+    	} else {
+    		depth = maxSearchDepth = 1; // problem if this happens
+    		// System.out.println("openingBook returned null move");
+    	}
+    } else if (principalMovesCache.containsKey(state)) {
       CacheValue cached = principalMovesCache.get(state); 
       bestWorkingMove = cached.valuedMove;
       depth = maxSearchDepth = nextStartDepth;
-    }
-    else { // this state was not previously explored due to alpha-beta pruning; to ensure non-random moves, start at root
+    } else { // this state was not previously explored due to alpha-beta pruning; to ensure non-random moves, start at root
       depth = maxSearchDepth = 1;
     }
     System.out.println("Turn " + rootDepth + ", starting search at " + depth + " with best = " + bestWorkingMove);
