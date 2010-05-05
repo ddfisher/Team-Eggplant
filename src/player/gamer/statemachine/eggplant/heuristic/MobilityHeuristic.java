@@ -35,8 +35,12 @@ public class MobilityHeuristic implements Heuristic {
 		totalBranchingFactor = new long[n];
 		samples = new int[n];
 	}
+	
+	public int avgBranchingFactor(int index) {
+		return (int) (totalBranchingFactor[index] / samples[index]);
+	}
 
-	private class BranchingData {
+	protected class BranchingData {
 		public BranchingData(int samples, int total) {
 			this.samples = samples;
 			this.total = total;
@@ -138,7 +142,9 @@ public class MobilityHeuristic implements Heuristic {
 		return new BranchingData(samples, total);
 	}
 	
-	private boolean relevant(List<Move> moves) {
+	protected boolean relevant(int moves) { return moves > 1; }
+	
+	protected boolean relevant(List<Move> moves) {
 		return moves.size() > 1;
 	}
 
@@ -165,10 +171,9 @@ public class MobilityHeuristic implements Heuristic {
 
 	@Override
 	public void update(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int depth, int absDepth) {
-		try {
-			updateAverage(machine.getLegalMoves(state, role).size(), depth + absDepth);
-		} catch (MoveDefinitionException e) {}
+			int alpha, int beta, int depth, int absDepth) 
+	throws MoveDefinitionException {
+		updateAverage(machine.getLegalMoves(state, role).size(), depth + absDepth);	
 	}
 
 	protected void updateAverage(int branchingFactor, int properDepth) {
