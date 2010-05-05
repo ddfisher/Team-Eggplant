@@ -75,7 +75,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
      */
     
     endBook = new EndgameBook(numPlayers);
-    endBook.buildEndgameBook(machine, state, role, 2, 4, 7, start + (timeout - start) / 2);
+    endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
     iterativeDeepening(machine, state, role, 0, 100, true, timeout);
   }
 
@@ -134,7 +134,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       // pruning; to ensure non-random moves, start at root
       depth = maxSearchDepth = 1;
     }
-    System.out.println("Turn " + rootDepth + ", starting search at " + depth + " with best = " + bestWorkingMove);
+    System.out.println("Turn " + rootDepth + ", starting search at " + depth + " with best = " + bestWorkingMove + "; end book size = " + endBook.book.size()   );
     try {
       boolean hasLost = false;
       while (depth <= maxSearchDepth) {
@@ -161,7 +161,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       // blunder
       if (hasLost && !preemptiveSearch) {
         System.out.println("Trying desperate measures...");
-        findFarthestLoss(machine, state, role, alpha, beta, depth, endTime, true);
+        findFarthestLoss(machine, state, role, alpha, beta, depth, endTime, false);
       }
     } catch (TimeUpException ex) {
       if (preemptiveSearch) {
@@ -256,8 +256,12 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       if (debug) {
         System.out.println("AlphaBeta returned with " + result + " " + state + " " + cache);
       }
-      if (result.move != null)
+      if (result.move != null) {
         cache.put(state, new CacheValue(result, alpha, beta));
+      }
+      if (result.value == 0) { // sure loss
+        endBook.book.put(state, new CacheValue(result, alpha, beta));
+      }
       return result;
     } else {
       return alphaBeta(machine, state, role, alpha, beta, depth, cache, principalMoves, endTime, debug);
@@ -270,12 +274,14 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       TimeUpException {
     statesSearched++;
 
+    
     ValuedMove endLookup = endBook.endgameValue(state);
     if (endLookup != null) {
       if (debug)
         System.out.println("At depth " + depth + "; searched " + statesSearched + "; found in EndgameBook");
       return endLookup;
     }
+    
 
     if (machine.isTerminal(state)) {
       if (debug)
