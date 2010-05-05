@@ -56,8 +56,8 @@ public class MobilityHeuristic implements Heuristic {
 	}
 	
 	protected int judgeRelevantMobility(double mobility) {
-		System.out.println((this instanceof OpponentMobilityHeuristic ? "opponent " : "player ") + "mobility is " + mobility + " vs. avg " 
-				+ (double) totalBranchingFactor[0] / samples[0]);
+		/*System.out.println((this instanceof OpponentMobilityHeuristic ? "opponent " : "player ") + "mobility is " + mobility + " vs. avg " 
+				+ (double) totalBranchingFactor[0] / samples[0]);*/
 		return judgeMobility(mobility, 0);
 	}
 	

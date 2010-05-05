@@ -30,7 +30,7 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 				avg = (double) data.total / data.samples;
 				return judgeRelevantMobility(avg);
 			default: 
-				avg = sumMoves(machine.getLegalJointMoves(state)) / machine.getLegalMoves(state, role).size();
+				avg = machine.getLegalJointMoves(state).size() / machine.getLegalMoves(state, role).size();
 				return judgeMobility(avg, getIndex(depth + absDepth));
 			}
 		} catch (MoveDefinitionException e) {
@@ -41,21 +41,14 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 		return (alpha + beta) / 2;
 	}
 	
-	private int sumMoves(List<List<Move> > moves) {
-		int total = 0;
-		for (List<Move> list : moves) {
-			total += list.size();
-		}
-		return total;
-	}
-	
 	private BranchingData getRelevantOpponentBranchingData(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int maxDepth)
 	throws MoveDefinitionException, TransitionDefinitionException {
 		if (machine.isTerminal(state)) return new BranchingData(0, 0);
 		List<Move> moves = machine.getLegalMoves(state, role);
 		List<List<Move>> joints = machine.getLegalJointMoves(state);
-		int sumMoves = sumMoves(joints), roleMoves = moves.size(), quo = sumMoves / roleMoves;
+		int sumMoves = joints.size(), roleMoves = moves.size(), quo = sumMoves / roleMoves;
+		System.out.println("sum " + sumMoves + ", role " + roleMoves);
 		if (relevant(quo)) return new BranchingData(1, quo);
 		else if (maxDepth == 0) return new BranchingData(0, 0);
 		int samples = 0, total = 0;
@@ -74,7 +67,7 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 			int alpha, int beta, int depth, int absDepth) 
 	throws MoveDefinitionException {
 		int pmSize = machine.getLegalMoves(state, role).size();
-		int oppSize = sumMoves(machine.getLegalJointMoves(state)) / pmSize;
+		int oppSize = machine.getLegalJointMoves(state).size() / pmSize;
 		updateAverage(oppSize, depth + absDepth);
 	}
 
