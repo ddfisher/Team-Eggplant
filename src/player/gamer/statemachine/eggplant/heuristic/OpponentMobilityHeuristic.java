@@ -45,6 +45,7 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 			int alpha, int beta, int maxDepth)
 	throws MoveDefinitionException, TransitionDefinitionException {
 		if (machine.isTerminal(state)) return new BranchingData(0, 0);
+		int limit = samplesLimit();
 		List<Move> moves = machine.getLegalMoves(state, role);
 		List<List<Move>> joints = machine.getLegalJointMoves(state);
 		int sumMoves = joints.size(), roleMoves = moves.size(), quo = sumMoves / roleMoves;
@@ -58,6 +59,7 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 				getRelevantOpponentBranchingData(machine, nextState, role, alpha, beta, maxDepth - 1);
 			samples += data.samples;
 			total += data.total;
+			if (samples > limit) break;
 		}
 		return new BranchingData(samples, total);
 	}

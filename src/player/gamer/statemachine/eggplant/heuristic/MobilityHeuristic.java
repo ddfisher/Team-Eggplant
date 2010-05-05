@@ -16,6 +16,7 @@ public class MobilityHeuristic implements Heuristic {
 	private int numPlayers;
 	private int depthLimit;
 	protected final MobilityType type;
+	private final int BRANCH_QUO = 4;
 
 	public MobilityHeuristic(MobilityType type, int numPlayers) {
 		this(type, numPlayers, (type == MobilityType.VAR_STEP) ? numPlayers : 1);
@@ -37,7 +38,12 @@ public class MobilityHeuristic implements Heuristic {
 	}
 	
 	public int avgBranchingFactor(int index) {
+		if (samples[index] == 0) return 0;
 		return (int) (totalBranchingFactor[index] / samples[index]);
+	}
+	
+	public int samplesLimit() {
+		return avgBranchingFactor(0) / BRANCH_QUO;
 	}
 
 	protected class BranchingData {
@@ -140,6 +146,7 @@ public class MobilityHeuristic implements Heuristic {
 				getFirstRelevantBranchingData(machine, nextState, role, alpha, beta, maxDepth - 1);
 			samples += data.samples;
 			total += data.total;
+			if (samples > samplesLimit()) break;
 		}
 		return new BranchingData(samples, total);
 	}
