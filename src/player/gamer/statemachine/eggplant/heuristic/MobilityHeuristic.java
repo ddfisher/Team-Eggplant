@@ -134,6 +134,7 @@ public class MobilityHeuristic implements Heuristic {
 	private BranchingData getFirstRelevantBranchingData(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int maxDepth)
 	throws MoveDefinitionException, TransitionDefinitionException {
+		int limit = samplesLimit();
 		if (machine.isTerminal(state)) return new BranchingData(0, 0);
 		List<Move> moves = machine.getLegalMoves(state, role);
 		if (relevant(moves)) return new BranchingData(1, moves.size());
@@ -146,7 +147,7 @@ public class MobilityHeuristic implements Heuristic {
 				getFirstRelevantBranchingData(machine, nextState, role, alpha, beta, maxDepth - 1);
 			samples += data.samples;
 			total += data.total;
-			if (samples > samplesLimit()) break;
+			if (samples > limit) break;
 		}
 		return new BranchingData(samples, total);
 	}
