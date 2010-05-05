@@ -17,6 +17,7 @@ import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
+import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
 import player.gamer.statemachine.eggplant.misc.ValuedMove;
 import player.gamer.statemachine.eggplant.ui.EggplantConfigPanel;
@@ -259,7 +260,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       if (result.move != null) {
         cache.put(state, new CacheValue(result, alpha, beta));
       }
-      if (result.value == 0) { // sure loss
+      if (result.value == 0 && !endBook.book.containsKey(state)) { // sure loss
         endBook.book.put(state, new CacheValue(result, alpha, beta));
       }
       return result;
@@ -358,11 +359,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
           || (maxMove.value == minValue && (maxMove.value >= 50 && minDepth < maxMove.depth || maxMove.value <= 50
               && minDepth > maxMove.depth))) { // heuristic to
         // break ties
-        if (debug && maxMove.value == minValue) {
-          System.out.println("Tie broken outside: curr depth " + minDepth + "; best = " + maxMove);
+        if (maxMove.value == minValue) {
+          Log.println('a', "Tie broken outside: curr depth " + minDepth + "; best = " + maxMove);
         }
-        if (debug)
-          System.out.println("Outside max update: new best move = " + new ValuedMove(minValue, move, minDepth)
+        Log.println('a', "Outside max update: new best move = " + new ValuedMove(minValue, move, minDepth)
           + "; previous max move = " + maxMove);
 
         maxMove.value = minValue;
