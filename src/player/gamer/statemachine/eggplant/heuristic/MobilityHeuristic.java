@@ -1,13 +1,13 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
+import java.util.List;
+
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
 import util.statemachine.StateMachine;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
-
-import java.util.*;
 
 public class MobilityHeuristic implements Heuristic {
 
