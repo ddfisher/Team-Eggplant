@@ -179,8 +179,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
   protected void findFarthestLoss(StateMachine machine, MachineState state, Role role, int alpha, int beta,
       int firstLosingDepth, long endTime, boolean debug) throws MoveDefinitionException, TransitionDefinitionException,
       GoalDefinitionException, TimeUpException {
-    // don't need a heuristic to do anything
-    heuristic = new NullHeuristic();
+    // don't need a heuristic to do anything except report non-loss
+    heuristic = new NullHeuristic(50);
     ValuedMove bestMove = null;
     try {
       List<Move> possibleMoves0 = machine.getLegalMoves(state, role);
