@@ -3,6 +3,7 @@ package player.gamer.statemachine.eggplant.heuristic;
 import util.statemachine.MachineState;
 import util.statemachine.Role;
 import util.statemachine.StateMachine;
+import util.statemachine.exceptions.MoveDefinitionException;
 
 public class WeightedHeuristic implements Heuristic{
 	
@@ -36,7 +37,8 @@ public class WeightedHeuristic implements Heuristic{
 	}
 
 	@Override
-	public void update(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, int absDepth) {
+	public void update(StateMachine machine, MachineState state, Role role, 
+			int alpha, int beta, int depth, int absDepth) throws MoveDefinitionException {
 		for (Heuristic heuristic : heuristics) {
 			heuristic.update(machine, state, role, alpha, beta, depth, absDepth);
 		}

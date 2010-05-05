@@ -8,6 +8,7 @@ import player.gamer.statemachine.eggplant.heuristic.FocusHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityType;
+import player.gamer.statemachine.eggplant.heuristic.MonteCarloHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
 import player.gamer.statemachine.eggplant.misc.*;
@@ -54,10 +55,11 @@ public class OpeningBook {
 		    for (int depth = bookDepth + 1; ; depth++) {
 		    	HashMap<MachineState, ValuedMove> tCache = new HashMap<MachineState, ValuedMove>();
 		    	numPlayers = machine.getRoles().size();
-		    	heuristic = new WeightedHeuristic(
+		    	/*heuristic = new WeightedHeuristic(
 		    			new Heuristic[]{ new MobilityHeuristic(MobilityType.VAR_STEP, numPlayers),
-		    				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) },
-		    			new double[] { 0.3, 0.7 });
+		    				new OpponentFocusHeuristic(MobilityType.VAR_STEP, numPlayers) },
+		    			new double[] { 0.3, 0.7 });*/
+		    	heuristic = new MonteCarloHeuristic(2);
 		    	memoizedMiniMax(machine, state, role, 0, depth, tCache, endTime);
 		    	if (tCache.size() == cache.size()) break;
 		    	cache = tCache;
