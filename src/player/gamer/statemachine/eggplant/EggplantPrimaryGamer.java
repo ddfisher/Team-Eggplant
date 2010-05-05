@@ -66,13 +66,17 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
     StateMachine machine = getStateMachine();
     MachineState state = getCurrentState();
     Role role = getRole();
-    openingBook = new OpeningBook(machine, state, role);
-    long time = System.currentTimeMillis();
-    openingBook.expandBook(time + (timeout - time) / 2);
+    
 
-    endBook = new EndgameBook();
-    endBook.buildEndgameBook(machine, state, role, 2, 5, timeout);
-    // iterativeDeepening(machine, state, role, 0, 100, true, timeout);
+    long start = System.currentTimeMillis();
+    /*
+     openingBook = new OpeningBook(machine, state, role);
+     openingBook.expandBook(time + (timeout - time) / 2);
+     */
+    
+    endBook = new EndgameBook(numPlayers);
+    endBook.buildEndgameBook(machine, state, role, 2, 4, 7, start + (timeout - start) / 2);
+    iterativeDeepening(machine, state, role, 0, 100, true, timeout);
   }
 
   @Override
@@ -109,6 +113,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       boolean preemptiveSearch, long endTime) throws MoveDefinitionException, TransitionDefinitionException,
       GoalDefinitionException {
     int depth;
+    /*
     int bd = openingBook.bookDepth();
     if (rootDepth < bd) {
       ValuedMove vm = openingBook.cachedValuedMove(machine, state, role);
@@ -119,7 +124,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
         depth = maxSearchDepth = 1; // problem if this happens
         // System.out.println("openingBook returned null move");
       }
-    } else if (principalMovesCache.containsKey(state)) {
+    } else 
+    */
+    if (principalMovesCache.containsKey(state)) {
       CacheValue cached = principalMovesCache.get(state);
       bestWorkingMove = cached.valuedMove;
       depth = maxSearchDepth = nextStartDepth;
