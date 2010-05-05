@@ -29,7 +29,6 @@ public class OpeningBook {
 	private StateMachine startMachine;
 	private MachineState startState;
 	private Role role;
-	private final boolean VERBOSE = true;
 	
 	public OpeningBook(StateMachine startMachine, MachineState startState, Role role) {
 		this.startMachine = startMachine;
@@ -64,11 +63,11 @@ public class OpeningBook {
 		    	if (tCache.size() == cache.size()) break;
 		    	cache = tCache;
 		    	bookDepth = depth;
-		    	if (VERBOSE) System.out.println("Expanded opening book to depth " + bookDepth + 
+		    	Log.println('o', "Expanded opening book to depth " + bookDepth + 
 		    			" with " + (endTime - System.currentTimeMillis()) + "ms left to search");
 		    }
 	    } catch (TimeUpException e) {
-	    	if (VERBOSE) System.out.println("Got to depth " + bookDepth + " in opening expansion");
+	    	Log.println('o', "Got to depth " + bookDepth + " in opening expansion");
 	    }
 	  }
 	

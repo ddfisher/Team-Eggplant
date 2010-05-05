@@ -7,6 +7,7 @@ import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityType;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
 import player.gamer.statemachine.eggplant.misc.DepthLimitException;
+import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
 import player.gamer.statemachine.eggplant.misc.ValuedMove;
 import util.statemachine.MachineState;
@@ -27,7 +28,7 @@ public class EndgameBook {
   }
 
   public void buildEndgameBook(StateMachine machine, MachineState state, Role role, int backup, int targetBranchingFactor, int depthLimit, long endTime) {
-    System.out.println("Beginning Construction of Endgame Book");
+    Log.println('e', "Beginning Construction of Endgame Book");
     int minDepthLimit = depthLimit - 3;
     if (minDepthLimit <= 2)
       minDepthLimit = 2;
@@ -39,7 +40,7 @@ public class EndgameBook {
         if ((currTime = System.currentTimeMillis()) > endTime)
           throw new TimeUpException();
         if (currTime - startTime > 1000) {
-          System.out.println("Endgame book has " + book.size() + " states; searching depth " + depthLimit + " with branching factor " + heuristic.avgBranchingFactor(0));
+          Log.println('e', "Endgame book has " + book.size() + " states; searching depth " + depthLimit + " with branching factor " + heuristic.avgBranchingFactor(0));
           startTime = currTime;
         }
         MachineState examineState = findCloseToEndState(machine, state, role, backup);
@@ -52,13 +53,13 @@ public class EndgameBook {
             depthLimit--;
           }
         } else {
-          // System.out.println("Duplicate end examine");
+          // Log.println('e', "Duplicate end examine");
         }
       } catch (MoveDefinitionException e) {
       } catch (TransitionDefinitionException e) {
       } catch (GoalDefinitionException e) {
       } catch (DepthLimitException e) {
-        // System.out.println("End search too deep");
+        // Log.println('e', "End search too deep");
       } catch (TimeUpException e) {
         System.out.println(book.size() + " Endgame States Cached");
         break;

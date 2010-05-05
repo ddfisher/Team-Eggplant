@@ -68,14 +68,14 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
     StateMachine machine = getStateMachine();
     MachineState state = getCurrentState();
     Role role = getRole();
-    
+
 
     long start = System.currentTimeMillis();
     /*
      openingBook = new OpeningBook(machine, state, role);
      openingBook.expandBook(time + (timeout - time) / 2);
      */
-    
+
     endBook = new EndgameBook(numPlayers);
     endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
     iterativeDeepening(machine, state, role, 0, 100, true, timeout);
@@ -127,7 +127,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
         // System.out.println("openingBook returned null move");
       }
     } else 
-    */
+     */
     if (principalMovesCache.containsKey(state)) {
       CacheValue cached = principalMovesCache.get(state);
       bestWorkingMove = cached.valuedMove;
@@ -136,7 +136,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       // pruning; to ensure non-random moves, start at root
       depth = maxSearchDepth = 1;
     }
-    System.out.println("Turn " + rootDepth + ", starting search at " + depth + " with best = " + bestWorkingMove + "; end book size = " + endBook.book.size()   );
+    Log.println('i', "Turn " + rootDepth + ", starting search at " + depth + " with best = " + bestWorkingMove + "; end book size = " + endBook.book.size()   );
     try {
       boolean hasLost = false;
       while (depth <= maxSearchDepth) {
@@ -150,7 +150,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
           bestWorkingMove = move;
         }
         principalMovesCache = currentCache;
-        System.out.println("Turn " + rootDepth + ", after depth " + depth + " (abs " + (rootDepth + depth)
+        Log.println('i', "Turn " + rootDepth + ", after depth " + depth + " (abs " + (rootDepth + depth)
             + "); working = " + move + " searched " + (statesSearched - alreadySearched) + " new states");
         if (move.value == 0) {
           hasLost = true;
@@ -162,7 +162,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       // Iterative blunder approach: give opponent more and more ways to
       // blunder
       if (hasLost && !preemptiveSearch) {
-        System.out.println("Trying desperate measures...");
+        Log.println('i', "Trying desperate measures...");
         findFarthestLoss(machine, state, role, alpha, beta, depth, endTime, false);
       }
     } catch (TimeUpException ex) {
@@ -189,8 +189,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       int minCount = Integer.MAX_VALUE;
       Collections.shuffle(possibleMoves0);
       loop0: for (Move move0 : possibleMoves0) {
-        if (debug)
-          System.out.println("Testing move " + move0);
+        Log.println('f', "Testing move " + move0);
         List<List<Move>> jointMoves0 = machine.getLegalJointMoves(state, role, move0);
         int count = 0;
         for (List<Move> jointMove0 : jointMoves0) {
@@ -202,8 +201,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
                   new HashMap<MachineState, CacheValue>(), principalMovesCache, endTime, false);
               if (move.value == 0) {
                 count++;
-                if (debug)
-                  System.out.println(state2 + " leads to loss #" + count);
+                Log.println('f', state2 + " leads to loss #" + count);
                 if (count > minCount)
                   continue loop0;
               }
@@ -214,7 +212,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
           }
         }
         if (count < minCount) {
-          System.out.println("Best = " + move0 + " has " + count + " ways to lose");
+          Log.println('f', "Best = " + move0 + " has " + count + " ways to lose");
           minCount = count;
           bestMove = new ValuedMove(-3, move0);
           if (count == 1) { // we know that every move has at least 1
@@ -241,21 +239,15 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       if (cache.containsKey(state)) {
         CacheValue cached = cache.get(state);
         if (alpha >= cached.alpha && beta <= cached.beta) {
-          if (debug)
-            System.out.println("Cache hit: " + cached);
+          Log.println('a', "Cache hit: " + cached);
           cacheHits++;
           return cached.valuedMove;
-        } else {
-          // Alpha-beta bounds are incompatible
-          // System.out.println("Alpha: " + alpha + "\tBeta: " + beta
-          // + "\tCached Alpha: " + cached.alpha + "\tCached Beta: " +
-          // cached.beta);
         }
       }
       cacheMisses++;
       ValuedMove result = alphaBeta(machine, state, role, alpha, beta, depth, cache, principalMoves, endTime, debug);
       if (debug) {
-        System.out.println("AlphaBeta returned with " + result + " " + state + " " + cache);
+        Log.println('a', "AlphaBeta returned with " + result + " " + state + " " + cache);
       }
       if (result.move != null) {
         cache.put(state, new CacheValue(result, alpha, beta));
@@ -275,18 +267,16 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       TimeUpException {
     statesSearched++;
 
-    
+
     ValuedMove endLookup = endBook.endgameValue(state);
     if (endLookup != null) {
-      if (debug)
-        System.out.println("At depth " + depth + "; searched " + statesSearched + "; found in EndgameBook");
+      Log.println('a', "At depth " + depth + "; searched " + statesSearched + "; found in EndgameBook");
       return endLookup;
     }
-    
+
 
     if (machine.isTerminal(state)) {
-      if (debug)
-        System.out.println("At depth " + depth + "; searched " + statesSearched + "; terminal");
+      Log.println('a', "At depth " + depth + "; searched " + statesSearched + "; terminal");
       leafNodesSearched++;
       return new ValuedMove(machine.getGoal(state, role), null, rootDepth + depth, true);
     }
@@ -295,58 +285,45 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       maxSearchDepth = depth;
     }
 
-    if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion
-      // should
-      // stop
-      if (debug)
-        System.out.println("Heuristic; stopping expanding at depth " + depth);
+    if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion should stop
+      Log.println('a', "Heuristic; stopping expanding at depth " + depth);
       return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth), null, rootDepth + depth,
           false);
     }
     List<Move> possibleMoves = machine.getLegalMoves(state, role);
     // Collections.shuffle(possibleMoves); // TODO: Remove this line
     heuristic.update(machine, state, role, alpha, beta, depth, rootDepth);
-    if (debug)
-      System.out.println("At depth " + depth + "; searched " + statesSearched + "; searching " + state + " ; moves: "
-          + possibleMoves);
+    Log.println('a', "At depth " + depth + "; searched " + statesSearched + "; searching " + state + " ; moves: " + possibleMoves);
 
     // search best move first
     CacheValue principalMove = principalMovesCache.get(state);
     if (principalMove != null) {
       if (possibleMoves.remove(principalMove.valuedMove.move)) {
         possibleMoves.add(0, principalMove.valuedMove.move);
-        if (debug)
-          System.out.println("At depth " + depth + "; searched " + statesSearched + "principal move = "
+        Log.println('a', "At depth " + depth + "; searched " + statesSearched + "principal move = "
               + principalMove.valuedMove.move);
       }
     }
 
     ValuedMove maxMove = new ValuedMove(-1, null);
     for (Move move : possibleMoves) {
-      if (debug)
-        System.out.println("Considering move " + move + " at depth " + depth);
+      Log.println('a', "Considering move " + move + " at depth " + depth);
       List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
       int minValue = 101;
       int minDepth = rootDepth + depth;
       int newBeta = beta;
       for (List<Move> jointMove : jointMoves) {
-        if (debug)
-          System.out.println("Considering joint move " + jointMove);
+        Log.println('a', "Considering joint move " + jointMove);
         MachineState nextState = machine.getNextState(state, jointMove);
         ValuedMove bestMove = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, depth + 1, cache,
             principalMovesCache, endTime, debug);
         int bestMoveValue = bestMove.value;
         int bestMoveDepth = bestMove.depth;
-        if (bestMoveValue < minValue
-            || (bestMoveValue == minValue && (bestMoveValue >= 50 && bestMoveDepth > minDepth || bestMoveValue <= 50
-                && bestMoveDepth < minDepth))) { // heuristic to
-          // break
-          // ties
-          if (debug && bestMoveValue == minValue) {
-            System.out.println("Tie broken inside: curr depth " + minDepth + "; best = " + bestMove);
+        if (bestMoveValue < minValue || (bestMoveValue == minValue && (bestMoveValue >= 50 && bestMoveDepth > minDepth || bestMoveValue <= 50 && bestMoveDepth < minDepth))) { // heuristic to break ties
+          if (bestMoveValue == minValue) {
+            Log.println('a', "Tie broken inside: curr depth " + minDepth + "; best = " + bestMove);
           }
-          if (debug)
-            System.out.println("Inside min update: best move = " + bestMove + "; previous min value = " + minValue);
+          Log.println('a', "Inside min update: best move = " + bestMove + "; previous min value = " + minValue);
           minValue = bestMoveValue;
           minDepth = bestMoveDepth;
           if (minValue <= alpha)
@@ -363,7 +340,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
           Log.println('a', "Tie broken outside: curr depth " + minDepth + "; best = " + maxMove);
         }
         Log.println('a', "Outside max update: new best move = " + new ValuedMove(minValue, move, minDepth)
-          + "; previous max move = " + maxMove);
+        + "; previous max move = " + maxMove);
 
         maxMove.value = minValue;
         maxMove.depth = minDepth;
