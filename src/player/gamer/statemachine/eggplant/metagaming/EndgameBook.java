@@ -18,7 +18,7 @@ import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
 
 public class EndgameBook {
-  private HashMap<MachineState, CacheValue> book;
+  public HashMap<MachineState, CacheValue> book;
   private MobilityHeuristic heuristic;
 
   public EndgameBook(int numPlayers) {
@@ -31,7 +31,7 @@ public class EndgameBook {
     int minDepthLimit = depthLimit - 3;
     if (minDepthLimit <= 2)
       minDepthLimit = 2;
-    int maxDepthLimit = depthLimit + 3;
+    int maxDepthLimit = depthLimit + 5;
     long startTime = System.currentTimeMillis();
     long currTime;
     while (true) {

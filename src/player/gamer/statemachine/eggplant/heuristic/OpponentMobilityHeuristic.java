@@ -48,6 +48,7 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 		List<Move> moves = machine.getLegalMoves(state, role);
 		List<List<Move>> joints = machine.getLegalJointMoves(state);
 		int sumMoves = joints.size(), roleMoves = moves.size(), quo = sumMoves / roleMoves;
+		//System.out.println("sum " + sumMoves + ", role " + roleMoves);
 		if (relevant(quo)) return new BranchingData(1, quo);
 		else if (maxDepth == 0) return new BranchingData(0, 0);
 		int samples = 0, total = 0;
