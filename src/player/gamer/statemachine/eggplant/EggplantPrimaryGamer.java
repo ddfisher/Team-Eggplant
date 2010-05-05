@@ -107,8 +107,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
   }
 
   private Heuristic getPlayerMobilityOpponentFocusHeuristic() {
-    return new WeightedHeuristic(new Heuristic[] { new MobilityHeuristic(MobilityType.VAR_STEP, numPlayers),
-        new OpponentFocusHeuristic(MobilityType.VAR_STEP, numPlayers) }, new double[] { 0.3, 0.7 });
+    return new WeightedHeuristic(new Heuristic[] { new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
+        new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) }, new double[] { 0.3, 0.7 });
   }
 
   protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta,
