@@ -139,9 +139,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       boolean hasLost = false;
       while (depth <= maxSearchDepth) {
         expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
-        heuristic = getPlayerMobilityOpponentFocusHeuristic(); // new
-        // MobilityHeuristic(MobilityType.VAR_STEP,
-        // numPlayers);
+        heuristic = getPlayerMobilityOpponentFocusHeuristic(); 
         int alreadySearched = statesSearched;
         HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
         ValuedMove move = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, currentCache, principalMovesCache,
