@@ -1,5 +1,6 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
+import player.gamer.statemachine.eggplant.misc.TimeUpException;
 import util.statemachine.MachineState;
 import util.statemachine.Role;
 import util.statemachine.StateMachine;
@@ -27,10 +28,11 @@ public class WeightedHeuristic implements Heuristic{
 	}
 
 	@Override
-	public int eval(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, int absDepth) throws MoveDefinitionException {
+	public int eval(StateMachine machine, MachineState state, Role role,
+			int alpha, int beta, int depth, int absDepth, long endTime) throws MoveDefinitionException, TimeUpException {
 		float total = 0;
 		for (int i = 0; i < heuristics.length; i++){
-			total += heuristics[i].eval(machine, state, role, alpha, beta, depth, absDepth) * weights[i];
+			total += heuristics[i].eval(machine, state, role, alpha, beta, depth, absDepth, endTime) * weights[i];
 		}
 		
 		return Math.round(total);

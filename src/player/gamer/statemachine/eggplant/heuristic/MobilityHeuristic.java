@@ -2,6 +2,8 @@ package player.gamer.statemachine.eggplant.heuristic;
 
 import java.util.List;
 
+import player.gamer.statemachine.eggplant.misc.TimeUpException;
+
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -79,9 +81,9 @@ public class MobilityHeuristic implements Heuristic {
 	}
 	
 	protected int evalVarStep(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int properDepth, int evalDepth)
-	throws MoveDefinitionException, TransitionDefinitionException {
-		BranchingData data = getFirstRelevantBranchingData(machine, state, role, alpha, beta, evalDepth);
+			int alpha, int beta, int properDepth, int evalDepth, long timeout)
+	throws MoveDefinitionException, TransitionDefinitionException, TimeUpException {
+		BranchingData data = getFirstRelevantBranchingData(machine, state, role, alpha, beta, evalDepth, timeout);
 		double avg = 0;
 		if (data.samples > 0) avg = data.total / (double) data.samples;
 		else return (alpha + beta) / 2;
@@ -132,8 +134,8 @@ public class MobilityHeuristic implements Heuristic {
 	}
 	
 	private BranchingData getFirstRelevantBranchingData(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int maxDepth)
-	throws MoveDefinitionException, TransitionDefinitionException {
+			int alpha, int beta, int maxDepth, long timeout)
+	throws MoveDefinitionException, TransitionDefinitionException, TimeUpException {
 		int limit = samplesLimit();
 		if (machine.isTerminal(state)) return new BranchingData(0, 0);
 		List<Move> moves = machine.getLegalMoves(state, role);
@@ -142,9 +144,10 @@ public class MobilityHeuristic implements Heuristic {
 		List<List<Move>> joints = machine.getLegalJointMoves(state);
 		int samples = 0, total = 0;
 		for (List<Move> joint : joints) {
+			if (System.currentTimeMillis() > timeout) throw new TimeUpException();
 			MachineState nextState = machine.getNextState(state, joint);
 			BranchingData data = 
-				getFirstRelevantBranchingData(machine, nextState, role, alpha, beta, maxDepth - 1);
+				getFirstRelevantBranchingData(machine, nextState, role, alpha, beta, maxDepth - 1, timeout);
 			samples += data.samples;
 			total += data.total;
 			if (samples > limit) break;
@@ -160,14 +163,15 @@ public class MobilityHeuristic implements Heuristic {
 
 	@Override
 	public int eval(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int depth, int absDepth) {
+			int alpha, int beta, int depth, int absDepth, long timeout) 
+	throws TimeUpException {
 		int properDepth = absDepth + depth;
 		try {
 			switch (type) {
 			case N_STEP:
 				return evalNStep(machine, state, role, alpha, beta, properDepth, depthLimit);
 			case VAR_STEP:
-				return evalVarStep(machine, state, role, alpha, beta, properDepth, depthLimit);
+				return evalVarStep(machine, state, role, alpha, beta, properDepth, depthLimit, timeout);
 			default:
 				return evalOneStep(machine, state, role, alpha, beta, properDepth);
 			}

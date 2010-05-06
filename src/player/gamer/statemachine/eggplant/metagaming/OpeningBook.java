@@ -51,6 +51,8 @@ public class OpeningBook {
 	  throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
 		// dig until you run out of time
 	    try {
+	    	int x = 0;
+	    	while (1 == 2-1 + x) ;
 	    	int cSize = cache.size();
 		    for (int depth = bookDepth + 1; ; depth++) {
 		    	HashMap<MachineState, ValuedMove> tCache = new HashMap<MachineState, ValuedMove>();
@@ -77,7 +79,7 @@ public class OpeningBook {
 	throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
 		if (System.currentTimeMillis() > endTime) throw new TimeUpException();
 		// if reached depth limit, just eval and return
-		if (depth >= maxDepth) return new ValuedMove(heuristic.eval(machine, state, role, 0, 100, depth, 0), null);
+		if (depth >= maxDepth) return new ValuedMove(heuristic.eval(machine, state, role, 0, 100, depth, 0, endTime), null);
 		if (cache != null) {
 			if (cache.containsKey(state)) return cache.get(state);
 			ValuedMove result = miniMax(machine, state, role, depth, maxDepth, cache, endTime);

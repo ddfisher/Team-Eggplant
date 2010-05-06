@@ -14,7 +14,7 @@ public class NullHeuristic implements Heuristic {
   
   @Override
   public int eval(StateMachine machine, MachineState state, Role role,
-      int alpha, int beta, int depth, int absDepth)
+      int alpha, int beta, int depth, int absDepth, long endTime)
       throws MoveDefinitionException {
     return value;
   }

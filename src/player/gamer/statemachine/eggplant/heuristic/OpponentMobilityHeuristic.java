@@ -20,12 +20,13 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 		super(type, numPlayers, deptLimit);
 	}
 	
-	public int eval(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, int absDepth) {
+	@Override
+	public int eval(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, int absDepth, long endTime) {
 		try {
 			double avg = 0;
 			switch (type) {
 			case VAR_STEP:
-				BranchingData data = getRelevantOpponentBranchingData(machine, state, role, alpha, beta, getDepthLimit());
+				BranchingData data = getRelevantOpponentBranchingData(machine, state, role, alpha, beta, getDepthLimit(), endTime);
 				if (data.samples == 0) return (alpha + beta) / 2;
 				avg = (double) data.total / data.samples;
 				return judgeRelevantMobility(avg);
@@ -42,7 +43,7 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 	}
 	
 	private BranchingData getRelevantOpponentBranchingData(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int maxDepth)
+			int alpha, int beta, int maxDepth, long endTime)
 	throws MoveDefinitionException, TransitionDefinitionException {
 		if (machine.isTerminal(state)) return new BranchingData(0, 0);
 		int limit = samplesLimit();
@@ -54,9 +55,10 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 		else if (maxDepth == 0) return new BranchingData(0, 0);
 		int samples = 0, total = 0;
 		for (List<Move> joint : joints) {
+			if (System.currentTimeMillis() > endTime) break;
 			MachineState nextState = machine.getNextState(state, joint);
 			BranchingData data = 
-				getRelevantOpponentBranchingData(machine, nextState, role, alpha, beta, maxDepth - 1);
+				getRelevantOpponentBranchingData(machine, nextState, role, alpha, beta, maxDepth - 1, endTime);
 			samples += data.samples;
 			total += data.total;
 			if (samples > limit) break;

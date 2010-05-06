@@ -70,13 +70,13 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
     
 
     long start = System.currentTimeMillis();
-    /*
-     openingBook = new OpeningBook(machine, state, role);
-     openingBook.expandBook(time + (timeout - time) / 2);
-     */
     
+     openingBook = new OpeningBook(machine, state, role);
+     openingBook.expandBook(start + (timeout - start) / 2);
+     
+    /*
     endBook = new EndgameBook(numPlayers);
-    endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
+    endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);*/
     iterativeDeepening(machine, state, role, 0, 100, true, timeout);
   }
 
@@ -299,7 +299,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       // stop
       if (debug)
         System.out.println("Heuristic; stopping expanding at depth " + depth);
-      return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth), null, rootDepth + depth,
+      return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth, endTime), null, rootDepth + depth,
           false);
     }
     List<Move> possibleMoves = machine.getLegalMoves(state, role);

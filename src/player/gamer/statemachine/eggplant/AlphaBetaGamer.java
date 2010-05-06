@@ -178,7 +178,7 @@ public class AlphaBetaGamer extends StateMachineGamer {
 																					// stop
 			if (debug)
 				System.out.println("Stopping expanding at depth " + depth);
-			return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth), null);
+			return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth, endTime), null);
 		}
 		ValuedMove maxMove = new ValuedMove(-1, null);
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);

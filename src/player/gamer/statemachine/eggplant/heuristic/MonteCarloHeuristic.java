@@ -1,5 +1,6 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
+import player.gamer.statemachine.eggplant.misc.TimeUpException;
 import util.statemachine.MachineState;
 import util.statemachine.Role;
 import util.statemachine.StateMachine;
@@ -16,7 +17,8 @@ public class MonteCarloHeuristic implements Heuristic {
 	}
 
 	@Override
-	public int eval(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, int absDepth) {
+	public int eval(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, int absDepth, long timeout) 
+	throws TimeUpException {
 		int successfulTrials = 0;
 		int sum = 0;
 		for (int trial = 0; trial < numTrials; trial++) {
