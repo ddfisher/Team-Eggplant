@@ -2,7 +2,6 @@ package player.gamer.statemachine.eggplant;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 
 import player.gamer.statemachine.StateMachineGamer;
@@ -11,11 +10,11 @@ import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityType;
-import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
-import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
+import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
 import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
@@ -206,8 +205,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
                   continue loop0;
               }
             }
-          } else { // must be a losing joint move; no need to keep
-            // searching
+          } else { // must be a losing joint move; no need to keep searching
             continue loop0;
           }
         }
@@ -215,8 +213,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
           Log.println('f', "Best = " + move0 + " has " + count + " ways to lose");
           minCount = count;
           bestMove = new ValuedMove(-3, move0);
-          if (count == 1) { // we know that every move has at least 1
-            // way to lose
+          if (count == 1) { // we know that every move has at least 1 way to lose
             break;
           }
         }

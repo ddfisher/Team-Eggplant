@@ -1,12 +1,11 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
-import java.util.*;
+import java.util.List;
 
-import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic.BranchingData;
 import util.statemachine.MachineState;
+import util.statemachine.Move;
 import util.statemachine.Role;
 import util.statemachine.StateMachine;
-import util.statemachine.Move;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
 

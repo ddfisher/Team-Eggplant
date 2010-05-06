@@ -3,15 +3,11 @@ package player.gamer.statemachine.eggplant.metagaming;
 import java.util.HashMap;
 import java.util.List;
 
-import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
-import player.gamer.statemachine.eggplant.heuristic.FocusHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
-import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.MobilityType;
 import player.gamer.statemachine.eggplant.heuristic.MonteCarloHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
-import player.gamer.statemachine.eggplant.misc.*;
+import player.gamer.statemachine.eggplant.misc.Log;
+import player.gamer.statemachine.eggplant.misc.TimeUpException;
+import player.gamer.statemachine.eggplant.misc.ValuedMove;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -24,7 +20,6 @@ public class OpeningBook {
 	
 	private HashMap<MachineState, ValuedMove> cache;
 	private int bookDepth;
-	private int numPlayers;
 	private Heuristic heuristic;
 	private StateMachine startMachine;
 	private MachineState startState;
@@ -50,14 +45,8 @@ public class OpeningBook {
 	  throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
 		// dig until you run out of time
 	    try {
-	    	int cSize = cache.size();
 		    for (int depth = bookDepth + 1; ; depth++) {
 		    	HashMap<MachineState, ValuedMove> tCache = new HashMap<MachineState, ValuedMove>();
-		    	numPlayers = machine.getRoles().size();
-		    	/*heuristic = new WeightedHeuristic(
-		    			new Heuristic[]{ new MobilityHeuristic(MobilityType.VAR_STEP, numPlayers),
-		    				new OpponentFocusHeuristic(MobilityType.VAR_STEP, numPlayers) },
-		    			new double[] { 0.3, 0.7 });*/
 		    	heuristic = new MonteCarloHeuristic(2);
 		    	memoizedMiniMax(machine, state, role, 0, depth, tCache, endTime);
 		    	if (tCache.size() == cache.size()) break;
