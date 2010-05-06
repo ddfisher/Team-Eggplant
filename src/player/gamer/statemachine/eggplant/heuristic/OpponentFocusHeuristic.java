@@ -14,8 +14,9 @@ public class OpponentFocusHeuristic extends OpponentMobilityHeuristic {
 		super(type, numPlayers, depthLimit);
 	}
 	
-	public int eval(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, int absDepth) {
-		return 100 - super.eval(machine, state, role, alpha, beta, depth, absDepth);
+	@Override
+	public int eval(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, int absDepth, long endTime) {
+		return 100 - super.eval(machine, state, role, alpha, beta, depth, absDepth, endTime);
 	}
 
 }
