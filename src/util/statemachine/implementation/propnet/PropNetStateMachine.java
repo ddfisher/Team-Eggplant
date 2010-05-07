@@ -109,11 +109,17 @@ public class PropNetStateMachine extends StateMachine {
 	public List<Move> getLegalMoves(MachineState state, Role role) throws MoveDefinitionException {
 		List<Move> legalMoves = new LinkedList<Move>();
 
-		initBasePropositionsFromState(state);
 
 		Set<Proposition> legals = legalPropositions.get(role);
 
+		// Clear initial moves
 		for (Proposition legal : legals) {
+			legalInputMap.get(legal).setValue(false);
+		}
+		
+		for (Proposition legal : legals) {
+			// TODO make this more efficient
+			initBasePropositionsFromState(state);
 			Proposition input = legalInputMap.get(legal);
 			input.setValue(true);
 			propagate();
@@ -122,7 +128,7 @@ public class PropNetStateMachine extends StateMachine {
 			}
 			input.setValue(false);
 		}
-
+		Log.println('p', "Legal moves in " + state + " for " + role + " = " + legalMoves);
 		return legalMoves;
 	}
 

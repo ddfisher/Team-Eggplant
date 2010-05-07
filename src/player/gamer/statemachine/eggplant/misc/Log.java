@@ -2,7 +2,7 @@ package player.gamer.statemachine.eggplant.misc;
 
 public class Log {
   // Set this string only in Log, to avoid messy code
-  private static final String flags = "aifp";
+  private static final String flags = "if";
   
   /*
    * Flag codes:
