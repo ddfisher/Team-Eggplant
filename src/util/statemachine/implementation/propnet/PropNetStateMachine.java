@@ -3,13 +3,13 @@ package util.statemachine.implementation.propnet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import player.gamer.statemachine.eggplant.misc.Log;
-
 import util.gdl.grammar.Gdl;
 import util.gdl.grammar.GdlConstant;
 import util.gdl.grammar.GdlProposition;
@@ -80,26 +80,31 @@ public class PropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public MachineState getInitialState() {
-		HashSet<GdlSentence> trueSentences = new HashSet<GdlSentence>();
+		try {
+			HashSet<GdlSentence> trueSentences = new HashSet<GdlSentence>();
 
-		initBasePropositionsFromState(getMachineStateFromSentenceList(new HashSet<GdlSentence>()));
+			initBasePropositionsFromState(getMachineStateFromSentenceList(new HashSet<GdlSentence>()));
 
-		init.setValue(true);
-		propagate();
-		init.setValue(false);
-		for (GdlTerm propName : basePropositions.keySet()) {
-			if (basePropositions.get(propName).getValue()) {
-				trueSentences.add(propName.toSentence());
+			init.setValue(true);
+			propagate();
+			init.setValue(false);
+			for (GdlTerm propName : basePropositions.keySet()) {
+				if (basePropositions.get(propName).getValue()) {
+					trueSentences.add(propName.toSentence());
+				}
 			}
-		}
-		for (GdlTerm propName : basePropositions.keySet()) {
-			if (basePropositions.get(propName).getValue()) {
-				trueSentences.add(propName.toSentence());
+			for (GdlTerm propName : basePropositions.keySet()) {
+				if (basePropositions.get(propName).getValue()) {
+					trueSentences.add(propName.toSentence());
+				}
 			}
+			MachineState newState = getMachineStateFromSentenceList(trueSentences);
+			Log.println('p', "Init with " + newState);
+			return newState;
+		} catch (Exception ex) {
+			ex.printStackTrace();
 		}
-		MachineState newState = getMachineStateFromSentenceList(trueSentences);
-		Log.println('p', "Init with " + newState);
-		return newState;
+		return null;
 	}
 
 	/**
@@ -107,29 +112,33 @@ public class PropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public List<Move> getLegalMoves(MachineState state, Role role) throws MoveDefinitionException {
-		List<Move> legalMoves = new LinkedList<Move>();
+		try {
+			List<Move> legalMoves = new LinkedList<Move>();
 
+			Set<Proposition> legals = legalPropositions.get(role);
 
-		Set<Proposition> legals = legalPropositions.get(role);
-
-		// Clear initial moves
-		for (Proposition legal : legals) {
-			legalInputMap.get(legal).setValue(false);
-		}
-		
-		for (Proposition legal : legals) {
-			// TODO make this more efficient
-			initBasePropositionsFromState(state);
-			Proposition input = legalInputMap.get(legal);
-			input.setValue(true);
-			propagate();
-			if (legal.getValue()) {
-				legalMoves.add(getMoveFromProposition(input));
+			// Clear initial moves
+			for (Proposition legal : legals) {
+				legalInputMap.get(legal).setValue(false);
 			}
-			input.setValue(false);
+
+			for (Proposition legal : legals) {
+				// TODO make this more efficient
+				initBasePropositionsFromState(state);
+				Proposition input = legalInputMap.get(legal);
+				input.setValue(true);
+				propagate();
+				if (legal.getValue()) {
+					legalMoves.add(getMoveFromProposition(input));
+				}
+				input.setValue(false);
+			}
+			Log.println('p', "Legal moves in " + state + " for " + role + " = " + legalMoves);
+			return legalMoves;
+		} catch (Exception ex) {
+			ex.printStackTrace();
 		}
-		Log.println('p', "Legal moves in " + state + " for " + role + " = " + legalMoves);
-		return legalMoves;
+		return null;
 	}
 
 	/**
@@ -138,32 +147,36 @@ public class PropNetStateMachine extends StateMachine {
 	@Override
 	public MachineState getNextState(MachineState state, List<Move> moves)
 			throws TransitionDefinitionException {
+		try {
+			// Set up the base propositions
+			initBasePropositionsFromState(state);
 
-		// Set up the base propositions
-		initBasePropositionsFromState(state);
+			// Set up the input propositions
+			List<GdlTerm> doeses = toDoes(moves);
 
-		// Set up the input propositions
-		List<GdlTerm> doeses = toDoes(moves);
-
-		for (Proposition anyInput : inputPropositions.values()) {
-			anyInput.setValue(false);
-		}
-
-		for (GdlTerm does : doeses) {
-			Proposition trueInput = inputPropositions.get(does);
-			trueInput.setValue(true);
-		}
-
-		propagate();
-		HashSet<GdlSentence> trueSentences = new HashSet<GdlSentence>();
-		for (Proposition prop : basePropositions.values()) {
-			if (prop.getValue()) {
-				trueSentences.add(prop.getName().toSentence());
+			for (Proposition anyInput : inputPropositions.values()) {
+				anyInput.setValue(false);
 			}
+
+			for (GdlTerm does : doeses) {
+				Proposition trueInput = inputPropositions.get(does);
+				trueInput.setValue(true);
+			}
+
+			propagate();
+			HashSet<GdlSentence> trueSentences = new HashSet<GdlSentence>();
+			for (Proposition prop : basePropositions.values()) {
+				if (prop.getValue()) {
+					trueSentences.add(prop.getName().toSentence());
+				}
+			}
+			MachineState newState = getMachineStateFromSentenceList(trueSentences);
+			Log.println('p', "From " + state + " to " + newState + " via " + moves);
+			return newState;
+		} catch (Exception ex) {
+			ex.printStackTrace();
 		}
-		MachineState newState = getMachineStateFromSentenceList(trueSentences);
-		Log.println('p', "From " + state + " to " + newState + " via " + moves);
-		return newState;
+		return null;
 	}
 
 	private void initBasePropositionsFromState(MachineState state) {
@@ -174,22 +187,21 @@ public class PropNetStateMachine extends StateMachine {
 					initialTrueSentences.contains(propName.toSentence()));
 		}
 		/*
-		Log.print('p', "Base propositions: [");
-		for (GdlTerm propName : basePropositions.keySet()) {
-			Log.print('p', propName + " : " + basePropositions.get(propName).getValue() + ", ");
-		}
-		Log.println('p', "]");
-		*/
+		 * Log.print('p', "Base propositions: ["); for (GdlTerm propName :
+		 * basePropositions.keySet()) { Log.print('p', propName + " : " +
+		 * basePropositions.get(propName).getValue() + ", "); } Log.println('p',
+		 * "]");
+		 */
 	}
 
 	private void propagate() {
 		// All the input propositions are set, update all propositions in order
 		for (Proposition prop : ordering) {
-			if (prop != init)
-				prop.setValue(prop.getSingleInput().getValue());
+			prop.setValue(prop.getSingleInput().getValue());
 		}
 
-		// All the internal propositions are updated, update all base propositions
+		// All the internal propositions are updated, update all base
+		// propositions
 		for (Proposition baseProposition : basePropositions.values()) {
 			baseProposition.setValue(baseProposition.getSingleInput().getValue());
 		}
@@ -220,15 +232,20 @@ public class PropNetStateMachine extends StateMachine {
 		Collection<Proposition> basePropositionsValues = basePropositions.values();
 		propositions.removeAll(basePropositionsValues);
 		components.removeAll(basePropositionsValues);
-
-		// Remove all input propositions
-		Collection<Proposition> inputPropositionsValues = inputPropositions.values();
-		propositions.removeAll(inputPropositionsValues);
-		components.removeAll(inputPropositionsValues);
+		
+		// Remove all propositions with no inputs (covers init, input, and spurious)
+		Iterator<Proposition> iterator = propositions.iterator();
+		while (iterator.hasNext()) {
+			Proposition prop = iterator.next();
+			if (prop.getInputs().size() == 0) {
+				iterator.remove();
+				components.remove(prop);
+			}
+		}
 
 		// Use DFS to compute topological sort of propositions
 		while (!propositions.isEmpty()) {
-			Component currComponent = propositions.iterator().next();
+			Proposition currComponent = propositions.iterator().next();
 			topologicalSort(currComponent, order, propositions, components);
 		}
 		Log.println('p', "Order: " + order);
@@ -324,7 +341,7 @@ public class PropNetStateMachine extends StateMachine {
 		legalPropositions = pnet.getLegalPropositions();
 		init = pnet.getInitProposition();
 		goalPropositions = pnet.getGoalPropositions();
-		legalInputMap = pnet.getLegalInputMap();
+		legalInputMap = pnet.getLegalInputMap();		
 		ordering = getOrdering();
 		pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test.out");
 	}
