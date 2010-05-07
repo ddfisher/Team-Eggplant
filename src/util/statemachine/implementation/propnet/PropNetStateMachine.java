@@ -121,13 +121,11 @@ public class PropNetStateMachine extends StateMachine {
 			for (Proposition legal : legals) {
 				legalInputMap.get(legal).setValue(false);
 			}
-
+			initBasePropositionsFromState(state);
 			for (Proposition legal : legals) {
-				// TODO make this more efficient
-				initBasePropositionsFromState(state);
 				Proposition input = legalInputMap.get(legal);
 				input.setValue(true);
-				propagate();
+				propagateInternalOnly();
 				if (legal.getValue()) {
 					legalMoves.add(getMoveFromProposition(input));
 				}
@@ -193,12 +191,15 @@ public class PropNetStateMachine extends StateMachine {
 		 * "]");
 		 */
 	}
-
-	private void propagate() {
+	private void propagateInternalOnly() {
 		// All the input propositions are set, update all propositions in order
 		for (Proposition prop : ordering) {
 			prop.setValue(prop.getSingleInput().getValue());
 		}
+	}
+
+	private void propagate() {
+		propagateInternalOnly();
 
 		// All the internal propositions are updated, update all base
 		// propositions
