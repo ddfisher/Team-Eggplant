@@ -312,8 +312,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       int minDepth = rootDepth + depth;
       int newBeta = beta;
       for (List<Move> jointMove : jointMoves) {
-        Log.println('a', "Considering joint move " + jointMove);
         MachineState nextState = machine.getNextState(state, jointMove);
+        Log.println('a', "Considering joint move " + jointMove + " with state = " + nextState);
         ValuedMove bestMove = memoizedAlphaBeta(machine, nextState, role, alpha, newBeta, depth + 1, cache,
             principalMovesCache, endTime, debug);
         int bestMoveValue = bestMove.value;
