@@ -146,7 +146,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					throw new GoalDefinitionException(state, role);
 				} else {
 					Log.println('p', "Goal found: " + goal.getName().toSentence().get(1));
-					goalValue = Integer.parseInt(goal.getName().toSentence().get(1).toString());
+					goalValue = getGoalValue(goal);
 					goalFound = true;
 				}
 			}
