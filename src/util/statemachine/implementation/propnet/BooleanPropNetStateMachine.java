@@ -275,26 +275,14 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		 */
 	}
 	
-	private void buildInternalPropagator() {
-		ClassPool pool = ClassPool.getDefault();
-		try {
-			CtClass thisClass = pool.get("util.statemachine.implementation.propnet.BooleanPropNetStateMachine");
-			CodeConverter conv = new CodeConverter();
-			
-		} catch (NotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-	}
 	
 	private void propagateInternalOnly() {
 		
 		long start = System.currentTimeMillis();
 		boolean[] props = generatePropArray();
-		Log.println('z', "Initially generated array: " + booleanArrayToString(props));
+//		Log.println('z', "Initially generated array: " + booleanArrayToString(props));
 		props = operator.propagateInternalOnly(props);
-		Log.println('z', "Array after internal propagation: " + booleanArrayToString(props));
+//		Log.println('z', "Array after internal propagation: " + booleanArrayToString(props));
 		long end = System.currentTimeMillis();
 		
 		long start2 = System.currentTimeMillis();
@@ -308,7 +296,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			compare++;
 		}
 		long end2 = System.currentTimeMillis();
-		Log.println('z', "Fast propagation took: " + (end-start) + "\tSlow propagation took: " + (end2-start2));
+		Log.println('c', "Fast propagation took: " + (end-start) + "\tSlow propagation took: " + (end2-start2));
 	}
 
 	private void propagate() {
@@ -533,19 +521,55 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			if (comp instanceof Constant) {
 				body.append("props[" + i + "] = " + comp.getValue() + ";\n");
 			} else if (comp instanceof Not) {
-				body.append("props[" + i + "] = !props[" + propMap.get(comp.getSingleInput()) + "];\n");
+				if (!propMap.containsKey(comp.getSingleInput())) {
+					body.append("props[" + i + "] =!" + comp.getSingleInput().getValue() + ";\n");
+				} else {
+					body.append("props[" + i + "] = !props[" + propMap.get(comp.getSingleInput()) + "];\n");
+				}
 			} else if (comp instanceof And) {
 				Set<Component> connected = comp.getInputs();
-				body.append("props[" + i + "] = true;\n");
+				StringBuilder and = new StringBuilder();
+				and.append("props[" + i + "] = true");
+				
 				for (Component prop : connected) {
-					body.append("props[" + i + "] &= props[" + propMap.get(prop) + "];\n");
+					if (!propMap.containsKey(prop)) { //if the proposition is not in the proposition map, it is never changed: it is effectively a constant
+						if (prop.getValue()) {
+							continue;
+						} else {
+							and = new StringBuilder("props[" + i + "] = false");
+							break;
+						}
+					} else {
+						and.append(" && props[" + propMap.get(prop) + "]");
+					}
 				}
+				
+				and.append(";\n");
+				
+				body.append(and);
+				
 			} else if (comp instanceof Or) {
 				Set<Component> connected = comp.getInputs();
-				body.append("props[" + i + "] = false;\n");
+				StringBuilder or = new StringBuilder();
+				or.append("props[" + i + "] = false");
+				
 				for (Component prop : connected) {
-					body.append("props[" + i + "] |= props[" + propMap.get(prop) + "];\n");
+					if (!propMap.containsKey(prop)) { //if the proposition is not in the proposition map, it is never changed: it is effectively a constant
+						if (prop.getValue()) {
+							or = new StringBuilder("props[" + i + "] = true");
+							break;
+						} else {
+							continue;
+						}
+					} else {
+						or.append(" || props[" + propMap.get(prop) + "]");
+					}
 				}
+				
+				or.append(";\n");
+				
+				body.append(or);
+				
 			} else {
 				throw new RuntimeException("Unexpected Class");
 			}
