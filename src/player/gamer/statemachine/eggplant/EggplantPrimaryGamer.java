@@ -29,8 +29,7 @@ import util.statemachine.StateMachine;
 import util.statemachine.exceptions.GoalDefinitionException;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
-import util.statemachine.implementation.propnet.PropNetStateMachine;
-import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
+import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
 
@@ -360,7 +359,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
   @Override
   public StateMachine getInitialStateMachine() {
-    return new PropNetStateMachine();
+    return new BooleanPropNetStateMachine();
   }
 
   @Override

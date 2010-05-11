@@ -39,14 +39,14 @@ import util.statemachine.implementation.propnet.PropNetRole;
  * truth values to base propositions corresponds to exactly one unique state of
  * the game.
  * 
- * Given the values of the base propositions, you can use the connections in
- * the network (AND gates, OR gates, NOT gates) to determine the truth values
- * of other propositions. For example, you can determine whether the terminal
+ * Given the values of the base propositions, you can use the connections in the
+ * network (AND gates, OR gates, NOT gates) to determine the truth values of
+ * other propositions. For example, you can determine whether the terminal
  * proposition is true: if that proposition is true, the game is over when it
  * reaches this state. Otherwise, if it is false, the game isn't over. You can
- * also determine the value of the goal propositions, which represent facts
- * like (goal xplayer 100). If that proposition is true, then that fact is true
- * in this state of the game, which means that xplayer has 100 points.
+ * also determine the value of the goal propositions, which represent facts like
+ * (goal xplayer 100). If that proposition is true, then that fact is true in
+ * this state of the game, which means that xplayer has 100 points.
  * 
  * You can also use a propositional network to determine the next state of the
  * game, given the current state and the moves for each player. First, you set
@@ -63,8 +63,7 @@ import util.statemachine.implementation.propnet.PropNetRole;
  * @author Sam Schreiber
  */
 @SuppressWarnings("serial")
-public final class PropNet implements Serializable
-{
+public final class PropNet implements Serializable {
 	/** References to every component in the PropNet. */
 	private final Set<Component> components;
 	/** References to every Proposition in the PropNet. */
@@ -87,10 +86,11 @@ public final class PropNet implements Serializable
 	private final Proposition initProposition;
 	/** A reference to the single, unique, TerminalProposition. */
 	private final Proposition terminalProposition;
-	
+
 	private final Map<Proposition, Proposition> legalInputMap;
 	
-	//private final List<Role> roles;
+
+	// private final List<Role> roles;
 
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
@@ -99,8 +99,7 @@ public final class PropNet implements Serializable
 	 * @param components
 	 *            A list of Components.
 	 */
-	public PropNet(Set<Component> components)
-	{
+	public PropNet(Set<Component> components) {
 		this.components = components;
 		this.propositions = recordPropositions();
 		this.basePropositions = recordBasePropositions();
@@ -110,41 +109,38 @@ public final class PropNet implements Serializable
 		this.initProposition = recordInitProposition();
 		this.terminalProposition = recordTerminalProposition();
 		this.legalInputMap = makeLegalInputMap();
+		
+		
 	}
-	
-	public Map<Proposition, Proposition> getLegalInputMap()
-	{
+
+	public Map<Proposition, Proposition> getLegalInputMap() {
 		return legalInputMap;
 	}
 
 	private Map<Proposition, Proposition> makeLegalInputMap() {
 		Map<Proposition, Proposition> legalInputMap = new HashMap<Proposition, Proposition>();
-		for (Proposition inputProp : inputPropositions.values())
-		{
-			List<GdlTerm> inputPropBody = ((GdlFunction)inputProp.getName()).getBody();
-			for (Set<Proposition> legalProps : legalPropositions.values())
-			{
-				for (Proposition legalProp : legalProps)
-				{
-					List<GdlTerm> legalPropBody = ((GdlFunction)legalProp.getName()).getBody();
-					if (legalPropBody.equals(inputPropBody))
-					{
+		for (Proposition inputProp : inputPropositions.values()) {
+			List<GdlTerm> inputPropBody = ((GdlFunction) inputProp.getName()).getBody();
+			for (Set<Proposition> legalProps : legalPropositions.values()) {
+				for (Proposition legalProp : legalProps) {
+					List<GdlTerm> legalPropBody = ((GdlFunction) legalProp.getName()).getBody();
+					if (legalPropBody.equals(inputPropBody)) {
 						legalInputMap.put(inputProp, legalProp);
-						legalInputMap.put(legalProp, inputProp);	
+						legalInputMap.put(legalProp, inputProp);
 					}
 				}
 			}
 		}
 		return legalInputMap;
 	}
+
 	/**
 	 * Getter method.
 	 * 
 	 * @return References to every BaseProposition in the PropNet, indexed by
 	 *         name.
 	 */
-	public Map<GdlTerm, Proposition> getBasePropositions()
-	{
+	public Map<GdlTerm, Proposition> getBasePropositions() {
 		return basePropositions;
 	}
 
@@ -153,8 +149,7 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return References to every Component in the PropNet.
 	 */
-	public Set<Component> getComponents()
-	{
+	public Set<Component> getComponents() {
 		return components;
 	}
 
@@ -164,8 +159,7 @@ public final class PropNet implements Serializable
 	 * @return References to every GoalProposition in the PropNet, indexed by
 	 *         player name.
 	 */
-	public Map<Role, Set<Proposition>> getGoalPropositions()
-	{
+	public Map<Role, Set<Proposition>> getGoalPropositions() {
 		return goalPropositions;
 	}
 
@@ -174,8 +168,7 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return
 	 */
-	public Proposition getInitProposition()
-	{
+	public Proposition getInitProposition() {
 		return initProposition;
 	}
 
@@ -185,8 +178,7 @@ public final class PropNet implements Serializable
 	 * @return References to every InputProposition in the PropNet, indexed by
 	 *         name.
 	 */
-	public Map<GdlTerm, Proposition> getInputPropositions()
-	{
+	public Map<GdlTerm, Proposition> getInputPropositions() {
 		return inputPropositions;
 	}
 
@@ -196,8 +188,7 @@ public final class PropNet implements Serializable
 	 * @return References to every LegalProposition in the PropNet, indexed by
 	 *         player name.
 	 */
-	public Map<Role, Set<Proposition>> getLegalPropositions()
-	{
+	public Map<Role, Set<Proposition>> getLegalPropositions() {
 		return legalPropositions;
 	}
 
@@ -206,8 +197,7 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return References to every Proposition in the PropNet.
 	 */
-	public Set<Proposition> getPropositions()
-	{
+	public Set<Proposition> getPropositions() {
 		return propositions;
 	}
 
@@ -216,8 +206,7 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return A reference to the single, unique, TerminalProposition.
 	 */
-	public Proposition getTerminalProposition()
-	{
+	public Proposition getTerminalProposition() {
 		return terminalProposition;
 	}
 
@@ -227,13 +216,11 @@ public final class PropNet implements Serializable
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
-	public String toString()
-	{
+	public String toString() {
 		StringBuilder sb = new StringBuilder();
 
 		sb.append("digraph propNet\n{\n");
-		for ( Component component : components )
-		{
+		for (Component component : components) {
 			sb.append("\t" + component.toString() + "\n");
 		}
 		sb.append("}");
@@ -242,39 +229,36 @@ public final class PropNet implements Serializable
 	}
 
 	/**
-     * Outputs the propnet in .dot format to a particular file.
-     * This can be viewed with tools like Graphviz and ZGRViewer.
-     * 
-     * @param filename the name of the file to output to
-     */
-    public void renderToFile(String filename) {
-        try {
-            File f = new File(filename);
-            FileOutputStream fos = new FileOutputStream(f);
-            OutputStreamWriter fout = new OutputStreamWriter(fos, "UTF-8");
-            fout.write(toString());
-            fout.close();
-            fos.close();
-        } catch(Exception e) {
-            GamerLogger.logStackTrace("StateMachine", e);
-        }
-    }
+	 * Outputs the propnet in .dot format to a particular file. This can be
+	 * viewed with tools like Graphviz and ZGRViewer.
+	 * 
+	 * @param filename
+	 *            the name of the file to output to
+	 */
+	public void renderToFile(String filename) {
+		try {
+			File f = new File(filename);
+			FileOutputStream fos = new FileOutputStream(f);
+			OutputStreamWriter fout = new OutputStreamWriter(fos, "UTF-8");
+			fout.write(toString());
+			fout.close();
+			fos.close();
+		} catch (Exception e) {
+			GamerLogger.logStackTrace("StateMachine", e);
+		}
+	}
 
 	/**
 	 * Builds an index over the BasePropositions in the PropNet.
 	 * 
 	 * @return An index over the BasePropositions in the PropNet.
 	 */
-	private Map<GdlTerm, Proposition> recordBasePropositions()
-	{
+	private Map<GdlTerm, Proposition> recordBasePropositions() {
 		Map<GdlTerm, Proposition> basePropositions = new HashMap<GdlTerm, Proposition>();
-		for ( Proposition proposition : propositions )
-		{
-			if ( proposition.getInputs().size() > 0 )
-			{
+		for (Proposition proposition : propositions) {
+			if (proposition.getInputs().size() == 1) {
 				Component component = proposition.getSingleInput();
-				if ( component instanceof Transition )
-				{
+				if (component instanceof Transition) {
 					basePropositions.put(proposition.getName(), proposition);
 				}
 			}
@@ -288,21 +272,16 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return An index over the GoalPropositions in the PropNet.
 	 */
-	private Map<Role, Set<Proposition>> recordGoalPropositions()
-	{
+	private Map<Role, Set<Proposition>> recordGoalPropositions() {
 		Map<Role, Set<Proposition>> goalPropositions = new HashMap<Role, Set<Proposition>>();
-		for ( Proposition proposition : propositions )
-		{
-			if ( proposition.getName() instanceof GdlFunction )
-			{
+		for (Proposition proposition : propositions) {
+			if (proposition.getName() instanceof GdlFunction) {
 				GdlFunction function = (GdlFunction) proposition.getName();
-				if ( function.getName().getValue().equals("goal") )
-				{
+				if (function.getName().getValue().equals("goal")) {
 					GdlConstant name = (GdlConstant) function.get(0);
-					GdlProposition prop = (GdlProposition)name.toSentence();
+					GdlProposition prop = (GdlProposition) name.toSentence();
 					Role r = new PropNetRole(prop);
-					if ( !goalPropositions.containsKey(r) )
-					{
+					if (!goalPropositions.containsKey(r)) {
 						goalPropositions.put(r, new HashSet<Proposition>());
 					}
 					goalPropositions.get(r).add(proposition);
@@ -318,15 +297,11 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return A reference to the single, unique, InitProposition.
 	 */
-	private Proposition recordInitProposition()
-	{
-		for ( Proposition proposition : propositions )
-		{
-			if ( proposition.getName() instanceof GdlConstant )
-			{
+	private Proposition recordInitProposition() {
+		for (Proposition proposition : propositions) {
+			if (proposition.getName() instanceof GdlConstant) {
 				GdlConstant constant = (GdlConstant) proposition.getName();
-				if ( constant.getValue().equals("INIT") )
-				{
+				if (constant.getValue().equals("INIT")) {
 					return proposition;
 				}
 			}
@@ -340,16 +315,12 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return An index over the InputPropositions in the PropNet.
 	 */
-	private Map<GdlTerm, Proposition> recordInputPropositions()
-	{
+	private Map<GdlTerm, Proposition> recordInputPropositions() {
 		Map<GdlTerm, Proposition> inputPropositions = new HashMap<GdlTerm, Proposition>();
-		for ( Proposition proposition : propositions )
-		{
-			if ( proposition.getName() instanceof GdlFunction )
-			{
+		for (Proposition proposition : propositions) {
+			if (proposition.getName() instanceof GdlFunction) {
 				GdlFunction function = (GdlFunction) proposition.getName();
-				if ( function.getName().getValue().equals("does") )
-				{
+				if (function.getName().getValue().equals("does")) {
 					inputPropositions.put(proposition.getName(), proposition);
 				}
 			}
@@ -363,25 +334,20 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return An index over the LegalPropositions in the PropNet.
 	 */
-	private Map<Role, Set<Proposition>> recordLegalPropositions()
-	{
+	private Map<Role, Set<Proposition>> recordLegalPropositions() {
 		Map<Role, Set<Proposition>> legalPropositions = new HashMap<Role, Set<Proposition>>();
-		for ( Proposition proposition : propositions )
-		{
-			if ( proposition.getName() instanceof GdlFunction )
-			{
+		for (Proposition proposition : propositions) {
+			if (proposition.getName() instanceof GdlFunction) {
 				GdlFunction function = (GdlFunction) proposition.getName();
-				if ( function.getName().getValue().equals("legal") )
-				{
+				if (function.getName().getValue().equals("legal")) {
 					GdlConstant name = (GdlConstant) function.get(0);
-					GdlProposition prop = (GdlProposition)name.toSentence();
+					GdlProposition prop = (GdlProposition) name.toSentence();
 					Role r = new PropNetRole(prop);
-					if ( !legalPropositions.containsKey(r) )
-					{
+					if (!legalPropositions.containsKey(r)) {
 						legalPropositions.put(r, new HashSet<Proposition>());
 					}
 					legalPropositions.get(r).add(proposition);
-					
+
 				}
 			}
 		}
@@ -394,13 +360,10 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return An index over Propositions in the PropNet.
 	 */
-	private Set<Proposition> recordPropositions()
-	{
+	private Set<Proposition> recordPropositions() {
 		Set<Proposition> propositions = new HashSet<Proposition>();
-		for ( Component component : components )
-		{
-			if ( component instanceof Proposition )
-			{
+		for (Component component : components) {
+			if (component instanceof Proposition) {
 				propositions.add((Proposition) component);
 			}
 		}
@@ -413,20 +376,16 @@ public final class PropNet implements Serializable
 	 * 
 	 * @return A reference to the single, unqiue, TerminalProposition.
 	 */
-	private Proposition recordTerminalProposition()
-	{
-		for ( Proposition proposition : propositions )
-		{
-			if ( proposition.getName() instanceof GdlConstant )
-			{
+	private Proposition recordTerminalProposition() {
+		for (Proposition proposition : propositions) {
+			if (proposition.getName() instanceof GdlConstant) {
 				GdlConstant constant = (GdlConstant) proposition.getName();
-				if ( constant.getValue().equals("terminal") )
-				{
+				if (constant.getValue().equals("terminal")) {
 					return proposition;
 				}
 			}
 		}
 
 		return null;
-	}		
+	}
 }

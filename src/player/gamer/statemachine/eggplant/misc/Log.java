@@ -2,16 +2,18 @@ package player.gamer.statemachine.eggplant.misc;
 
 public class Log {
   // Set this string only in Log, to avoid messy code
-  private static final String flags = "if";
+  private static final String flags = "icf";
   
   /*
    * Flag codes:
    *   a = AlphaBeta debug 
+   *   c = Code generation
    *   e = Endgame book
    *   f = findFarthestLoss (desperate measures) 
    *   i = iterative deepening
    *   o = opening book
    *   p = prop net
+   *   z = Additional code generation info
    */
   
   // Initialize flags for more efficiency 
