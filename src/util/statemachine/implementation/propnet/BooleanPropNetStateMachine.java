@@ -31,7 +31,9 @@ import util.propnet.architecture.components.Constant;
 import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
+import util.propnet.architecture.components.Transition;
 import util.propnet.factory.CachedPropNetFactory;
+import util.statemachine.BooleanMachineState;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -260,52 +262,48 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		return null;
 	}
 
-	private void initBasePropositionsFromState(MachineState state) {
-		// Set up the base propositions
-		Set<GdlSentence> initialTrueSentences = state.getContents();
-		for (GdlTerm propName : basePropositions.keySet()) {
-			basePropositions.get(propName).setValue(
-					initialTrueSentences.contains(propName.toSentence()));
+	private boolean[] initBasePropositionsFromState(MachineState state) {
+		if (state instanceof BooleanMachineState) {
+			boolean[] props = new boolean[booleanOrdering.length];
+			boolean[] baseProps = ((BooleanMachineState)state).getBooleanContents();
+			for (int i = 0; i < baseProps.length; i++) {
+				props[i+1] = baseProps[i];
+			}
+			return props;
+		} else {
+			Set<GdlSentence> initialTrueSentences = state.getContents();
+			for (GdlTerm propName : basePropositions.keySet()) {
+				basePropositions.get(propName).setValue(
+						initialTrueSentences.contains(propName.toSentence()));
+			}
+			return generatePropArray(1, basePropositions.size());
+			
 		}
-		/*
-		 * Log.print('p', "Base propositions: ["); for (GdlTerm propName :
-		 * basePropositions.keySet()) { Log.print('p', propName + " : " +
-		 * basePropositions.get(propName).getValue() + ", "); } Log.println('p',
-		 * "]");
-		 */
 	}
 	
 	
 	private void propagateInternalOnly() {
 		
-		long start = System.currentTimeMillis();
-		boolean[] props = generatePropArray();
-//		Log.println('z', "Initially generated array: " + booleanArrayToString(props));
-		props = operator.propagateInternalOnly(props);
-//		Log.println('z', "Array after internal propagation: " + booleanArrayToString(props));
-		long end = System.currentTimeMillis();
-		
-		long start2 = System.currentTimeMillis();
 		// All the input propositions are set, update all propositions in order
-		int compare = 1+basePropositions.size()+inputPropositions.size();
 		for (Proposition prop : ordering) {
 			prop.setValue(prop.getSingleInput().getValue());
-			if (prop.getValue() != props[compare]){
-				System.err.println("Value differs at index: " + compare);
-			}
-			compare++;
 		}
-		long end2 = System.currentTimeMillis();
-		Log.println('c', "Fast propagation took: " + (end-start) + "\tSlow propagation took: " + (end2-start2));
 	}
 
 	private void propagate() {
+		boolean[] props = operator.propagate(generatePropArray());
 		propagateInternalOnly();
 
 		// All the internal propositions are updated, update all base
 		// propositions
 		for (Proposition baseProposition : basePropositions.values()) {
 			baseProposition.setValue(baseProposition.getSingleInput().getValue());
+		}
+		
+		for (int i = 0; i < booleanOrdering.length; i++) {
+			if (booleanOrdering[i].getValue() != props[i]) {
+				System.err.println("INCORRECT!");
+			}
 		}
 	}
 
@@ -512,6 +510,59 @@ public class BooleanPropNetStateMachine extends StateMachine {
 
 
 	private void initOperator() {
+		String propagateBody = generatePropagateMethodBody();
+		String internalOnlyBody = generatePropagateInternalOnlyMethodBody();
+		try {
+			CtClass operatorInterface = ClassPool.getDefault().get("util.statemachine.implementation.propnet.Operator");
+			CtClass operatorClass = ClassPool.getDefault().makeClass("util.statemachine.implementation.propnet.OperatorClass");
+			operatorClass.addInterface(operatorInterface);
+			CtMethod internalPropagateMethod = CtNewMethod.make(internalOnlyBody, operatorClass);
+			operatorClass.addMethod(internalPropagateMethod);
+			CtMethod propagateMethod = CtNewMethod.make(propagateBody, operatorClass);
+			operatorClass.addMethod(propagateMethod);
+	
+			operator = (Operator)operatorClass.toClass().newInstance();
+			Log.println('c', "Sucessfully initialized operator!");
+		} catch (IllegalAccessException ex) {
+			ex.printStackTrace();
+		} catch (InstantiationException ex) {
+			ex.printStackTrace();
+		} catch (CannotCompileException ex) {
+			ex.printStackTrace();
+		} catch (NotFoundException ex) {
+			ex.printStackTrace();
+		}
+		
+	}
+	
+	private String generatePropagateMethodBody() {
+		StringBuilder body = new StringBuilder();
+		body.append("public boolean[] propagate(boolean[] props) {\n");
+		body.append("props = this.propagateInternalOnly(props);");
+		
+		for (int i = 1; i < basePropositions.size() + 1; i++) {
+			Proposition propositionFromOrdering = booleanOrdering[i];
+			Component comp = propositionFromOrdering.getSingleInput();
+			if (comp instanceof Constant) {
+				body.append("props[" + i + "] = " + comp.getValue() + ";\n");
+			} else if (comp instanceof Transition) {
+				if (!propMap.containsKey(comp.getSingleInput())) {
+					body.append("props[" + i + "] =" + comp.getSingleInput().getValue() + ";\n");
+				} else {
+					body.append("props[" + i + "] = props[" + propMap.get(comp.getSingleInput()) + "];\n");
+				}
+			} else {
+				throw new RuntimeException("Unexpected Class");
+			}
+		}
+		
+		body.append("return props;\n");
+		body.append("}");
+		Log.println('c', body.toString());
+		return body.toString();
+	}
+	
+	private String generatePropagateInternalOnlyMethodBody() {
 		StringBuilder body = new StringBuilder();
 		body.append("public boolean[] propagateInternalOnly(boolean[] props) {\n");
 		
@@ -578,37 +629,22 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		body.append("return props;\n");
 		body.append("}");
 		Log.println('c', body.toString());
-		try {
-			CtClass operatorInterface = ClassPool.getDefault().get("util.statemachine.implementation.propnet.Operator");
-			CtClass operatorClass = ClassPool.getDefault().makeClass("util.statemachine.implementation.propnet.OperatorClass");
-			operatorClass.addInterface(operatorInterface);
-			CtMethod method = CtNewMethod.make(body.toString(), operatorClass);
-			operatorClass.addMethod(method);
-	
-			operator = (Operator)operatorClass.toClass().newInstance();
-			Log.println('c', "Sucessfully generated propagateInternalOnly!");
-		} catch (IllegalAccessException ex) {
-			ex.printStackTrace();
-		} catch (InstantiationException ex) {
-			ex.printStackTrace();
-		} catch (CannotCompileException ex) {
-			ex.printStackTrace();
-		} catch (NotFoundException ex) {
-			ex.printStackTrace();
-		}
-		
+		return body.toString();
 	}
 
 	
 	private boolean[] generatePropArray() {
+		return generatePropArray(0 ,internalPropIndex);
+	}
+
+	private boolean[] generatePropArray(int start, int end) {
 		boolean[] props = new boolean[booleanOrdering.length];
-		for (int i = 0; i < internalPropIndex; i++) {
+		for (int i = start; i < end; i++) {
 			props[i] = booleanOrdering[i].getValue();
 		}
 		
 		return props;
 	}
-
 
 	private String booleanArrayToString(boolean[] array) {
 		String str = "[";
