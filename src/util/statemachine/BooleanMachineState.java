@@ -1,9 +1,9 @@
 package util.statemachine;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import player.gamer.statemachine.eggplant.misc.Log;
 import util.gdl.grammar.GdlSentence;
 import util.propnet.architecture.components.Proposition;
 
@@ -30,6 +30,10 @@ public class BooleanMachineState extends MachineState {
 			}
 		}
 		return this.contents;
+	}
+	
+	public String toString() {
+		return Arrays.toString(this.baseprops);
 	}
 	
 	public boolean[] getBooleanContents() {

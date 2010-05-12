@@ -288,7 +288,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		if (principalMove != null) {
 			if (possibleMoves.remove(principalMove.valuedMove.move)) {
 				possibleMoves.add(0, principalMove.valuedMove.move);
-				Log.println('a', "At depth " + depth + "; searched " + statesSearched + "principal move = " + principalMove.valuedMove.move);
+				Log.println('a', "At depth " + depth + "; searched " + statesSearched + " principal move = " + principalMove.valuedMove.move);
 			}
 		}
 

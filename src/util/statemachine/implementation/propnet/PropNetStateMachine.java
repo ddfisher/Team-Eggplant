@@ -1,5 +1,9 @@
 package util.statemachine.implementation.propnet;
 
+/* 
+ * NOTE: This class is unusable with BooleanPropNet
+ */
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -334,7 +338,7 @@ public class PropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public void initialize(List<Gdl> description) {
-		pnet = CachedPropNetFactory.create(description);
+		//pnet = CachedPropNetFactory.create(description);
 		roles = computeRoles(description);
 		basePropositions = pnet.getBasePropositions();
 		inputPropositions = pnet.getInputPropositions();
