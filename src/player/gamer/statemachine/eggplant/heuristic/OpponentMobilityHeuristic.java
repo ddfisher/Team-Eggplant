@@ -1,5 +1,6 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import util.statemachine.MachineState;
@@ -25,7 +26,8 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 			double avg = 0;
 			switch (type) {
 			case VAR_STEP:
-				BranchingData data = getRelevantOpponentBranchingData(machine, state, role, alpha, beta, getDepthLimit(), endTime);
+				BranchingData data = getRelevantOpponentBranchingData(machine, state, role, 
+						alpha, beta, getDepthLimit(), endTime, samplesLimit());
 				if (data.samples == 0) return (alpha + beta) / 2;
 				avg = (double) data.total / data.samples;
 				return judgeRelevantMobility(avg);
@@ -42,25 +44,35 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 	}
 	
 	private BranchingData getRelevantOpponentBranchingData(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int maxDepth, long endTime)
+			int alpha, int beta, int maxDepth, long endTime, int limit)
 	throws MoveDefinitionException, TransitionDefinitionException {
-		if (machine.isTerminal(state)) return new BranchingData(0, 0);
-		int limit = samplesLimit();
+		if (machine.isTerminal(state) || limit == 0) return new BranchingData(0, 0);
 		List<Move> moves = machine.getLegalMoves(state, role);
 		List<List<Move>> joints = machine.getLegalJointMoves(state);
 		int sumMoves = joints.size(), roleMoves = moves.size(), quo = sumMoves / roleMoves;
-		//System.out.println("sum " + sumMoves + ", role " + roleMoves);
 		if (relevant(quo)) return new BranchingData(1, quo);
 		else if (maxDepth == 0) return new BranchingData(0, 0);
 		int samples = 0, total = 0;
+		List<MachineState> nextStates = new ArrayList<MachineState>();
 		for (List<Move> joint : joints) {
 			if (System.currentTimeMillis() > endTime) break;
 			MachineState nextState = machine.getNextState(state, joint);
+			List<Move> nextMoves = machine.getLegalMoves(nextState, role);
+			List<List<Move>> jointNextMoves = machine.getLegalJointMoves(nextState);
+			if (relevant(nextMoves)) {
+				samples++;
+				total += jointNextMoves.size() / nextMoves.size();
+				if (samples >= limit) break;
+			} else {
+				nextStates.add(nextState);
+			}
+		}
+		for (MachineState ns : nextStates) {
+			if (samples >= limit ||  (System.currentTimeMillis() > endTime)) break;
 			BranchingData data = 
-				getRelevantOpponentBranchingData(machine, nextState, role, alpha, beta, maxDepth - 1, endTime);
+				getRelevantOpponentBranchingData(machine, ns, role, alpha, beta, maxDepth - 1, endTime, limit - samples);
 			samples += data.samples;
 			total += data.total;
-			if (samples > limit) break;
 		}
 		return new BranchingData(samples, total);
 	}
