@@ -98,8 +98,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       rootDepth++;
 
       long stop = System.currentTimeMillis();
-      notifyObservers(new EggplantMoveSelectionEvent(bestWorkingMove.move, bestWorkingMove.value, stop - start,
-          statesSearched, leafNodesSearched, cacheHits, cacheMisses));
+//      notifyObservers(new EggplantMoveSelectionEvent(bestWorkingMove.move, bestWorkingMove.value, stop - start,
+//          statesSearched, leafNodesSearched, cacheHits, cacheMisses));
     } catch (Exception ex) {
       ex.printStackTrace();
     }

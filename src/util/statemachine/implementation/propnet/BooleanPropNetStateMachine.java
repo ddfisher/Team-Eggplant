@@ -1,6 +1,7 @@
 package util.statemachine.implementation.propnet;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -121,12 +122,16 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public boolean isTerminal(MachineState state) {
-		initBasePropositionsFromState(state);
-		propagate();
-		if (terminal.getValue()) {
-			Log.println('p', "Terminal detected in " + state);
+		try {
+		boolean[] props = initBasePropositionsFromState(state);
+		props = operator.propagate(props);
+		
+		return props[propMap.get(terminal)];
 		}
-		return terminal.getValue();
+		catch (Exception ex) {
+			ex.printStackTrace();
+		}
+		return false;
 	}
 
 	/**
@@ -137,13 +142,14 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public int getGoal(MachineState state, Role role) throws GoalDefinitionException {
-		initBasePropositionsFromState(state);
+		try {
+		boolean[] props = initBasePropositionsFromState(state);
 		Set<Proposition> goals = goalPropositions.get(role);
 
 		boolean goalFound = false;
 		int goalValue = -1;
 		for (Proposition goal : goals) {
-			if (goal.getValue()) {
+			if (props[propMap.get(goal)]) {
 				if (goalFound) {
 					throw new GoalDefinitionException(state, role);
 				} else {
@@ -155,6 +161,12 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 
 		return goalValue;
+		}
+		catch (Exception ex) {
+			ex.printStackTrace();
+		}
+		return -1;
+		
 	}
 
 	/**
@@ -164,31 +176,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public MachineState getInitialState() {
-		try {
-			HashSet<GdlSentence> trueSentences = new HashSet<GdlSentence>();
-
-			initBasePropositionsFromState(getMachineStateFromSentenceList(new HashSet<GdlSentence>()));
-
-			init.setValue(true);
-			propagate();
-			init.setValue(false);
-			for (GdlTerm propName : basePropositions.keySet()) {
-				if (basePropositions.get(propName).getValue()) {
-					trueSentences.add(propName.toSentence());
-				}
-			}
-			for (GdlTerm propName : basePropositions.keySet()) {
-				if (basePropositions.get(propName).getValue()) {
-					trueSentences.add(propName.toSentence());
-				}
-			}
-			MachineState newState = getMachineStateFromSentenceList(trueSentences);
-			Log.println('p', "Init with " + newState);
-			return newState;
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-		return null;
+		boolean[] props = new boolean[booleanOrdering.length];
+		props[0] = true;
+		props = operator.propagate(props);
+		props[0] = false;
+		return new BooleanMachineState(Arrays.copyOfRange(props, 1, 1 + basePropositions.size()), booleanOrdering);
 	}
 
 	/**
@@ -200,20 +192,20 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			List<Move> legalMoves = new LinkedList<Move>();
 
 			Set<Proposition> legals = legalPropositions.get(role);
-
+			
+			boolean[] props = initBasePropositionsFromState(state);
 			// Clear initial moves
 			for (Proposition legal : legals) {
-				legalInputMap.get(legal).setValue(false);
+				props[propMap.get(legalInputMap.get(legal))] = false;
 			}
-			initBasePropositionsFromState(state);
 			for (Proposition legal : legals) {
 				Proposition input = legalInputMap.get(legal);
-				input.setValue(true);
-				propagateInternalOnly();
-				if (legal.getValue()) {
+				props[propMap.get(input)] = true;
+				props = operator.propagateInternalOnly(props);
+				if (props[propMap.get(legal)]) {
 					legalMoves.add(getMoveFromProposition(input));
 				}
-				input.setValue(false);
+				props[propMap.get(input)] = false;
 			}
 			Log.println('p', "Legal moves in " + state + " for " + role + " = " + legalMoves);
 			return legalMoves;
@@ -232,30 +224,32 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		try {
 			
 			// Set up the base propositions
-			initBasePropositionsFromState(state);
+			boolean[] props = initBasePropositionsFromState(state);
 
 			// Set up the input propositions
 			List<GdlTerm> doeses = toDoes(moves);
 
-			for (Proposition anyInput : inputPropositions.values()) {
-				anyInput.setValue(false);
-			}
+			// Everything should already be false
+//			for (Proposition anyInput : inputPropositions.values()) {
+//				props[propMap.get(anyInput)] = false;
+//			}
 
 			for (GdlTerm does : doeses) {
 				Proposition trueInput = inputPropositions.get(does);
-				trueInput.setValue(true);
+				props[propMap.get(trueInput)] = true;
 			}
 
-			propagate();
-			HashSet<GdlSentence> trueSentences = new HashSet<GdlSentence>();
-			for (Proposition prop : basePropositions.values()) {
-				if (prop.getValue()) {
-					trueSentences.add(prop.getName().toSentence());
-				}
-			}
-			MachineState newState = getMachineStateFromSentenceList(trueSentences);
-			Log.println('p', "From " + state + " to " + newState + " via " + moves);
-			return newState;
+			props = operator.propagate(props);
+			return new BooleanMachineState(Arrays.copyOfRange(props, 1, 1 + basePropositions.size()), booleanOrdering);
+//			HashSet<GdlSentence> trueSentences = new HashSet<GdlSentence>();
+//			for (Proposition prop : basePropositions.values()) {
+//				if (props[propMap.get(prop)]) {
+//					trueSentences.add(prop.getName().toSentence());
+//				}
+//			}
+//			MachineState newState = getMachineStateFromSentenceList(trueSentences);
+//			Log.println('p', "From " + state + " to " + newState + " via " + moves);
+//			return newState;
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -277,35 +271,34 @@ public class BooleanPropNetStateMachine extends StateMachine {
 						initialTrueSentences.contains(propName.toSentence()));
 			}
 			return generatePropArray(1, basePropositions.size());
-			
 		}
 	}
 	
 	
-	private void propagateInternalOnly() {
-		
-		// All the input propositions are set, update all propositions in order
-		for (Proposition prop : ordering) {
-			prop.setValue(prop.getSingleInput().getValue());
-		}
-	}
-
-	private void propagate() {
-		boolean[] props = operator.propagate(generatePropArray());
-		propagateInternalOnly();
-
-		// All the internal propositions are updated, update all base
-		// propositions
-		for (Proposition baseProposition : basePropositions.values()) {
-			baseProposition.setValue(baseProposition.getSingleInput().getValue());
-		}
-		
-		for (int i = 0; i < booleanOrdering.length; i++) {
-			if (booleanOrdering[i].getValue() != props[i]) {
-				System.err.println("INCORRECT!");
-			}
-		}
-	}
+//	private void propagateInternalOnly() {
+//		
+//		// All the input propositions are set, update all propositions in order
+//		for (Proposition prop : ordering) {
+//			prop.setValue(prop.getSingleInput().getValue());
+//		}
+//	}
+//
+//	private void propagate() {
+//		boolean[] props = operator.propagate(generatePropArray());
+//		propagateInternalOnly();
+//
+//		// All the internal propositions are updated, update all base
+//		// propositions
+//		for (Proposition baseProposition : basePropositions.values()) {
+//			baseProposition.setValue(baseProposition.getSingleInput().getValue());
+//		}
+//		
+//		for (int i = 0; i < booleanOrdering.length; i++) {
+//			if (booleanOrdering[i].getValue() != props[i]) {
+//				System.err.println("INCORRECT!");
+//			}
+//		}
+//	}
 
 	/**
 	 * This should compute the topological ordering of propositions. Each
