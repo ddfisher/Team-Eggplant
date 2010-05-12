@@ -89,6 +89,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private Role[] roleIndex;
 	private Map<Role, Integer> roleMap;
 	
+	private Move[] moveIndex;
+	
 	private Operator operator;
 	
 	private static int classCount = 0;
@@ -114,7 +116,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		inputPropStart = pnet.getInputPropStart();
 		internalPropStart = pnet.getInternalPropStart();
 		terminalIndex = pnet.getTerminalIndex();
-
+		
 		computeRoleIndices(rolesList);
 		
 		Map<Role, int[]> rolesLegalPropMap = pnet.getLegalPropMap();
@@ -124,6 +126,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		for (int role = 0; role < roleIndex.length; role++) {
 			legalPropMap[role] = rolesLegalPropMap.get(roleIndex[role]);
 			goalPropMap[role] = rolesGoalPropMap.get(roleIndex[role]);
+		}
+		
+		moveIndex = new Move[propIndex.length]; 
+		for (int i = inputPropStart; i < internalPropStart; i++) {
+			moveIndex[i] = getMoveFromProposition(propIndex[i]);
 		}
 		
 		defaultOrdering = getOrdering(null);
@@ -225,7 +232,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				props[inputIndex] = true;
 				operator.propagateInternalOnlyLegal(roleIndex, props);
 				if (props[legals[i]]) {
-					legalMoves.add(getMoveFromProposition(propIndex[inputIndex]));
+					legalMoves.add(moveIndex[inputIndex]);
 				}
 				props[inputIndex] = false;
 			}
