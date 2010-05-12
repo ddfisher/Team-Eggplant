@@ -12,8 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.sun.xml.internal.ws.api.WSService.InitParams;
-
 import util.gdl.grammar.GdlConstant;
 import util.gdl.grammar.GdlFunction;
 import util.gdl.grammar.GdlProposition;

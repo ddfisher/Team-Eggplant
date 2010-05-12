@@ -2,7 +2,6 @@ package util.statemachine.implementation.propnet;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -560,7 +559,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		StringBuilder currentMethod = body;
 		for (int methodNum = 0; i < inputPropStart; methodNum++) {
 			Log.println('c', "Debug: " + methodNum + "," + i + " : " + basePropStart + " / " + inputPropStart);
-			int count = 0;
 			for (; i < inputPropStart; i++) {
 				Proposition propositionFromOrdering = propIndex[i];
 				Component comp = propositionFromOrdering.getSingleInput();
@@ -576,8 +574,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				} else {
 					throw new RuntimeException("Unexpected Class");
 				}
-				count++;
-				if (count == 200) { // Allow 500 statements per method
+				if (currentMethod.length() > 60000) {
 					break;
 				}
 			}
@@ -729,81 +726,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		Log.println('c', "Generating " + body.toString());
 		CtMethod thisMethod = CtNewMethod.make(body.toString(), operatorClass);
 		operatorClass.addMethod(thisMethod);
-	}
-	
-	private void appendOrdering(StringBuilder body, List<Proposition> ordering) {
-		Iterator<Proposition> orderingIterator = ordering.iterator();
-		for (int i = internalPropStart; i < ordering.size() + internalPropStart; i++) {
-			Proposition propositionFromOrdering = orderingIterator.next();
-			Component comp = propositionFromOrdering.getSingleInput();
-			int propositionIndex = propMap.get(propositionFromOrdering);
-			if (comp instanceof Constant) {
-				body.append("props[" + propositionIndex + "] = " + comp.getValue() + ";\n");
-			} else if (comp instanceof Not) {
-				if (!propMap.containsKey(comp.getSingleInput())) {
-					body.append("props[" + propositionIndex + "] = !" + comp.getSingleInput().getValue() + ";\n");
-				} else {
-					body.append("props[" + propositionIndex + "] = !props[" + propMap.get(comp.getSingleInput())
-							+ "];\n");
-				}
-			} else if (comp instanceof And) {
-				Set<Component> connected = comp.getInputs();
-				StringBuilder and = new StringBuilder();
-				and.append("props[" + propositionIndex + "] = true");
-
-				for (Component prop : connected) {
-					if (!propMap.containsKey(prop)) {
-						// if the proposition is not in the proposition map, it is never changed:
-						// it is effectively a constant
-						if (prop.getValue()) {
-							continue;
-						} else {
-							and = new StringBuilder("props[" + propositionIndex + "] = false");
-							break;
-						}
-					} else {
-						and.append(" && props[" + propMap.get(prop) + "]");
-					}
-				}
-
-				and.append(";\n");
-
-				body.append(and);
-
-			} else if (comp instanceof Or) {
-				Set<Component> connected = comp.getInputs();
-				StringBuilder or = new StringBuilder();
-				or.append("props[" + propositionIndex + "] = false");
-
-				for (Component prop : connected) {
-					if (!propMap.containsKey(prop)) {
-						// if the proposition is not in the proposition map, it is never changed:
-						// it is effectively a constant
-						if (prop.getValue()) {
-							or = new StringBuilder("props[" + propositionIndex + "] = true");
-							break;
-						} else {
-							continue;
-						}
-					} else {
-						or.append(" || props[" + propMap.get(prop) + "]");
-					}
-				}
-
-				or.append(";\n");
-
-				body.append(or);
-
-			} else {
-				throw new RuntimeException("Unexpected Class");
-			}
-		}
-	}
-		
-	
-
-	private boolean[] generatePropArray() {
-		return generatePropArray(0, internalPropStart);
 	}
 
 	private boolean[] generatePropArray(int start, int end) {
