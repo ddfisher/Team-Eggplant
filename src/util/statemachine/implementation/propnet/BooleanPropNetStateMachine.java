@@ -284,7 +284,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		props = operator.propagateInternalOnly(props);
 //		Log.println('z', "Array after internal propagation: " + booleanArrayToString(props));
 		long end = System.currentTimeMillis();
-		
+		/*
 		long start2 = System.currentTimeMillis();
 		// All the input propositions are set, update all propositions in order
 		int compare = 1+basePropositions.size()+inputPropositions.size();
@@ -296,7 +296,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			compare++;
 		}
 		long end2 = System.currentTimeMillis();
-		Log.println('c', "Fast propagation took: " + (end-start) + "\tSlow propagation took: " + (end2-start2));
+		*/
+		Log.println('c', "Fast propagation took: " + (end-start)); // + "\tSlow propagation took: " + (end2-start2));
 	}
 
 	private void propagate() {
