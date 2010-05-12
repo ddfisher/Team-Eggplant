@@ -1,7 +1,9 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
 
 import util.statemachine.MachineState;
@@ -19,6 +21,8 @@ public class MobilityHeuristic implements Heuristic {
 	private int depthLimit;
 	protected final MobilityType type;
 	private final int BRANCH_QUO = 4;
+	private long varTime, varRuns;
+	private final boolean TIME = true;
 
 	public MobilityHeuristic(MobilityType type, int numPlayers) {
 		this(type, numPlayers, (type == MobilityType.VAR_STEP) ? numPlayers : 1);
@@ -83,11 +87,21 @@ public class MobilityHeuristic implements Heuristic {
 	protected int evalVarStep(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int properDepth, int evalDepth, long timeout)
 	throws MoveDefinitionException, TransitionDefinitionException, TimeUpException {
-		BranchingData data = getFirstRelevantBranchingData(machine, state, role, alpha, beta, evalDepth, timeout);
+		/*long st;
+		  if (TIME) st = System.currentTimeMillis();*/
+		BranchingData data = getFirstRelevantBranchingData(machine, state, role, 
+				alpha, beta, evalDepth, timeout, samplesLimit());
 		double avg = 0;
+		Log.println('t', "	samples taken: " + data.samples);
 		if (data.samples > 0) avg = data.total / (double) data.samples;
 		else return (alpha + beta) / 2;
 		int ev = judgeRelevantMobility(avg);
+		/*if (TIME) {
+			varTime += (System.currentTimeMillis() - st);
+			varRuns++;
+			Log.println('t', "Var mobility stats: time " + varTime + ", runs " 
+					+ varRuns + ", avg " + (double)varTime/varRuns);
+		}*/
 		return (ev >= 0) ? ev : (alpha + beta) / 2;
 	}
 
@@ -115,8 +129,7 @@ public class MobilityHeuristic implements Heuristic {
 			int alpha, int beta, int depth, boolean countCurrent)
 	throws MoveDefinitionException, TransitionDefinitionException {
 		if (machine.isTerminal(state)) return new BranchingData(0, 0);
-		List<Move> moves = machine.getLegalMoves(state, role);
-		if (depth == 0) return new BranchingData(1, moves.size());
+		if (depth == 0) return new BranchingData(1, machine.getLegalMoves(state, role).size());
 		List<List<Move>> joints = machine.getLegalJointMoves(state);
 		int samples = 0, total = 0;
 		for (List<Move> joint : joints) {
@@ -127,30 +140,41 @@ public class MobilityHeuristic implements Heuristic {
 			total += data.total;
 			if (countCurrent) {
 				samples += 1;
-				total += moves.size();
+				total += machine.getLegalMoves(nextState, role).size();
 			}
 		}
 		return new BranchingData(samples, total);
 	}
 	
 	private BranchingData getFirstRelevantBranchingData(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int maxDepth, long timeout)
+			int alpha, int beta, int maxDepth, long timeout, int limit)
 	throws MoveDefinitionException, TransitionDefinitionException, TimeUpException {
-		int limit = samplesLimit();
 		if (machine.isTerminal(state)) return new BranchingData(0, 0);
 		List<Move> moves = machine.getLegalMoves(state, role);
 		if (relevant(moves)) return new BranchingData(1, moves.size());
-		else if (maxDepth == 0) return new BranchingData(0, 0);
+		else if (maxDepth == 0 || limit <= 0) return new BranchingData(0, 0);
 		List<List<Move>> joints = machine.getLegalJointMoves(state);
 		int samples = 0, total = 0;
+		List<MachineState> nextStates = new ArrayList<MachineState>();
 		for (List<Move> joint : joints) {
 			if (System.currentTimeMillis() > timeout) throw new TimeUpException();
 			MachineState nextState = machine.getNextState(state, joint);
-			BranchingData data = 
-				getFirstRelevantBranchingData(machine, nextState, role, alpha, beta, maxDepth - 1, timeout);
+			List<Move> nextMoves = machine.getLegalMoves(nextState, role);
+			if (relevant(nextMoves)) {
+				samples++;
+				total += nextMoves.size();
+				if (samples >= limit) break;
+				continue;
+			} else {
+				nextStates.add(nextState);
+			}
+		}
+		for (MachineState ns : nextStates) {
+			if (samples >= limit || (System.currentTimeMillis() > timeout)) break;
+			BranchingData data = getFirstRelevantBranchingData(machine, ns, role, 
+					alpha, beta, maxDepth - 1, timeout, limit - samples);
 			samples += data.samples;
 			total += data.total;
-			if (samples > limit) break;
 		}
 		return new BranchingData(samples, total);
 	}
