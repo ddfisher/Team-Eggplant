@@ -75,7 +75,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		 * openingBook.expandBook(time + (timeout - time) / 2);
 		 */
 
-//		endBook = new EndgameBook(numPlayers);
+		endBook = new EndgameBook(numPlayers);
 //		endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
 		iterativeDeepening(machine, state, role, 0, 100, true, timeout);
 	}
