@@ -42,7 +42,22 @@ public class BooleanMachineState extends MachineState {
 	
 	@Override
 	public int hashCode() {
-		return booleanOrdering.hashCode();
+		return Arrays.hashCode(baseprops);
 	}
+	
+	@Override
+	public boolean equals(Object o) {
+        if (o != null) {
+        	if (o instanceof BooleanMachineState) {
+        		BooleanMachineState state = (BooleanMachineState) o;
+                return Arrays.equals(baseprops, state.baseprops);
+        	}
+        	else if (o instanceof MachineState) {
+        		MachineState state = (MachineState) o;
+                return state.getContents().equals(getContents());        		
+        	}
+        }
 
+        return false;
+	}
 }
