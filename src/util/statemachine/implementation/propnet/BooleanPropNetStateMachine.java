@@ -147,7 +147,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	public boolean isTerminal(MachineState state) {
 		try {
 			boolean[] props = initBasePropositionsFromState(state);
-			operator.propagateInternalOnly(props);
+			operator.propagateInternalOnlyTerminal(props);
 			return props[terminalIndex];
 		} catch (Exception ex) {
 			ex.printStackTrace();
