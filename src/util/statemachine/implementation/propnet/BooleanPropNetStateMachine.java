@@ -207,7 +207,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				}
 				props[propMap.get(input)] = false;
 			}
-			Log.println('p', "Legal moves in " + state + " for " + role + " = " + legalMoves);
+			//Log.println('p', "Legal moves in " + state + " for " + role + " = " + legalMoves);
 			return legalMoves;
 		} catch (Exception ex) {
 			ex.printStackTrace();

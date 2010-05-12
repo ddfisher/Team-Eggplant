@@ -303,7 +303,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
       }
     }
 
-    ValuedMove maxMove = new ValuedMove(-1, null);
+    ValuedMove maxMove = new ValuedMove(-99, null);
     for (Move move : possibleMoves) {
       Log.println('a', "Considering move " + move + " at depth " + depth);
       List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
