@@ -86,6 +86,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private Proposition[] booleanOrdering;
 	private Map<Proposition, Integer> propMap;
 	private int internalPropIndex;
+	private static int classCount = 0;
 
 	
 	/**
@@ -145,9 +146,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		try {
 		boolean[] props = initBasePropositionsFromState(state);
 		Set<Proposition> goals = goalPropositions.get(role);
-
+		props = operator.propagate(props);
 		boolean goalFound = false;
-		int goalValue = -1;
+		int goalValue = -50;
 		for (Proposition goal : goals) {
 			if (props[propMap.get(goal)]) {
 				if (goalFound) {
@@ -505,7 +506,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		String internalOnlyBody = generatePropagateInternalOnlyMethodBody();
 		try {
 			CtClass operatorInterface = ClassPool.getDefault().get("util.statemachine.implementation.propnet.Operator");
-			CtClass operatorClass = ClassPool.getDefault().makeClass("util.statemachine.implementation.propnet.OperatorClass");
+			CtClass operatorClass = ClassPool.getDefault().makeClass("util.statemachine.implementation.propnet.OperatorClass" + (classCount++)); //TODO: use defrost
 			operatorClass.addInterface(operatorInterface);
 			CtMethod internalPropagateMethod = CtNewMethod.make(internalOnlyBody, operatorClass);
 			operatorClass.addMethod(internalPropagateMethod);
