@@ -10,6 +10,7 @@ import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityType;
+import player.gamer.statemachine.eggplant.heuristic.MonteCarloHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
@@ -77,7 +78,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 		endBook = new EndgameBook(numPlayers);
 //		endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
-		iterativeDeepening(machine, state, role, 0, 100, true, timeout);
+		iterativeDeepening(machine, state, role, 0, 100, true, timeout-GRACE_PERIOD);
 	}
 
 	@Override
@@ -104,9 +105,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		return bestWorkingMove.move;
 	}
 
-	private Heuristic getPlayerMobilityOpponentFocusHeuristic() {
-		return new WeightedHeuristic(new Heuristic[] { new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
-				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) }, new double[] { 0.3, 0.7 });
+	private Heuristic getHeuristic() {
+//		return new WeightedHeuristic(new Heuristic[] { new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
+//				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) }, new double[] { 0.3, 0.7 });
+		return new MonteCarloHeuristic(10);
 	}
 
 	protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, boolean preemptiveSearch, long endTime)
@@ -133,7 +135,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			boolean hasLost = false;
 			while (depth <= maxSearchDepth) {
 				expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
-				heuristic = getPlayerMobilityOpponentFocusHeuristic();
+				heuristic = getHeuristic();
 				int alreadySearched = statesSearched;
 				HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
 				ValuedMove move = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, currentCache, principalMovesCache, endTime, false);

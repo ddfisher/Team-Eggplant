@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 import javassist.CannotCompileException;
@@ -46,39 +47,52 @@ public class BooleanPropNetStateMachine extends StateMachine {
 
 	/** The underlying proposition network */
 	private BooleanPropNet pnet;
+	
 	/** References to every Proposition in the PropNet. */
 	private Proposition[] propIndex;
+	
 	/** References to every Proposition in the PropNet. */
 	private Map<Proposition, Integer> propMap;
+	
 	/** References to every BaseProposition in the PropNet, indexed by name. */
 	private Map<GdlTerm, Integer> basePropMap;
+	
 	/** References to every InputProposition in the PropNet, indexed by name. */
 	private Map<GdlTerm, Integer> inputPropMap;
+	
 	/**
 	 * References to every LegalProposition in the PropNet, indexed by player
 	 * name.
 	 */
 	private int[][] legalPropMap;
+	
 	/**
 	 * A map between legal and input propositions. The map contains mappings in
 	 * both directions
 	 */
-	private int[] legalInputMap;
+	private int[] legalInputMap; //this should probably be two hashmaps >.<
+	
 	/**
 	 * References to every GoalProposition in the PropNet, indexed by player
 	 * name.
 	 */
 	private int[][][] goalPropMap;
-	/** A reference to the single, unique, InitProposition. */
+	
+	/** A the index of the single, unique InitProposition. */
 	private int initIndex;
-	/** A reference to the first BaseProposition. */
+	
+	/** A the index of the first BaseProposition. */
 	private int basePropStart;
-	/** A reference to the first InputProposition. */
+	
+	/** A the index of the first InputProposition. */
 	private int inputPropStart;
-	/** A reference to the first InternalProposition. */
+	
+	/** A the index of the first InternalProposition. */
 	private int internalPropStart;
-	/** A reference to the single, unique, TerminalProposition. */
+	
+	/** A the index of the single, unique TerminalProposition. */
 	private int terminalIndex;
+	
 	
 	/** The topological ordering of the propositions */
 	private List<Proposition> defaultOrdering;
@@ -94,6 +108,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private Operator operator;
 	
 	private static int classCount = 0;
+	
+	private static Random random = new Random();
 
 	/**
 	 * Initializes the PropNetStateMachine. You should compute the topological
@@ -495,12 +511,12 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		List<List<Proposition>> map = new LinkedList<List<Proposition>>();
 		List<Proposition> ordering;
 		try {
-			CtClass operatorInterface = ClassPool.getDefault().get(
+			CtClass operatorAbstract = ClassPool.getDefault().get(
 					"util.statemachine.implementation.propnet.Operator");
 			CtClass operatorClass = ClassPool.getDefault().makeClass(
 					"util.statemachine.implementation.propnet.OperatorClass" + (classCount++)); // TODO: use defrost
 													
-			operatorClass.addInterface(operatorInterface);
+			operatorClass.setSuperclass(operatorAbstract);
 			
 			// Make propagateInternalOnly
 			map.clear();
@@ -540,7 +556,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			generatePropagateInternalOnlyMethodBody("Goal", map, operatorClass);
 			
 			Log.println('c', "Internal methods generated");
-			generatePropagateMethodBody(operatorClass);
+			generateTransitionMethod(operatorClass);
 			
 			operator = (Operator) operatorClass.toClass().newInstance();
 			Log.println('c', "Sucessfully initialized operator!");
@@ -555,11 +571,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 
 	}
-
-	private void generatePropagateMethodBody(CtClass operatorClass) throws CannotCompileException {
+	
+	private void generateTransitionMethod(CtClass operatorClass) throws CannotCompileException {
 		StringBuilder body = new StringBuilder();
-		body.append("public void propagate(boolean[] props) {\n");
-		body.append("this.propagateInternalOnly(props);");
+		body.append("public void transition(boolean[] props) {\n");
 		
 		// Tokenize into smaller methods for compilation
 		int i = basePropStart;
@@ -587,23 +602,22 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			}
 			if (currentMethod != body) { // write and inject the method
 				currentMethod.append("}");
-				Log.println('c', "Added propagate" + (methodNum - 1) + "(): " + currentMethod.toString());
+				Log.println('c', "Added transition" + (methodNum - 1) + "(): " + currentMethod.toString());
 				CtMethod innerMethod = CtNewMethod.make(currentMethod.toString(), operatorClass);
 				operatorClass.addMethod(innerMethod);
 			}
 			if (i < inputPropStart) { // still more to go
-				Log.println('c', "Adding propagate" + methodNum + "()");
-				body.append("propagate" + methodNum + "(props);");
+				Log.println('c', "Adding transition" + methodNum + "()");
+				body.append("transition" + methodNum + "(props);");
 				currentMethod = new StringBuilder();
-				currentMethod.append("public void propagate" + methodNum + "(boolean[] props) {\n");
+				currentMethod.append("public void transition" + methodNum + "(boolean[] props) {\n");
 			}
 		}
 	
 		body.append("}");
-		Log.println('c', "Writing propagate(): " + body.toString());
+		Log.println('c', "Writing transition(): " + body.toString());
 		CtMethod mainMethod = CtNewMethod.make(body.toString(), operatorClass);
 		operatorClass.addMethod(mainMethod);
-		
 	}
 
 	// methodName will be appended to propagateInternalOnly. It MUST be one of:
@@ -751,5 +765,32 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		str += "]";
 		return str;
+	}
+	
+	public BooleanMachineState monteCarlo(MachineState state) {
+		boolean[] props = initBasePropositionsFromState(state);
+		int[] input = new int[legalPropMap.length];
+		while (true) {
+			boolean legal = false;
+			while (!legal) {
+				Arrays.fill(props, inputPropStart, inputPropStart + inputPropMap.size(), false); // set all input props to false
+				for (int role = 0; role < legalPropMap.length; role++) {  // set one random input prop to true for each role
+					int index = random.nextInt(legalPropMap[0].length);
+					int inputIndex = legalInputMap[ legalPropMap[role][index] ];
+					props[inputIndex] = true;
+					input[role] = inputIndex;
+				}
+				operator.propagateInternalOnly(props);
+				
+				if (props[terminalIndex])
+					return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
+				
+				legal = true;
+				for (int role = 0; role < legalPropMap.length; role++) {
+					legal = legal && props[ legalInputMap[ input[role] ] ];
+				}
+			}
+			operator.transition(props);
+		}
 	}
 }
