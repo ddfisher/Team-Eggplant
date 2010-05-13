@@ -107,8 +107,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	
 	private Operator operator;
 	
-	private static int classCount = 0;
-	
 	private static Random random = new Random();
 
 	/**
@@ -169,7 +167,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	public boolean isTerminal(MachineState state) {
 		try {
 			boolean[] props = initBasePropositionsFromState(state);
-			operator.propagateInternalOnlyTerminal(props);
+			operator.propagateTerminalOnly(props);
 			return props[terminalIndex];
 		} catch (Exception ex) {
 			ex.printStackTrace();
@@ -189,7 +187,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			boolean[] props = initBasePropositionsFromState(state);
 			int roleIndex = roleMap.get(role);
 			int[][] goals = goalPropMap[roleIndex];
-			operator.propagateInternalOnlyGoal(roleIndex, props);
+			operator.propagateGoalOnly(props, roleIndex);
 			boolean goalFound = false;
 			int goalValue = -1;
 			for (int i = 0; i < goals.length; i++) {
@@ -246,7 +244,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			for (int i = 0; i < legals.length; i++) {
 				int inputIndex = legalInputMap[legals[i]];
 				props[inputIndex] = true;
-				operator.propagateInternalOnlyLegal(roleIndex, props);
+				operator.propagateLegalOnly(props, roleIndex);
 				if (props[legals[i]]) {
 					legalMoves.add(moveIndex[inputIndex]);
 				}
@@ -508,246 +506,32 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 
 	private void initOperator() {
-		List<List<Proposition>> map = new LinkedList<List<Proposition>>();
-		List<Proposition> ordering;
-		try {
-			CtClass operatorAbstract = ClassPool.getDefault().get(
-					"util.statemachine.implementation.propnet.Operator");
-			CtClass operatorClass = ClassPool.getDefault().makeClass(
-					"util.statemachine.implementation.propnet.OperatorClass" + (classCount++)); // TODO: use defrost
-													
-			operatorClass.setSuperclass(operatorAbstract);
-			
-			// Make propagateInternalOnly
-			map.clear();
-			map.add(defaultOrdering);
-			Log.println('r', "Everything: " + defaultOrdering.size());
-			generatePropagateInternalOnlyMethodBody("", map, operatorClass);
-			
-			// Make propagateInternalOnlyTerminal
-			map.clear();
-			ordering = getOrdering(new int[]{terminalIndex});
-			Log.println('r', "Terminal: " + ordering.size());
-			map.add(ordering);
-			generatePropagateInternalOnlyMethodBody("Terminal", map, operatorClass);
-			
-			// Make propagateInternalOnlyLegal
-			map.clear();
-			for (int i = 0; i < roleIndex.length; i++) {
-				ordering = getOrdering(legalPropMap[i]);
-				Log.println('r', "Legal for " + roleIndex[i] + ": " + ordering.size());
-				map.add(ordering);
-			}
-			generatePropagateInternalOnlyMethodBody("Legal", map, operatorClass);
-			
-			// Make propagateInternalOnlyGoal
-			map.clear();
-			for (int role = 0; role < roleIndex.length; role++) {
-				int[][] goalPropsAndValues = goalPropMap[role];
-				int[] goalProps = new int[goalPropsAndValues.length];
-				for (int j = 0; j < goalProps.length; j++) {
-					goalProps[j] = goalPropsAndValues[j][0];
-				}
-				// Extract the goal propositions
-				ordering = getOrdering(goalProps);
-				Log.println('r', "Goal for " + roleIndex[role] + ": " + ordering.size());
-				map.add(ordering);
-			}
-			generatePropagateInternalOnlyMethodBody("Goal", map, operatorClass);
-			
-			Log.println('c', "Internal methods generated");
-			generateTransitionMethod(operatorClass);
-			
-			operator = (Operator) operatorClass.toClass().newInstance();
-			Log.println('c', "Sucessfully initialized operator!");
-		} catch (IllegalAccessException ex) {
-			ex.printStackTrace();
-		} catch (InstantiationException ex) {
-			ex.printStackTrace();
-		} catch (CannotCompileException ex) {
-			ex.printStackTrace();
-		} catch (NotFoundException ex) {
-			ex.printStackTrace();
+		List<Proposition> transitionOrdering = new ArrayList<Proposition>();
+		for (int i = basePropStart; i < basePropMap.size(); i++) {
+			transitionOrdering.add(propIndex[i]);
 		}
-
-	}
-	
-	private void generateTransitionMethod(CtClass operatorClass) throws CannotCompileException {
-		StringBuilder body = new StringBuilder();
-		body.append("public void transition(boolean[] props) {\n");
 		
-		// Tokenize into smaller methods for compilation
-		int i = basePropStart;
-		StringBuilder currentMethod = body;
-		for (int methodNum = 0; i < inputPropStart; methodNum++) {
-			Log.println('c', "Debug: " + methodNum + "," + i + " : " + basePropStart + " / " + inputPropStart);
-			for (; i < inputPropStart; i++) {
-				Proposition propositionFromOrdering = propIndex[i];
-				Component comp = propositionFromOrdering.getSingleInput();
-				if (comp instanceof Constant) {
-					currentMethod.append("props[" + i + "] = " + comp.getValue() + ";\n");
-				} else if (comp instanceof Transition) {
-					if (!propMap.containsKey(comp.getSingleInput())) {
-						currentMethod.append("props[" + i + "] = " + comp.getSingleInput().getValue() + ";\n");
-					} else {
-						currentMethod.append("props[" + i + "] = props[" + propMap.get(comp.getSingleInput())
-								+ "];\n");
-					}
-				} else {
-					throw new RuntimeException("Unexpected Class");
-				}
-				if (currentMethod.length() > 60000) {
-					break;
-				}
-			}
-			if (currentMethod != body) { // write and inject the method
-				currentMethod.append("}");
-				Log.println('c', "Added transition" + (methodNum - 1) + "(): " + currentMethod.toString());
-				CtMethod innerMethod = CtNewMethod.make(currentMethod.toString(), operatorClass);
-				operatorClass.addMethod(innerMethod);
-			}
-			if (i < inputPropStart) { // still more to go
-				Log.println('c', "Adding transition" + methodNum + "()");
-				body.append("transition" + methodNum + "(props);");
-				currentMethod = new StringBuilder();
-				currentMethod.append("public void transition" + methodNum + "(boolean[] props) {\n");
-			}
+		List<Proposition> terminalOrdering = getOrdering(new int[]{terminalIndex});
+		
+		List<List<Proposition>> legalOrderings = new LinkedList<List<Proposition>>();
+		for (int i = 0; i < roleIndex.length; i++) {
+			legalOrderings.add(getOrdering(legalPropMap[i]));
 		}
-	
-		body.append("}");
-		Log.println('c', "Writing transition(): " + body.toString());
-		CtMethod mainMethod = CtNewMethod.make(body.toString(), operatorClass);
-		operatorClass.addMethod(mainMethod);
-	}
-
-	// methodName will be appended to propagateInternalOnly. It MUST be one of:
-	//   * ""
-	//   * "Terminal"
-	//   * "Goal"
-	//   * "Legal"
-	
-	// HashMap permits null keys, which is how the ordering should be passed in for "" and "Terminal"
-	private void generatePropagateInternalOnlyMethodBody(
-			String methodName,
-			List<List<Proposition>> orderings,
-			CtClass operatorClass) throws CannotCompileException {
-		StringBuilder body = new StringBuilder();
-		body.append("public void propagateInternalOnly" + methodName);
-		if (methodName.equals("") || methodName.equals("Terminal")) { // no need to pass in a role index
-			body.append("(boolean[] props) {\n");
-			generateOrderingMethods(methodName, body, orderings.get(0), 0, 0, operatorClass);
-		}
-		else if (methodName.equals("Goal") || methodName.equals("Legal")) { // needs additional int in signature
-			body.append("(int index, boolean[] props) {\n");
-			for (int role = 0; role < roleIndex.length; role++) {
-				if (role != 0)
-					body.append("else ");
-				body.append("if (index == " + role + ") {\n");
-				body.append("propagateInternalOnly" + methodName + role + "(props);}\n");
-				// Have to split apart method calls, or else too big
-				StringBuilder innerBody = new StringBuilder();
-				innerBody.append("public void propagateInternalOnly" + methodName + role + "(boolean[] props) {\n");
-				generateOrderingMethods(methodName + role, innerBody, orderings.get(role), 0, 0, operatorClass);
+		
+		List<List<Proposition>> goalOrderings = new LinkedList<List<Proposition>>();
+		for (int role = 0; role < roleIndex.length; role++) {
+			int[][] goalPropsAndValues = goalPropMap[role];
+			int[] goalProps = new int[goalPropsAndValues.length];
+			for (int j = 0; j < goalProps.length; j++) {
+				goalProps[j] = goalPropsAndValues[j][0];
 			}
-			body.append("}");
-			CtMethod mainMethod = CtNewMethod.make(body.toString(), operatorClass);
-			operatorClass.addMethod(mainMethod);
+			goalOrderings.add(getOrdering(goalProps));
 		}
-		else { // invalid method name
-			throw new RuntimeException("Cannot generate method named propagateInternalOnly" + methodName);
-		}
-		// Inject wrapper method
+		
+		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
 	}
 	
-	private void generateOrderingMethods(
-			String methodName,
-			StringBuilder body,
-			List<Proposition> ordering,
-			int startIndex,
-			int methodNum,
-			CtClass operatorClass) 
-	throws CannotCompileException {
-		Iterator<Proposition> orderingIterator = ordering.listIterator(startIndex);
-		int i;
-		for (i = startIndex; i < ordering.size() && body.length() < 60000; i++) {
-			Proposition propositionFromOrdering = orderingIterator.next();
-			if (propositionFromOrdering.getInputs().size() != 1) {
-				System.out.println("Prop : " + propositionFromOrdering.getName());
-			}
-			Component comp = propositionFromOrdering.getSingleInput();
-			int propositionIndex = propMap.get(propositionFromOrdering);
-			if (comp instanceof Constant) {
-				body.append("props[" + propositionIndex + "] = " + comp.getValue() + ";\n");
-			} else if (comp instanceof Not) {
-				if (!propMap.containsKey(comp.getSingleInput())) {
-					body.append("props[" + propositionIndex + "] = !" + comp.getSingleInput().getValue() + ";\n");
-				} else {
-					body.append("props[" + propositionIndex + "] = !props[" + propMap.get(comp.getSingleInput())
-							+ "];\n");
-				}
-			} else if (comp instanceof And) {
-				Set<Component> connected = comp.getInputs();
-				StringBuilder and = new StringBuilder();
-				and.append("props[" + propositionIndex + "] = true");
-
-				for (Component prop : connected) {
-					if (!propMap.containsKey(prop)) {
-						// if the proposition is not in the proposition map, it is never changed:
-						// it is effectively a constant
-						if (prop.getValue()) {
-							continue;
-						} else {
-							and = new StringBuilder("props[" + propositionIndex + "] = false");
-							break;
-						}
-					} else {
-						and.append(" && props[" + propMap.get(prop) + "]");
-					}
-				}
-
-				and.append(";\n");
-
-				body.append(and);
-
-			} else if (comp instanceof Or) {
-				Set<Component> connected = comp.getInputs();
-				StringBuilder or = new StringBuilder();
-				or.append("props[" + propositionIndex + "] = false");
-
-				for (Component prop : connected) {
-					if (!propMap.containsKey(prop)) {
-						// if the proposition is not in the proposition map, it is never changed:
-						// it is effectively a constant
-						if (prop.getValue()) {
-							or = new StringBuilder("props[" + propositionIndex + "] = true");
-							break;
-						} else {
-							continue;
-						}
-					} else {
-						or.append(" || props[" + propMap.get(prop) + "]");
-					}
-				}
-
-				or.append(";\n");
-
-				body.append(or);
-
-			} else {
-				throw new RuntimeException("Unexpected Class");
-			}
-		}
-		if (i < ordering.size()) { // Still more left to go
-			body.append("propagateInternalOnly" + methodName + "_" + methodNum + "(props);");
-			StringBuilder nestedMethodBody = new StringBuilder();
-			nestedMethodBody.append("public void propagateInternalOnly" + methodName + "_" + methodNum + "(boolean[] props) {\n");
-			generateOrderingMethods(methodName, nestedMethodBody, ordering, i, methodNum + 1, operatorClass); 
-		}
-		body.append("}");
-		Log.println('c', "Generating " + body.toString());
-		CtMethod thisMethod = CtNewMethod.make(body.toString(), operatorClass);
-		operatorClass.addMethod(thisMethod);
-	}
+	
 
 	private boolean[] generatePropArray(int start, int end) {
 		boolean[] props = new boolean[propIndex.length];
@@ -780,7 +564,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					props[inputIndex] = true;
 					input[role] = inputIndex;
 				}
-				operator.propagateInternalOnly(props);
+				operator.propagateInternal(props);
 				
 				if (props[terminalIndex])
 					return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);

@@ -2,12 +2,12 @@ package util.statemachine.implementation.propnet;
 
 public abstract class Operator {
 	public void propagate(boolean[] props) {
-		propagateInternalOnly(props);
+		propagateInternal(props);
 		transition(props);
 	}
 	public abstract void transition(boolean[] props);
-	public abstract void propagateInternalOnly(boolean[] props);
-	public abstract void propagateInternalOnlyTerminal(boolean[] props);
-	public abstract void propagateInternalOnlyLegal(int index, boolean[] props);
-	public abstract void propagateInternalOnlyGoal(int index, boolean[] props);
+	public abstract void propagateInternal(boolean[] props);
+	public abstract void propagateTerminalOnly(boolean[] props);
+	public abstract void propagateLegalOnly(boolean[] props, int role);
+	public abstract void propagateGoalOnly(boolean[] props, int role);
 }
