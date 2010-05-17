@@ -76,6 +76,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		 * openingBook.expandBook(time + (timeout - time) / 2);
 		 */
 
+		((BooleanPropNetStateMachine) machine).speedTest();
+		
 		endBook = new EndgameBook(numPlayers);
 //		endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
 		iterativeDeepening(machine, state, role, 0, 100, true, timeout-GRACE_PERIOD);
@@ -108,7 +110,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	private Heuristic getHeuristic() {
 //		return new WeightedHeuristic(new Heuristic[] { new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
 //				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) }, new double[] { 0.3, 0.7 });
-		return new MonteCarloHeuristic(10);
+//		return new MonteCarloHeuristic(10);
+		return new NullHeuristic(50);
 	}
 
 	protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, boolean preemptiveSearch, long endTime)

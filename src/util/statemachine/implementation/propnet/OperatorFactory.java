@@ -39,11 +39,11 @@ public class OperatorFactory {
 
 			addTransition(operatorClass, transitionOrdering, propMap);
 			addInternalPropagate(operatorClass, internalOrdering, propMap);
+			System.out.println("Constant Propositions: " + constantProps + "\tInternal Propositions: " + internalProps);
 			addTerminalPropagate(operatorClass, terminalOrdering, propMap);
 			addLegalPropagate(operatorClass, legalOrderings, propMap);
 			addGoalPropagate(operatorClass, goalOrderings, propMap);
 
-			System.out.println("Constant Propositions: " + constantProps + "\tInternal Propositions: " + internalProps);
 			
 			Operator operator = (Operator) operatorClass.toClass().newInstance();
 			return operator;

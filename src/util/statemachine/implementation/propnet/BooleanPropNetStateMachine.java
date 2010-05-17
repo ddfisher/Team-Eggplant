@@ -1,5 +1,6 @@
 package util.statemachine.implementation.propnet;
 
+import java.awt.print.Printable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -215,7 +216,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	 * computing the resulting state.
 	 */
 	@Override
-	public MachineState getInitialState() {
+	public BooleanMachineState getInitialState() {
 		boolean[] props = new boolean[propIndex.length];
 		props[initIndex] = true;
 		operator.propagate(props);
@@ -529,6 +530,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		
 		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
+//		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
+//		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
 	}
 	
 	
@@ -550,6 +553,21 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		str += "]";
 		return str;
 	}
+	
+	public void speedTest() {
+//		BooleanMachineState state = getInitialState();
+//		boolean[] props = initBasePropositionsFromState(state);
+//		
+//		long start = System.currentTimeMillis();
+//		for (long i = 0; i < 1000000; i++) {
+//            operator.propagate(props);
+//		}
+//		long end = System.currentTimeMillis();
+//		System.out.println((end-start) + " ms");
+//		System.exit(0);
+	}
+	
+
 	
 	public BooleanMachineState monteCarlo(MachineState state) {
 		boolean[] props = initBasePropositionsFromState(state);
