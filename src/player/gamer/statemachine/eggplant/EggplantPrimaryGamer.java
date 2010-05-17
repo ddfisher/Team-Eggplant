@@ -23,6 +23,7 @@ import player.gamer.statemachine.eggplant.misc.ValuedMove;
 import player.gamer.statemachine.eggplant.ui.EggplantConfigPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantDetailPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantMoveSelectionEvent;
+import sun.org.mozilla.javascript.internal.EvaluatorException;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -145,13 +146,13 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				if (!preemptiveSearch) {
 					bestWorkingMove = move;
 				}
-				principalMovesCache = currentCache;
 				Log.println('i', "Turn " + rootDepth + ", after depth " + depth + " (abs " + (rootDepth + depth) + "); working = " + move
 						+ " searched " + (statesSearched - alreadySearched) + " new states");
 				if (move.value == 0) {
 					hasLost = true;
 					break;
 				}
+				principalMovesCache = currentCache;
 				depth++;
 			}
 			// Try to make opponents' life hard / force them to respond
@@ -171,56 +172,12 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		}
 	}
 
-	// TODO: Clean up this function
 	protected void findFarthestLoss(StateMachine machine, MachineState state, Role role, int alpha, int beta, int firstLosingDepth, long endTime,
 			boolean debug) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
-		// don't need a heuristic to do anything except report non-loss
-		heuristic = new NullHeuristic(50);
-		ValuedMove bestMove = null;
-		try {
-			List<Move> possibleMoves0 = machine.getLegalMoves(state, role);
-			expansionEvaluator = new DepthLimitedExpansionEvaluator(firstLosingDepth + 2);
-			int minCount = Integer.MAX_VALUE;
-			Collections.shuffle(possibleMoves0);
-			loop0: for (Move move0 : possibleMoves0) {
-				Log.println('f', "Testing move " + move0);
-				List<List<Move>> jointMoves0 = machine.getLegalJointMoves(state, role, move0);
-				int count = 0;
-				for (List<Move> jointMove0 : jointMoves0) {
-					MachineState state1 = machine.getNextState(state, jointMove0);
-					if (!machine.isTerminal(state1)) {
-						List<MachineState> states2 = machine.getNextStates(state1);
-						for (MachineState state2 : states2) {
-							ValuedMove move = memoizedAlphaBeta(machine, state2, role, 0, 1, 2, new HashMap<MachineState, CacheValue>(),
-									principalMovesCache, endTime, false);
-							if (move.value == 0) {
-								count++;
-								Log.println('f', state2 + " leads to loss #" + count);
-								if (count > minCount)
-									continue loop0;
-							}
-						}
-					} else { // must be a losing joint move; no need to keep
-						// searching
-						continue loop0;
-					}
-				}
-				if (count < minCount) {
-					Log.println('f', "Best = " + move0 + " has " + count + " ways to lose");
-					minCount = count;
-					bestMove = new ValuedMove(-3, move0);
-					if (count == 1) { // we know that every move has at least 1
-						// way to lose
-						break;
-					}
-				}
-			}
-		} catch (TimeUpException ex) {
-		}
-		if (bestMove != null) {
-			bestWorkingMove = bestMove;
-			principalMovesCache.put(state, new CacheValue(bestMove, 0, 0));
-		}
+//		HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
+//		heuristic = new NullHeuristic(50);
+//		expansionEvaluator = new DepthLimitedExpansionEvaluator(firstLosingDepth-1);
+		bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, principalMovesCache, principalMovesCache, endTime, debug);
 		throw new TimeUpException();
 	}
 
