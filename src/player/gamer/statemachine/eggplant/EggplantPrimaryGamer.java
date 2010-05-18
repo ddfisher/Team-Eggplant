@@ -48,6 +48,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected int maxSearchDepth;
 	protected int numPlayers;
 	protected int rootDepth;
+	protected int winDepth;
 	protected ValuedMove bestWorkingMove;
 	protected int nextStartDepth;
 	protected HashMap<MachineState, CacheValue> principalMovesCache;
@@ -60,6 +61,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// initialize cache, evaluators
+		winDepth = -1;
 		rootDepth = 0;
 		nextStartDepth = 1;
 		numPlayers = getStateMachine().getRoles().size();
@@ -136,6 +138,26 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		Log.println('i', "Turn " + rootDepth + ", starting search at " + depth + " with best = " + bestWorkingMove + "; end book size = "
 				+ endBook.book.size());
 		try {
+			if (winDepth >= 0) {
+				Log.println('i', "Expect to win with " + (winDepth + 1) + 
+						" more move" + (winDepth == 0 ? "" : "s"));
+				HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
+				expansionEvaluator = new DepthLimitedExpansionEvaluator(winDepth);
+				heuristic = getHeuristic();
+				int alreadySearched = statesSearched;
+				ValuedMove move = memoizedAlphaBeta(machine, state, role, alpha, beta, 
+						0, currentCache, principalMovesCache, endTime, false);
+				Log.println('i', "Turn " + rootDepth + ", after depth " + winDepth + " (abs " + (rootDepth + depth) + "); working = " + move
+						+ " searched " + (statesSearched - alreadySearched) + " new states");
+				winDepth--;
+				if (move.value == 100) {
+					bestWorkingMove = move;
+					throw new TimeUpException();
+				} else {
+					// something drastic went wrong, just start over
+					Log.println('i', "System had a win in previous turn but lost it...starting over");
+				}
+			}
 			boolean hasLost = false;
 			while (depth <= maxSearchDepth) {
 				expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
@@ -151,6 +173,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				if (move.value == 0) {
 					hasLost = true;
 					break;
+				}
+				if (move.value == 100) {
+					winDepth = depth;
+					Log.println('i', "Found a win at depth " + winDepth);
+					throw new TimeUpException();
 				}
 				principalMovesCache = currentCache;
 				depth++;
@@ -203,8 +230,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			if (result.move != null) {
 				cache.put(state, new CacheValue(result, alpha, beta));
 			}
-			if (result.value == 0 && !endBook.book.containsKey(state)) { // sure
-				// loss
+			if (result.value == 0 && !endBook.book.containsKey(state)) {
+				// sure loss
+				endBook.book.put(state, new CacheValue(result, alpha, beta));
+			} else if (result.value == 100 && !endBook.book.containsKey(state)) {
+				// sure win
 				endBook.book.put(state, new CacheValue(result, alpha, beta));
 			}
 			return result;
