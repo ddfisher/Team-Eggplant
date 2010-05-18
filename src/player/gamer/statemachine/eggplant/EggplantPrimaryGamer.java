@@ -1,5 +1,6 @@
 package player.gamer.statemachine.eggplant;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -53,7 +54,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected int nextStartDepth;
 	protected HashMap<MachineState, CacheValue> principalMovesCache;
 
+	private final boolean KEEP_TIME = true; 
 	private final long GRACE_PERIOD = 200;
+	private List<String> timeLog = new ArrayList<String>();
 
 	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
 	// the sentences are actually the same objects in memory
@@ -61,6 +64,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// initialize cache, evaluators
+		long st, en;
+		if (KEEP_TIME) {
+			st = System.currentTimeMillis();
+		}
 		winDepth = -1;
 		rootDepth = 0;
 		nextStartDepth = 1;
@@ -84,6 +91,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		endBook = new EndgameBook(numPlayers);
 //		endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
 		iterativeDeepening(machine, state, role, 0, 100, true, timeout-GRACE_PERIOD);
+		if (KEEP_TIME) {
+			en = System.currentTimeMillis();
+			timeLog.add("Metagaming took " + (en - st) + " ms");
+		}
 	}
 
 	@Override
@@ -102,12 +113,16 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			rootDepth++;
 
 			long stop = System.currentTimeMillis();
+			if (KEEP_TIME) {
+				timeLog.add("Selecting move at depth " + rootDepth + " took " + (stop - start) + " ms");
+			}
 			notifyObservers(new EggplantMoveSelectionEvent(bestWorkingMove.move, bestWorkingMove.value, stop - start, statesSearched,
 					leafNodesSearched, cacheHits, cacheMisses));
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
-		return bestWorkingMove.move;
+		if (bestWorkingMove.move != null) return bestWorkingMove.move;
+		return new ValuedMove(-2, machine.getRandomMove(state, role)).move	;
 	}
 
 	private Heuristic getHeuristic() {
@@ -139,23 +154,24 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				+ endBook.book.size());
 		try {
 			if (winDepth >= 0) {
-				Log.println('i', "Expect to win with " + (winDepth + 1) + 
-						" more move" + (winDepth == 0 ? "" : "s"));
+				int wd = winDepth - rootDepth;
+				Log.println('i', "Expect to win with " + (wd + 1) + " more move" + (wd == 0 ? "" : "s"));
+				if (wd == 0) printTimeLog();
 				HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
-				expansionEvaluator = new DepthLimitedExpansionEvaluator(winDepth);
+				expansionEvaluator = new DepthLimitedExpansionEvaluator(wd);
 				heuristic = getHeuristic();
 				int alreadySearched = statesSearched;
 				ValuedMove move = memoizedAlphaBeta(machine, state, role, alpha, beta, 
 						0, currentCache, principalMovesCache, endTime, false);
 				Log.println('i', "Turn " + rootDepth + ", after depth " + winDepth + " (abs " + (rootDepth + depth) + "); working = " + move
 						+ " searched " + (statesSearched - alreadySearched) + " new states");
-				winDepth--;
 				if (move.value == 100) {
 					bestWorkingMove = move;
 					throw new TimeUpException();
 				} else {
 					// something drastic went wrong, just start over
 					Log.println('i', "System had a win in previous turn but lost it...starting over");
+					winDepth = -1;
 				}
 			}
 			boolean hasLost = false;
@@ -175,7 +191,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 					break;
 				}
 				if (move.value == 100) {
-					winDepth = depth;
+					winDepth = rootDepth + depth;
 					Log.println('i', "Found a win at depth " + winDepth);
 					throw new TimeUpException();
 				}
@@ -196,6 +212,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			nextStartDepth = depth - 2;
 			if (nextStartDepth < 1)
 				nextStartDepth = 1;
+		} catch (RuntimeException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -335,6 +353,18 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			}
 		}
 		return maxMove;
+	}
+	
+	public void printTimeLog() {
+		if (!KEEP_TIME) {
+			Log.println('i', "No timing information kept (turn on KEEP_TIME)");
+			return;
+		}
+		Log.println('i', "\nTiming info:\n---");
+		for (String tim : timeLog) {
+			Log.println('i', "   " + tim);
+		}
+		Log.println('i', "---\n");
 	}
 
 	@Override
