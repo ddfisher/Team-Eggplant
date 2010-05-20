@@ -59,6 +59,12 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	private final boolean KEEP_TIME = true; 
 	private final long GRACE_PERIOD = 200;
 	private List<String> timeLog = new ArrayList<String>();
+	private final String testers = "mop";
+	/* Heuristic testing codes
+	 * m - Monte Carlo
+	 * o - Opponent mobility
+	 * p - Player mobility
+	 */
 
 	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
 	// the sentences are actually the same objects in memory
@@ -108,6 +114,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		avgGoal = total / (double)values.length;
 		Log.println('i', "Min: " + minGoal + ", max: " + maxGoal + ", avg: " + avgGoal);
 	}
+	
+	// Want to know:
+	// Mean and variance of each heuristic
+	// Correllation of each heuristic with good score 
+	private void boof() {}
 
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
@@ -373,5 +384,62 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	@Override
 	public ConfigPanel getConfigPanel() {
 		return config;
+	}
+	
+	class HeuristicStats {
+		private List<Integer> evals;
+		private List<Double> winFractions;
+		private boolean cachedMean, cachedDev, cachedCor;
+		private double mean, stDev, correlation;
+		
+		public HeuristicStats() {
+			evals = new ArrayList<Integer>();
+			cachedMean = cachedDev = cachedCor = false;
+		}
+		
+		public void update(int eval) { 
+			update(eval, .5);
+		}
+		
+		public void update(int eval, double winFraction) {
+			evals.add(eval);
+			winFractions.add(winFraction);
+			cachedMean = cachedDev = cachedCor = false;
+		}
+		
+		public double mean() { 
+			if (!cachedMean) computeMean();
+			return mean;
+		}
+		
+		public double standardDeviation() {
+			if (!cachedDev) computeStDev();
+			return stDev;
+		}
+		
+		public double correlation() {
+			if (!cachedCor) computeCor();
+			return 0.0;
+		}
+		
+		private void computeMean() {
+			int total = 0;
+			for (Integer i : evals) total += i;
+			mean = total / (double) evals.size();
+		}
+		
+		private void computeStDev() {
+			if (!cachedMean) computeMean();
+			double total = 0;
+			for (Integer i : evals) {
+				double diff = i - mean;
+				total += diff * diff;
+			}
+			stDev = Math.sqrt(total / evals.size());
+		}
+		
+		private void computeCor() {
+			correlation = 0;
+		}
 	}
 }
