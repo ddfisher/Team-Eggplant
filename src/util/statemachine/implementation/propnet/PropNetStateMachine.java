@@ -18,6 +18,8 @@ import util.gdl.grammar.GdlSentence;
 import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.PropNet;
+import util.propnet.architecture.components.And;
+import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.factory.CachedPropNetFactory;
 import util.statemachine.MachineState;
@@ -30,6 +32,38 @@ import util.statemachine.exceptions.TransitionDefinitionException;
 import util.statemachine.implementation.prover.query.ProverQueryBuilder;
 
 public class PropNetStateMachine extends StateMachine {
+	
+	public PropNetStateMachine[] factor(List<Gdl> description) {
+		PropNet copy = CachedPropNetFactory.create(description);
+		Set<Proposition> lowestLevel = new HashSet<Proposition>();
+		findLowestLevel(copy.getTerminalProposition(), lowestLevel);
+		
+		List<Factor> factors = new ArrayList<Factor>();
+		for (Proposition prop : lowestLevel) {
+			Factor factor = new Factor();
+			factor.terminalProps.add(prop);
+			factors.add(factor);
+		}
+		
+		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;return null;
+	}
+	
+	private void findLowestLevel(Proposition prop, Set<Proposition> level) {
+		Component comp = prop.getSingleInput();
+		if (comp instanceof And) {
+			if (comp.getInputs().size() == 1) {
+				findLowestLevel((Proposition)comp.getSingleInput(), level);
+			} else {
+				level.add(prop);
+			}
+		} else if (comp instanceof Or) {
+			for (Component input : comp.getInputs()) {
+				findLowestLevel((Proposition)input, level);
+			}
+		} else {
+			level.add(prop);
+		}
+	}
 
 	/**
 	 * Computes if the state is terminal. Should return the value of the
@@ -435,5 +469,22 @@ public class PropNetStateMachine extends StateMachine {
 			}
 		}
 		return roles;
+	}
+}
+
+class Factor {
+	public Set<Proposition> terminalProps;
+	public Set<Proposition> goalProps;
+	//assert(everything will be OK) /*of course, the assert fails*/
+	public Set<Proposition> generalProps;
+	public Factor(Set<Proposition> terminalProps, Set<Proposition> goalProps, Set<Proposition> generalProps) {
+		this.terminalProps = terminalProps;
+		this.goalProps = goalProps;
+		this.generalProps = generalProps;
+	}
+	public Factor() {
+		this.terminalProps = new HashSet<Proposition>();
+		this.goalProps = new HashSet<Proposition>();
+		this.generalProps = new HashSet<Proposition>();
 	}
 }
