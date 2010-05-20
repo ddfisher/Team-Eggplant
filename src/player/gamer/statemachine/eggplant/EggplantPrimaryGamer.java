@@ -179,7 +179,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			// blunder
 			if (hasLost && !preemptiveSearch) {
 				Log.println('i', "Trying desperate measures...");
-				bestWorkingMove = principalMovesCache.get(state).valuedMove;
+				if (principalMovesCache.containsKey(state))
+					bestWorkingMove = principalMovesCache.get(state).valuedMove;
 				throw new TimeUpException();
 			} else if (hasWon && !preemptiveSearch) {
 				Log.println('i', "Found a win at depth " + (rootDepth + depth) + ". Move towards win: " + bestWorkingMove);
@@ -225,8 +226,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				// sure loss
 				endBook.book.put(state, new CacheValue(result, alpha, beta));
 			} else if (result.value == 100 && !endBook.book.containsKey(state)) {
-				// sure win
-				endBook.book.put(state, new CacheValue(result, alpha, beta));
+				// sure win - possibly unsafe
+//				endBook.book.put(state, new CacheValue(result, alpha, beta));
 			}
 			return result;
 		} else {
