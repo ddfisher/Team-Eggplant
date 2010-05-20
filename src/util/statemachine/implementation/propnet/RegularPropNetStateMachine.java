@@ -59,7 +59,11 @@ public class RegularPropNetStateMachine extends StateMachine {
 		
 		@Override
 		public String toString() {
-			return "Factor rooted at " + terminalProp.getName() + " with " + components.size() + " components, " + internalProps.size() + " internal props, " + baseProps.size() + " base props, " + inputProps.size() + " input props";
+			int numGoals = 0;
+			for(Role r : goalProps.keySet()) {
+				numGoals += goalProps.get(r).size();
+			}
+			return "Factor rooted at " + terminalProp.getName() + " with " + components.size() + " components, " + internalProps.size() + " internal props, " + baseProps.size() + " base props, " + inputProps.size() + " input props, " + numGoals + " goal props";
 		
 		}
 	}
@@ -144,13 +148,12 @@ public class RegularPropNetStateMachine extends StateMachine {
 				assert(copy.size() == 0);
 			}
 		}
-		Log.println('g', "Found factors : " + factors);
 		
 		// TODO By assumption, goals are disjunctively factorable
 		
 		// Add goals
-		for (Role role : goalPropositions.keySet()) {
-			for (Proposition goalProp : goalPropositions.get(role)) {
+		for (Role role : referenceMachine.goalPropositions.keySet()) {
+			for (Proposition goalProp : referenceMachine.goalPropositions.get(role)) {
 				addGoals(goalProp, goalProp, factors, role);
 			}
 		}
@@ -160,6 +163,8 @@ public class RegularPropNetStateMachine extends StateMachine {
 			Log.println('g', "Factor " + i + " has " + factors.get(i).inputProps.size() + " inputs");
 			factors.get(i).legalInputMap = referenceMachine.legalInputMap;
 		}
+		
+		Log.println('g', "Found factors : " + factors);
 		
 		// Generate the new statemachines
 		RegularPropNetStateMachine[] minions = new RegularPropNetStateMachine[factors.size()];
@@ -174,8 +179,10 @@ public class RegularPropNetStateMachine extends StateMachine {
 	
 	// Has the potential to search the entire supertree of goalProp
 	private void addGoals(Proposition prop, Proposition goalProp, List<Factor> factors, Role role) {
+		Log.println('g', "exploring " + prop.getName() + " with goal " + goalProp.getName());
 		for (Factor factor : factors) {
 			if (factor.internalProps.contains(prop)) { // Proposition intersects factored tree; should only happen once
+				Log.println('g', "Found goal " + prop.getName());
 				if (!factor.goalProps.containsKey(role)) {
 					factor.goalProps.put(role, new HashSet<Proposition>());
 				}
@@ -676,6 +683,10 @@ public class RegularPropNetStateMachine extends StateMachine {
 	
 	@Override
 	public String toString() {
-		return "RPNSM with " + pnet.getComponents().size() + " components, " + basePropositions.values().size() + " base, " + inputPropositions.values().size() + " input, " + (legalInputMap == null ? "null" : legalInputMap.keySet().size()/2) + " legals, " + (terminal == null ? "null" : terminal.getName()) + " term, " + (init == null ? "null" : init.getName()) + " init "; 
+		int numGoals = 0;
+		for(Role r : goalPropositions.keySet()) {
+			numGoals += goalPropositions.get(r).size();
+		}
+		return "RPNSM with " + pnet.getComponents().size() + " components, " + basePropositions.values().size() + " base, " + inputPropositions.values().size() + " input, " + (legalInputMap == null ? "null" : legalInputMap.keySet().size()/2) + " legals, " + numGoals + " goals, " + (terminal == null ? "null" : terminal.getName()) + " term, " + (init == null ? "null" : init.getName()) + " init "; 
 	}
 }
