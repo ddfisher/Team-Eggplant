@@ -81,6 +81,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		Role role = getRole();
 		findGoalBounds(machine, role);
 
+		
+		RegularPropNetStateMachine[] minions = ((RegularPropNetStateMachine) machine).factor();
 //		long start = System.currentTimeMillis();
 
 		/*

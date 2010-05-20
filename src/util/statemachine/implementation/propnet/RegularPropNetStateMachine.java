@@ -6,6 +6,7 @@ package util.statemachine.implementation.propnet;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -22,6 +23,8 @@ import util.gdl.grammar.GdlSentence;
 import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.RegularPropNet;
+import util.propnet.architecture.components.And;
+import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.factory.CachedPropNetFactory;
 import util.statemachine.MachineState;
@@ -35,6 +38,223 @@ import util.statemachine.implementation.prover.query.ProverQueryBuilder;
 
 public class RegularPropNetStateMachine extends StateMachine {
 
+	private class Factor {
+		public Proposition terminalProp;
+		public Map<Role, Set<Proposition>> goalProps;
+		public Map<Proposition, Proposition> legalInputMap;
+		public Set<Proposition> baseProps;
+		public Set<Proposition> inputProps;
+		public Set<Component> components;
+		//assert(everything will be OK) /*of course, the assert fails*/
+		public Set<Proposition> internalProps;
+		public Factor(Proposition terminalProp) {
+			this.terminalProp = terminalProp;
+			this.components = new HashSet<Component>();
+			this.goalProps = new HashMap<Role, Set<Proposition>>();
+			this.internalProps = new HashSet<Proposition>();
+			this.baseProps = new HashSet<Proposition>();
+			this.inputProps = new HashSet<Proposition>();
+			this.legalInputMap = new HashMap<Proposition, Proposition>();
+		}
+		
+		@Override
+		public String toString() {
+			return "Factor rooted at " + terminalProp.getName() + " with " + components.size() + " components, " + internalProps.size() + " internal props, " + baseProps.size() + " base props, " + inputProps.size() + " input props";
+		
+		}
+	}
+	
+	// New instance variables 
+	private List<Gdl> description;
+	
+	
+	public RegularPropNetStateMachine[] factor() {
+		
+		Log.println('g', "Starting factoring with " + this.toString());
+		/*
+		 for (Proposition prop : basePropositions.values()) {
+		 
+			System.err.println("Base : " + prop.getName());
+		}
+		for (Proposition prop : inputPropositions.values()) {
+			System.err.println("Input : " + prop.getName());
+		}
+		*/
+		
+
+		RegularPropNetStateMachine referenceMachine = new RegularPropNetStateMachine();
+		referenceMachine.initialize(description);
+		Map<Proposition, List<Proposition>> lowestLevel = new HashMap<Proposition, List<Proposition>>();
+		findLowestLevel(referenceMachine.terminal, lowestLevel, new LinkedList<Proposition>());
+		
+		List<Factor> factors = new ArrayList<Factor>();
+		for (Proposition prop : lowestLevel.keySet()) { // tentative root 
+			Factor factor = new Factor(prop);
+			factors.add(factor);
+			
+			// Reverse DFS
+			reverseDFS(prop, factor, referenceMachine);
+		}
+		
+		// Merge if necessary
+		for (int i = 0; i < factors.size(); i++) {
+			for (int j = i + 1; j < factors.size(); j++) {
+				HashSet<Proposition> copy = new HashSet<Proposition>(factors.get(i).internalProps);
+				copy.retainAll(factors.get(j).internalProps);
+				if (copy.size() > 0) { // Should merge
+					Log.println('g', "Merging yikes!!!!!1");
+					
+					// Find most recent ancestor
+					List<Proposition> trail1 = lowestLevel.get(factors.get(i));
+					List<Proposition> trail2 = lowestLevel.get(factors.get(j));
+					while (!trail2.contains(trail1.get(0))) {
+						trail1.remove(0);
+					}
+					Proposition ancestor = trail1.get(0);
+					Factor newFactor = new Factor(ancestor);
+					
+					// Find all factors that have this as an ancestor
+					for (int k = 0; k < factors.size(); k++) {
+						if (lowestLevel.get(factors.get(k)).contains(ancestor)) {
+							newFactor.internalProps.addAll(factors.get(k).internalProps);
+							newFactor.components.addAll(factors.get(k).components);
+							lowestLevel.remove(factors.get(k));
+							factors.remove(k);
+							k--;
+						}
+					}
+					trail1.remove(0);
+					lowestLevel.put(ancestor, trail1); // Throw this back into the pool of factors
+					
+					// Hacky way to reset loop
+					i = -1;
+					break;
+				}
+			}
+		}
+		
+		// Sanity check: assert that all base and internal propositions in each factor are exclusive
+		for (int i = 0; i < factors.size(); i++) {
+			for (int j = i + 1; j < factors.size(); j++) {
+				HashSet<Proposition> copy = new HashSet<Proposition>(factors.get(i).internalProps);
+				copy.retainAll(factors.get(j).internalProps);
+				assert(copy.size() == 0);
+				copy = new HashSet<Proposition>(factors.get(i).baseProps);
+				copy.retainAll(factors.get(j).baseProps);
+				assert(copy.size() == 0);
+			}
+		}
+		Log.println('g', "Found factors : " + factors);
+		
+		// TODO By assumption, goals are disjunctively factorable
+		
+		// Add goals
+		for (Role role : goalPropositions.keySet()) {
+			for (Proposition goalProp : goalPropositions.get(role)) {
+				addGoals(goalProp, goalProp, factors, role);
+			}
+		}
+		
+		// TODO Input consolidation
+		for (int i = 0; i < factors.size(); i++) {
+			Log.println('g', "Factor " + i + " has " + factors.get(i).inputProps.size() + " inputs");
+			factors.get(i).legalInputMap = referenceMachine.legalInputMap;
+		}
+		
+		// Generate the new statemachines
+		RegularPropNetStateMachine[] minions = new RegularPropNetStateMachine[factors.size()];
+		for (int i = 0; i < factors.size(); i++) {
+			minions[i] = new RegularPropNetStateMachine();
+			minions[i].initialize(factors.get(i).components, roles);
+			Log.println('g', minions[i].toString());
+		}
+		
+		return minions;
+	}
+	
+	// Has the potential to search the entire supertree of goalProp
+	private void addGoals(Proposition prop, Proposition goalProp, List<Factor> factors, Role role) {
+		for (Factor factor : factors) {
+			if (factor.internalProps.contains(prop)) { // Proposition intersects factored tree; should only happen once
+				if (!factor.goalProps.containsKey(role)) {
+					factor.goalProps.put(role, new HashSet<Proposition>());
+				}
+				// Rewire with a single-input / output And gate
+				Proposition duplicateGoal = new Proposition(goalProp.getName());
+				Component connector = new And();
+				prop.getOutputs().clear();
+				prop.addOutput(connector);
+				connector.addInput(goalProp);
+				connector.addOutput(duplicateGoal);
+				duplicateGoal.addInput(connector);
+				
+				// Add duplicate goal to factor's mapping
+				factor.goalProps.get(role).add(duplicateGoal);
+				factor.components.add(connector);
+				factor.components.add(duplicateGoal);
+				
+				return; // Only one factor will contain prop
+			}
+		}
+		if (prop.getInputs().size() == 0) {
+			return;
+		}
+		Component comp = prop.getSingleInput();
+		for (Component higherProp : comp.getInputs()) {
+			addGoals((Proposition) higherProp, goalProp, factors, role);
+		}
+	}
+	
+	private void reverseDFS(Proposition prop, Factor factor, RegularPropNetStateMachine referenceMachine) {
+		Log.println('g', "Reached " + prop.getName());
+		
+		if (referenceMachine.inputPropositions.containsValue(prop)) {
+			Log.println('g', "Found input");
+			factor.inputProps.add(prop);
+			factor.components.add(prop);
+			return;
+		}
+		if (prop.getInputs().size() == 1) { // Not a spurious proposition	
+			if (referenceMachine.basePropositions.containsValue(prop)) {
+				Log.println('g', "Found base");
+				factor.baseProps.add(prop);
+				factor.components.add(prop);
+			}
+			if(factor.internalProps.add(prop)) {
+				factor.components.add(prop);
+				Component comp = prop.getSingleInput();
+				factor.components.add(comp);
+				for (Component input : comp.getInputs()) {
+					reverseDFS((Proposition)input, factor, referenceMachine);
+				}
+			}
+		}
+	}
+	
+	private void findLowestLevel(Proposition prop, Map<Proposition, List<Proposition>> level, LinkedList<Proposition> trail) {
+		Component comp = prop.getSingleInput();
+		if (comp instanceof And) {
+			if (comp.getInputs().size() == 1) {
+				trail.add(prop);
+				findLowestLevel((Proposition)comp.getSingleInput(), level, trail);
+				trail.remove(prop);
+			} else {
+				level.put(prop, new LinkedList<Proposition>(trail));
+			}
+		} else if (comp instanceof Or) {
+			for (Component input : comp.getInputs()) {
+				trail.add(prop);
+				findLowestLevel((Proposition)input, level, trail);
+				trail.remove(prop);
+			}
+		} else {
+			level.put(prop, new LinkedList<Proposition>(trail));
+			
+		}
+	}
+	
+	
+	
 	/**
 	 * Computes if the state is terminal. Should return the value of the
 	 * terminal proposition for the state.
@@ -336,10 +556,24 @@ public class RegularPropNetStateMachine extends StateMachine {
 	 * ordering here. Additionally you can compute the initial state here, if
 	 * you want.
 	 */
+	
 	@Override
-	public void initialize(List<Gdl> description) {
+	public void initialize(List<Gdl> desc) {
+		description = desc;
 		pnet = (RegularPropNet) CachedPropNetFactory.create(description);
 		roles = computeRoles(description);
+		initializeFromPropNet(pnet);
+		pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test.out");
+	}
+	
+	public void initialize(Set<Component> components, List<Role> roles) {
+		description = null;
+		pnet = new RegularPropNet(roles, components);
+		this.roles = roles;
+		initializeFromPropNet(pnet);
+	}
+	
+	private void initializeFromPropNet(RegularPropNet pnet) {
 		basePropositions = pnet.getBasePropositions();
 		inputPropositions = pnet.getInputPropositions();
 		terminal = pnet.getTerminalProposition();
@@ -348,7 +582,6 @@ public class RegularPropNetStateMachine extends StateMachine {
 		goalPropositions = pnet.getGoalPropositions();
 		legalInputMap = pnet.getLegalInputMap();		
 		ordering = getOrdering();
-		pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test.out");
 	}
 
 	/* Helper methods */
@@ -439,5 +672,10 @@ public class RegularPropNetStateMachine extends StateMachine {
 			}
 		}
 		return roles;
+	}
+	
+	@Override
+	public String toString() {
+		return "RPNSM with " + pnet.getComponents().size() + " components, " + basePropositions.values().size() + " base, " + inputPropositions.values().size() + " input, " + (legalInputMap == null ? "null" : legalInputMap.keySet().size()/2) + " legals, " + (terminal == null ? "null" : terminal.getName()) + " term, " + (init == null ? "null" : init.getName()) + " init "; 
 	}
 }
