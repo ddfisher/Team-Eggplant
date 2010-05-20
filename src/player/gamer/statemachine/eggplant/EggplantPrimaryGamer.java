@@ -49,7 +49,6 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected int maxSearchDepth;
 	protected int numPlayers;
 	protected int rootDepth;
-	protected int winDepth;
 	protected ValuedMove bestWorkingMove;
 	protected int nextStartDepth;
 	protected HashMap<MachineState, CacheValue> principalMovesCache;
@@ -68,7 +67,6 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		if (KEEP_TIME) {
 			st = System.currentTimeMillis();
 		}
-		winDepth = -1;
 		rootDepth = 0;
 		nextStartDepth = 1;
 		numPlayers = getStateMachine().getRoles().size();
@@ -152,29 +150,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		}
 		Log.println('i', "Turn " + rootDepth + ", starting search at " + depth + " with best = " + bestWorkingMove + "; end book size = "
 				+ endBook.book.size());
+		boolean hasLost = false, hasWon = false;
 		try {
-			if (winDepth >= 0) {
-				int wd = winDepth - rootDepth;
-				Log.println('i', "Expect to win with " + (wd + 1) + " more move" + (wd == 0 ? "" : "s"));
-				if (wd == 0) printTimeLog();
-				HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
-				expansionEvaluator = new DepthLimitedExpansionEvaluator(wd);
-				heuristic = getHeuristic();
-				int alreadySearched = statesSearched;
-				ValuedMove move = memoizedAlphaBeta(machine, state, role, alpha, beta, 
-						0, currentCache, principalMovesCache, endTime, false);
-				Log.println('i', "Turn " + rootDepth + ", after depth " + winDepth + " (abs " + (rootDepth + depth) + "); working = " + move
-						+ " searched " + (statesSearched - alreadySearched) + " new states");
-				if (move.value == 100) {
-					bestWorkingMove = move;
-					throw new TimeUpException();
-				} else {
-					// something drastic went wrong, just start over
-					Log.println('i', "System had a win in previous turn but lost it...starting over");
-					winDepth = -1;
-				}
-			}
-			boolean hasLost = false;
 			while (depth <= maxSearchDepth) {
 				expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
 				heuristic = getHeuristic();
@@ -191,9 +168,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 					break;
 				}
 				if (move.value == 100) {
-					winDepth = rootDepth + depth;
-					Log.println('i', "Found a win at depth " + winDepth);
-					throw new TimeUpException();
+					hasWon = true;
+					break;
 				}
 				principalMovesCache = currentCache;
 				depth++;
@@ -203,7 +179,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			// blunder
 			if (hasLost && !preemptiveSearch) {
 				Log.println('i', "Trying desperate measures...");
-				findFarthestLoss(machine, state, role, alpha, beta, depth, endTime, false);
+				bestWorkingMove = principalMovesCache.get(state).valuedMove;
+				throw new TimeUpException();
+			} else if (hasWon && !preemptiveSearch) {
+				Log.println('i', "Found a win at depth " + (rootDepth + depth) + ". Move towards win: " + bestWorkingMove);
+				throw new TimeUpException();
 			}
 		} catch (TimeUpException ex) {
 			if (preemptiveSearch) {
@@ -212,18 +192,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			nextStartDepth = depth - 2;
 			if (nextStartDepth < 1)
 				nextStartDepth = 1;
+			if (hasWon || hasLost)
+				nextStartDepth = 1;
 		} catch (RuntimeException e) {
 			e.printStackTrace();
 		}
-	}
-
-	protected void findFarthestLoss(StateMachine machine, MachineState state, Role role, int alpha, int beta, int firstLosingDepth, long endTime,
-			boolean debug) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, TimeUpException {
-//		HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
-//		heuristic = new NullHeuristic(50);
-//		expansionEvaluator = new DepthLimitedExpansionEvaluator(firstLosingDepth-1);
-		bestWorkingMove = memoizedAlphaBeta(machine, state, role, alpha, beta, 0, principalMovesCache, principalMovesCache, endTime, debug);
-		throw new TimeUpException();
 	}
 
 	protected ValuedMove memoizedAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth,
