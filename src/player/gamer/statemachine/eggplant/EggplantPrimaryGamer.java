@@ -256,9 +256,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			maxSearchDepth = depth;
 		}
 
-		if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion
-			// should
-			// stop
+		if (!expansionEvaluator.eval(machine, state, role, alpha, beta, depth)) { // expansion should stop
 			Log.println('a', "Heuristic; stopping expanding at depth " + depth);
 			return new ValuedMove(heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth, endTime), null, rootDepth + depth, false);
 		}

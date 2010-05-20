@@ -8,12 +8,12 @@ import util.propnet.architecture.components.Proposition;
 public class CheckedOperator extends Operator {
 	private Operator nativeOperator, javassistOperator;
 	
-	
-	public CheckedOperator(Map<Proposition, Integer> propMap, List<Proposition> transitionOrdering, List<Proposition> internalOrdering,
-			List<Proposition> terminalOrdering, List<List<Proposition>> legalOrderings, List<List<Proposition>> goalOrderings) {
-		nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, internalOrdering, terminalOrdering, legalOrderings, goalOrderings);
-		javassistOperator = OperatorFactory.buildOperator(propMap, transitionOrdering, internalOrdering, terminalOrdering, legalOrderings, goalOrderings);
-	}
+	//FIXME uncomment
+//	public CheckedOperator(Map<Proposition, Integer> propMap, List<Proposition> transitionOrdering, List<Proposition> internalOrdering,
+//			List<Proposition> terminalOrdering, List<List<Proposition>> legalOrderings, List<List<Proposition>> goalOrderings) {
+//		nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, internalOrdering, terminalOrdering, legalOrderings, goalOrderings);
+//		javassistOperator = OperatorFactory.buildOperator(propMap, transitionOrdering, internalOrdering, terminalOrdering, legalOrderings, goalOrderings);
+//	}
 
 	@Override
 	public void propagate(boolean[] props){

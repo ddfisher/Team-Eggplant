@@ -22,5 +22,9 @@ public class NativeOperator extends Operator {
 	public native void propagateLegalOnly(boolean[] props, int role);
 	
 	@Override
-	public native void propagateGoalOnly(boolean[] props, int role) ;
+	public native void propagateGoalOnly(boolean[] props, int role);
+	
+	public native void monteCarlo(boolean[] props);
+	
+	public native void initMonteCarlo(int[][] legalPropMap, int[] legalInputMap);
 }

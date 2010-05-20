@@ -3,6 +3,7 @@ package util.statemachine.implementation.propnet;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -14,6 +15,7 @@ import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.architecture.components.Transition;
+import util.statemachine.BooleanMachineState;
 
 public class NativeOperatorFactory {
 	private static final String GEN_DIR = "gen";
@@ -28,13 +30,15 @@ public class NativeOperatorFactory {
 	private static final String TERMINAL = "propagateTerminalOnly";
 	private static final String LEGAL = "propagateLegalOnly";
 	private static final String GOAL = "propagateGoalOnly";
+	private static final String MONTE_CARLO = "monteCarlo";
 
 	private static int classCount = 0;
 	private static int constantProps = 0;
 	private static int internalProps = 0;
 
 	public static Operator buildOperator(Map<Proposition, Integer> propMap, List<Proposition> transitionOrdering, List<Proposition> internalOrdering,
-			List<Proposition> terminalOrdering, List<List<Proposition>> legalOrderings, List<List<Proposition>> goalOrderings) {
+			List<Proposition> terminalOrdering, List<List<Proposition>> legalOrderings, List<List<Proposition>> goalOrderings,
+			int[][] legalPropMap, int[] legalInputMap, int inputPropStart, int inputPropLength, int terminalIndex) {
 		StringBuilder source = new StringBuilder();
 		
 		addPrefix(source);
@@ -45,6 +49,8 @@ public class NativeOperatorFactory {
 		addTerminalPropagate(source, terminalOrdering, propMap);
 		addLegalPropagate(source, legalOrderings, propMap);
 		addGoalPropagate(source, goalOrderings, propMap);
+		
+		addMonteCarlo(source, legalPropMap.length, legalPropMap[0].length, inputPropStart, inputPropLength, terminalIndex);
 
 		try {
 			FileWriter writer = new FileWriter(path);
@@ -58,9 +64,13 @@ public class NativeOperatorFactory {
 				System.out.println("Compilation successful!");
 			} else {
 				System.err.println("Compilation error!");
+				return null;
 			}
 			
-			return new NativeOperator();
+			NativeOperator no = new NativeOperator();
+			no.initMonteCarlo(legalPropMap, legalInputMap);
+			System.out.println("Monte Carlo Initialized!");
+			return no;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -73,8 +83,15 @@ public class NativeOperatorFactory {
 	}
 	
 	private static void addPrefix(StringBuilder source) {
+		//add includes
 		source.append("#include <stdbool.h>\n");
+		source.append("#include <stdlib.h>\n");
+		source.append("#include <string.h>\n");
 		source.append("#include \"" + HEADER_NAME + "\"\n");
+		
+		//add globals
+		source.append("jint **legalPropMap;\n");
+		source.append("jint *legalInputMap;\n");
 	}
 
 	private static void addTransition(StringBuilder source, List<Proposition> transitionOrdering, Map<Proposition, Integer> propMap) {
@@ -124,10 +141,10 @@ public class NativeOperatorFactory {
 				") {\n");
 //		method.append("jboolean copy = 0;\n");
 //		method.append("jboolean *props = (*env)->GetPrimitiveArrayCritical(env, javaArray, &copy);\n");
-		method.append("jboolean *props = (*env)->GetIntArrayElements(env, javaArray, NULL);;\n");
+		method.append("jboolean *props = (*env)->GetBooleanArrayElements(env, javaArray, NULL);\n");
 //		method.append("printf(\"copy: %d\\n\", copy);");
 		method.append(methodName + "(props" + (indexNeeded ? ", roleIndex" : "") + ");\n");
-		method.append("(*env)->ReleaseIntArrayElements(env, javaArray, props, 0);\n");
+		method.append("(*env)->ReleaseBooleanArrayElements(env, javaArray, props, 0);\n");
 //		method.append("(*env)->ReleasePrimitiveArrayCritical(env, javaArray, props, 0);\n");
 		method.append("}\n");
 
@@ -268,5 +285,69 @@ public class NativeOperatorFactory {
 		} else {
 			throw new RuntimeException("Unexpected Class");
 		}
+	}
+	
+	private static void addMonteCarlo(StringBuilder source, int numRoles, int numLegals, int inputStart, int numInputs, int terminalIndex) {
+		StringBuilder body = new StringBuilder();
+		body.append("int input[" + numRoles + "];\n");
+		body.append("while (true) {\n");
+			body.append("bool legal = false;\n");
+			body.append("while (!legal) {\n");
+				body.append("memset(props+" + inputStart + ", false, sizeof(jboolean)*" + numInputs + ");\n");
+				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
+					body.append("int index = rand() % " + numLegals + ";\n");
+					body.append("int inputIndex = legalInputMap[ legalPropMap[role][index] ];\n");
+					body.append("props[inputIndex] = true;\n");
+					body.append("input[role] = inputIndex;\n");
+				body.append("}\n");
+				body.append("propagateInternal(props);\n");
+			
+				body.append("if (props[" + terminalIndex + "])\n");
+					body.append("return;\n");
+				
+				body.append("legal = true;\n");
+				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
+					body.append("legal = legal && props[ legalInputMap[ input[role] ] ];\n");
+				body.append("}\n");
+			body.append("}\n");
+		body.append("transition(props);\n");
+		body.append("}\n");
+		
+		addMethod(source, body, MONTE_CARLO);
+		addWrapper(source, MONTE_CARLO, false);
+		
+		addMonteCarloInit(source);
+	}
+	
+	private static void addMonteCarloInit(StringBuilder source) {
+		StringBuilder body = new StringBuilder();
+		body.append("JNIEXPORT void JNICALL " + PREFIX + "initMonteCarlo(JNIEnv *env, jobject obj, jobjectArray javaLegalPropMap," +
+				"jbooleanArray javaLegalInputMap) {\n");
+//		body.append("printf(\"Monte Carlo Init!\\n\");\n");
+		body.append("jint *tempLegalInputMap = (*env)->GetIntArrayElements(env, javaLegalInputMap, NULL);\n");
+		body.append("int inputLen = (*env)->GetArrayLength(env, javaLegalInputMap);\n");
+		body.append("legalInputMap = malloc(sizeof(jint) * inputLen);");
+		body.append("for(int i = 0; i < inputLen; i++) legalInputMap[i] = tempLegalInputMap[i];\n");
+		body.append("(*env)->ReleaseIntArrayElements(env, javaLegalInputMap, tempLegalInputMap, JNI_ABORT);\n");
+		
+		
+		body.append("int rowLen = (*env)->GetArrayLength(env, javaLegalPropMap);\n");
+		body.append("legalPropMap = malloc(sizeof(jint *) * rowLen);\n");
+		body.append("for(int i=0; i<rowLen; i++) {\n");
+			body.append("jintArray oneDim = (jintArray)(*env)->GetObjectArrayElement(env, javaLegalPropMap, i);\n");
+			body.append("int colLen = (*env)->GetArrayLength(env, oneDim);\n");
+			body.append("legalPropMap[i] = malloc(sizeof(jint) * colLen);\n");
+			body.append("jint *element=(*env)->GetIntArrayElements(env, oneDim, NULL);\n");
+			body.append("for(int j=0; j<colLen; j++) {\n");
+				body.append("legalPropMap[i][j]= element[j];\n");
+//				body.append("printf(\"Role: %d\\tProp: %d\\tValue: %d\\n\", i, j, legalPropMap[i][j]);\n");
+			body.append("}\n");
+			body.append("(*env)->ReleaseIntArrayElements(env, oneDim, element, JNI_ABORT);\n");
+//			body.append("(*env)->DeleteLocalRef(env, oneDim);\n");
+		body.append("}\n");
+		
+		body.append("}\n");
+		
+		source.append(body);
 	}
 }

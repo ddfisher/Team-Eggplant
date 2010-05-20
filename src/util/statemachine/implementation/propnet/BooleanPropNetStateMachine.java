@@ -1,6 +1,5 @@
 package util.statemachine.implementation.propnet;
 
-import java.awt.print.Printable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -12,12 +11,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-import javassist.CannotCompileException;
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.CtMethod;
-import javassist.CtNewMethod;
-import javassist.NotFoundException;
 import player.gamer.statemachine.eggplant.misc.Log;
 import util.gdl.grammar.Gdl;
 import util.gdl.grammar.GdlConstant;
@@ -28,11 +21,8 @@ import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.components.And;
-import util.propnet.architecture.components.Constant;
-import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
-import util.propnet.architecture.components.Transition;
 import util.propnet.factory.CachedPropNetFactory;
 import util.statemachine.BooleanMachineState;
 import util.statemachine.MachineState;
@@ -159,6 +149,18 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		*/
 	}
+	
+	
+	
+//	private void collapse(BooleanPropNet net) {
+//		Iterator<Component> componentIterator = net.getComponents().iterator();
+//		while (componentIterator.hasNext()) {
+//			Component component = componentIterator.next();
+//			if ((component instanceof And) && component.getInputs().size() < 1) {
+//				componentIterator.remove();
+//			}
+//		}
+//	}
 
 	/**
 	 * Computes if the state is terminal. Should return the value of the
@@ -220,8 +222,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		boolean[] props = new boolean[propIndex.length];
 		props[initIndex] = true;
 		operator.propagate(props);
-		return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart),
-				propIndex);
+		return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
 	}
 
 	/**
@@ -529,8 +530,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			goalOrderings.add(getOrdering(goalProps));
 		}
 		
-		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
-//		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
+//		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
+		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
+				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 //		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
 	}
 	
@@ -555,44 +557,50 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 	
 	public void speedTest() {
-//		BooleanMachineState state = getInitialState();
-//		boolean[] props = initBasePropositionsFromState(state);
-//		
-//		long start = System.currentTimeMillis();
-//		for (long i = 0; i < 1000000; i++) {
-//            operator.propagate(props);
-//		}
-//		long end = System.currentTimeMillis();
-//		System.out.println((end-start) + " ms");
-//		System.exit(0);
+		BooleanMachineState state = getInitialState();
+		
+		long start = System.currentTimeMillis();
+		for (long i = 0; i < 1000; i++) {
+            MachineState newState = monteCarlo(state);
+//            System.out.println("Terminal? " + isTerminal(newState));
+		}
+		long end = System.currentTimeMillis();
+		System.out.println((end-start) + " ms");
 	}
 	
 
 	
 	public BooleanMachineState monteCarlo(MachineState state) {
-		boolean[] props = initBasePropositionsFromState(state);
-		int[] input = new int[legalPropMap.length];
-		while (true) {
-			boolean legal = false;
-			while (!legal) {
-				Arrays.fill(props, inputPropStart, inputPropStart + inputPropMap.size(), false); // set all input props to false
-				for (int role = 0; role < legalPropMap.length; role++) {  // set one random input prop to true for each role
-					int index = random.nextInt(legalPropMap[0].length);
-					int inputIndex = legalInputMap[ legalPropMap[role][index] ];
-					props[inputIndex] = true;
-					input[role] = inputIndex;
+		if (operator instanceof NativeOperator) {
+			boolean[] props = initBasePropositionsFromState(state);
+			((NativeOperator)operator).monteCarlo(props);
+			return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
+		} else {
+			boolean[] props = initBasePropositionsFromState(state);
+			int[] input = new int[legalPropMap.length];
+			while (true) {
+				boolean legal = false;
+				while (!legal) {
+					Arrays.fill(props, inputPropStart, inputPropStart + inputPropMap.size(), false); // set all input props to false
+					for (int role = 0; role < legalPropMap.length; role++) { // set one random input prop to true for each role
+						int index = random.nextInt(legalPropMap[0].length);
+						int inputIndex = legalInputMap[legalPropMap[role][index]];
+						props[inputIndex] = true;
+						input[role] = inputIndex;
+					}
+					operator.propagateInternal(props);
+
+					if (props[terminalIndex]) {
+						return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
+					}
+
+					legal = true;
+					for (int role = 0; role < legalPropMap.length; role++) {
+						legal = legal && props[legalInputMap[input[role]]];
+					}
 				}
-				operator.propagateInternal(props);
-				
-				if (props[terminalIndex])
-					return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
-				
-				legal = true;
-				for (int role = 0; role < legalPropMap.length; role++) {
-					legal = legal && props[ legalInputMap[ input[role] ] ];
-				}
+				operator.transition(props);
 			}
-			operator.transition(props);
 		}
 	}
 }
