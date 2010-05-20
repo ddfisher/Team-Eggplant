@@ -508,7 +508,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 
 	private void initOperator() {
 		List<Proposition> transitionOrdering = new ArrayList<Proposition>();
-		for (int i = basePropStart; i < basePropMap.size(); i++) {
+		for (int i = basePropStart; i < inputPropStart; i++) {
 			transitionOrdering.add(propIndex[i]);
 		}
 		
