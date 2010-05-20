@@ -175,6 +175,20 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		return false;
 	}
+	
+	/** 
+	 * Retrieves the goal values in ascending numerical order.
+	 */
+	public int[] getGoalValues(Role role) {
+		int roleIndex = roleMap.get(role);
+		int[][] goals = goalPropMap[roleIndex];
+		int[] values = new int[goals.length];
+		for (int i = 0; i < goals.length; i++) {
+			values[i] = goals[i][1];
+		}
+		Arrays.sort(values);
+		return values;
+	}
 
 	/**
 	 * Computes the goal for a role in the current state. Should return the
