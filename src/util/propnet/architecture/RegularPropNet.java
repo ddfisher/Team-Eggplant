@@ -3,14 +3,12 @@ package util.propnet.architecture;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import player.gamer.statemachine.eggplant.misc.Log;
 import util.gdl.grammar.GdlConstant;
 import util.gdl.grammar.GdlFunction;
 import util.gdl.grammar.GdlProposition;
@@ -63,9 +61,7 @@ import util.statemachine.implementation.propnet.PropNetRole;
  * @author Sam Schreiber
  */
 @SuppressWarnings("serial")
-public final class PropNet implements Serializable {
-	/** References to every component in the PropNet. */
-	private final Set<Component> components;
+public final class RegularPropNet extends PropNet {
 	/** References to every Proposition in the PropNet. */
 	private final Set<Proposition> propositions;
 	/** References to every BaseProposition in the PropNet, indexed by name. */
@@ -88,9 +84,6 @@ public final class PropNet implements Serializable {
 	private final Proposition terminalProposition;
 
 	private final Map<Proposition, Proposition> legalInputMap;
-	
-
-	// private final List<Role> roles;
 
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
@@ -99,8 +92,8 @@ public final class PropNet implements Serializable {
 	 * @param components
 	 *            A list of Components.
 	 */
-	public PropNet(Set<Component> components) {
-		this.components = components;
+	public RegularPropNet(List<Role> roles, Set<Component> components) {
+		super(roles, components);
 		this.propositions = recordPropositions();
 		this.basePropositions = recordBasePropositions();
 		this.inputPropositions = recordInputPropositions();

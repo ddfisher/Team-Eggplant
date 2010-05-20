@@ -1,7 +1,6 @@
 package player.gamer.statemachine.eggplant;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -9,12 +8,7 @@ import player.gamer.statemachine.StateMachineGamer;
 import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
-import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.MobilityType;
-import player.gamer.statemachine.eggplant.heuristic.MonteCarloHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
@@ -24,7 +18,6 @@ import player.gamer.statemachine.eggplant.misc.ValuedMove;
 import player.gamer.statemachine.eggplant.ui.EggplantConfigPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantDetailPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantMoveSelectionEvent;
-import sun.org.mozilla.javascript.internal.EvaluatorException;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -32,7 +25,8 @@ import util.statemachine.StateMachine;
 import util.statemachine.exceptions.GoalDefinitionException;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
-import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
+import util.statemachine.implementation.propnet.RegularPropNetStateMachine;
+import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
 import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
 
@@ -94,7 +88,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		 * openingBook.expandBook(time + (timeout - time) / 2);
 		 */
 
-		((BooleanPropNetStateMachine) machine).speedTest();
+		//((BooleanPropNetStateMachine) machine).speedTest();
 		
 		endBook = new EndgameBook(numPlayers);
 //		endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
@@ -106,7 +100,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 	
 	private void findGoalBounds(StateMachine m, Role role) {
-		int[] values = ((BooleanPropNetStateMachine)m).getGoalValues(role);
+		int[] values = {0,100}; //TODO UNDO ((BooleanPropNetStateMachine)m).getGoalValues(role);
 		minGoal = values[0];
 		maxGoal = values[values.length - 1];
 		int total = 0;
@@ -373,7 +367,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 	@Override
 	public StateMachine getInitialStateMachine() {
-		return new BooleanPropNetStateMachine();
+		//TODO UNDO
+		return new RegularPropNetStateMachine();
 	}
 
 	@Override

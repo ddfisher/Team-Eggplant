@@ -119,7 +119,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public void initialize(List<Gdl> description) {
-		pnet = CachedPropNetFactory.create(description);
+		pnet = null; //TODO UNDO CachedPropNetFactory.create(description);
 		rolesList = computeRoles(description);
 		propIndex = pnet.getPropIndex();
 		propMap = pnet.getPropMap();

@@ -21,7 +21,7 @@ import util.gdl.grammar.GdlRelation;
 import util.gdl.grammar.GdlSentence;
 import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.Component;
-import util.propnet.architecture.PropNet;
+import util.propnet.architecture.RegularPropNet;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.factory.CachedPropNetFactory;
 import util.statemachine.MachineState;
@@ -33,7 +33,7 @@ import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
 import util.statemachine.implementation.prover.query.ProverQueryBuilder;
 
-public class PropNetStateMachine extends StateMachine {
+public class RegularPropNetStateMachine extends StateMachine {
 
 	/**
 	 * Computes if the state is terminal. Should return the value of the
@@ -296,7 +296,7 @@ public class PropNetStateMachine extends StateMachine {
 	}
 
 	/** The underlying proposition network */
-	private PropNet pnet;
+	private RegularPropNet pnet;
 	/**
 	 * An index from GdlTerms to Base Propositions. The truth value of base
 	 * propositions determines the state
@@ -338,7 +338,7 @@ public class PropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public void initialize(List<Gdl> description) {
-		//pnet = CachedPropNetFactory.create(description);
+		pnet = (RegularPropNet) CachedPropNetFactory.create(description);
 		roles = computeRoles(description);
 		basePropositions = pnet.getBasePropositions();
 		inputPropositions = pnet.getInputPropositions();
