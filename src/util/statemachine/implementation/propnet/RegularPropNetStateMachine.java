@@ -26,6 +26,7 @@ import util.propnet.architecture.RegularPropNet;
 import util.propnet.architecture.components.And;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
+import util.propnet.architecture.components.Transition;
 import util.propnet.factory.CachedPropNetFactory;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
@@ -112,8 +113,8 @@ public class RegularPropNetStateMachine extends StateMachine {
 					Log.println('g', "Merging yikes!!!!!1");
 					
 					// Find most recent ancestor
-					List<Proposition> trail1 = lowestLevel.get(factors.get(i));
-					List<Proposition> trail2 = lowestLevel.get(factors.get(j));
+					List<Proposition> trail1 = lowestLevel.get(factors.get(i).terminalProp);
+					List<Proposition> trail2 = lowestLevel.get(factors.get(j).terminalProp);
 					while (!trail2.contains(trail1.get(0))) {
 						trail1.remove(0);
 					}
@@ -122,10 +123,10 @@ public class RegularPropNetStateMachine extends StateMachine {
 					
 					// Find all factors that have this as an ancestor
 					for (int k = 0; k < factors.size(); k++) {
-						if (lowestLevel.get(factors.get(k)).contains(ancestor)) {
+						if (lowestLevel.get(factors.get(k).terminalProp).contains(ancestor)) {
 							newFactor.internalProps.addAll(factors.get(k).internalProps);
 							newFactor.components.addAll(factors.get(k).components);
-							lowestLevel.remove(factors.get(k));
+							lowestLevel.remove(factors.get(k).terminalProp);
 							factors.remove(k);
 							k--;
 						}
@@ -166,6 +167,56 @@ public class RegularPropNetStateMachine extends StateMachine {
 			}
 		}
 		
+		// Input consolidation
+		Map<Proposition, List<Proposition>> highestLevel = new HashMap<Proposition, List<Proposition>>();
+		for (Proposition inputProp : referenceMachine.inputPropositions.values()) {
+			findHighestLevel(inputProp, highestLevel, inputProp);
+		}
+		
+		String temp = "";
+		for (Proposition reachableProp : highestLevel.keySet()) {
+			if (highestLevel.get(reachableProp).size() > 1) {
+				temp += reachableProp.getName() + " in factor ";
+				for (int j = 0; j < factors.size(); j++) {
+					if (factors.get(j).internalProps.contains(reachableProp)) {
+						temp += j;
+					}
+				}
+				temp += " " + highestLevel.get(reachableProp).size() + ";";
+			}
+		}
+		Log.println('g', "Input lists " + temp);
+		
+
+		for (Proposition reachableProp : highestLevel.keySet()) {
+			if (highestLevel.get(reachableProp).size() > 1) {
+				for (Factor factor : factors) {
+					if (factor.internalProps.contains(reachableProp)) {
+						// Keep only one path
+						Component connector = reachableProp.getSingleInput();
+						Component randomInputPath = connector.getInputs().iterator().next();
+						for (Component input : connector.getInputs()) {
+							//Log.println('g', "Removing " + input + " " + randomInputPath + " " + input.hashCode() + " in factor " + k);
+							if (input == randomInputPath) {
+								continue;
+							}
+							Component currentToHide = input;
+							factor.components.remove(currentToHide);
+							while (true) {
+								currentToHide = currentToHide.getSingleInput();
+								factor.components.remove(currentToHide);
+								if (currentToHide.getInputs().size() == 0) { // Reached an input prop
+									factor.inputProps.remove(currentToHide);
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		
 		// Add legals
 		for (Factor factor : factors) {
 			for (Proposition inputProp : factor.inputProps) {
@@ -177,15 +228,12 @@ public class RegularPropNetStateMachine extends StateMachine {
 			}
 		}
 		
-		// TODO Input consolidation	
 		for (int i = 0; i < factors.size(); i++) {
 			Log.println('g', "Factor " + i + " has " + factors.get(i).inputProps.size() + " inputs");
 			factors.get(i).legalInputMap = referenceMachine.legalInputMap;
 		}
 		
-		// TODO Init hack around
-		
-		Log.println('g', "Found factors : " + factors);
+		// TODO Fix Init hack around
 		
 		Set<Component> alreadyVisited = new HashSet<Component>();
 		List<Component> toVisit = new LinkedList<Component>();
@@ -272,9 +320,8 @@ public class RegularPropNetStateMachine extends StateMachine {
 			minions[i] = new RegularPropNetStateMachine();
 			minions[i].initialize(factors.get(i).components, roles);
 			minions[i].pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test" + i + ".out");			
-			Log.println('g', minions[i].toString());
+			Log.println('f', "Factor " + i + " : " + minions[i].toString());
 			MachineState initialState = minions[i].getInitialState();
-			Log.println('g', "Initial state " + initialState);
 		}
 		
 		return minions;
@@ -355,6 +402,51 @@ public class RegularPropNetStateMachine extends StateMachine {
 
 	}
 	
+	// TODO Such a hack! Works only for special versions of lights on
+	
+	private boolean findHighestLevel(Proposition prop, Map<Proposition, List<Proposition>> level, Proposition inputProp) {
+		/*
+		Log.println('g', "At prop " + prop.getName());
+		if (!level.containsKey(prop)) {
+			level.put(prop, new LinkedList<Proposition>());
+		}
+		level.get(prop).add(inputProp);
+		Component comp = prop.getSingleOutput();
+		if (comp instanceof And || comp instanceof Transition) {
+			if (comp.getOutputs().size() == 1) {
+				findHighestLevel((Proposition)comp.getSingleOutput(), level, inputProp);
+			} 
+		} else if (comp instanceof Or) {
+			for (Component input : comp.getOutputs()) {
+				findHighestLevel((Proposition)input, level, inputProp);
+			}
+		}
+		*/
+		//Log.println('g', "At prop " + prop.getName());
+		Component comp = prop.getSingleOutput();
+		if (comp.getInputs().size() > 1) {
+			Proposition disjunctiveNode = (Proposition) comp.getSingleOutput();
+			if (!level.containsKey(disjunctiveNode)) {
+				level.put(disjunctiveNode, new LinkedList<Proposition>());
+			}
+			level.get(disjunctiveNode).add(inputProp);
+			return true;
+		}
+		if (comp instanceof And || comp instanceof Transition) {
+			if (comp.getOutputs().size() == 1) {
+				if (findHighestLevel((Proposition)comp.getSingleOutput(), level, inputProp))
+					return true;
+			} 
+		} else if (comp instanceof Or) {
+			for (Component output : comp.getOutputs()) {
+				if (findHighestLevel((Proposition)output, level, inputProp))
+					return true;
+			}
+		}
+		return false;
+		
+	}
+	
 	private void findLowestLevel(Proposition prop, Map<Proposition, List<Proposition>> level, LinkedList<Proposition> trail) {
 		Component comp = prop.getSingleInput();
 		if (comp instanceof And) {
@@ -376,7 +468,6 @@ public class RegularPropNetStateMachine extends StateMachine {
 			
 		}
 	}
-	
 	
 	
 	/**

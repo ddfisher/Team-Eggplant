@@ -94,9 +94,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 		//((BooleanPropNetStateMachine) machine).speedTest();
 		
+		switchStateMachine(minions[0]);
+		
 		endBook = new EndgameBook(numPlayers);
 //		endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
-		//iterativeDeepening(machine, state, role, minGoal-1, maxGoal+1, true, timeout-GRACE_PERIOD);
+		iterativeDeepening(minions[0], state, role, minGoal-1, maxGoal+1, true, timeout-GRACE_PERIOD);
 		if (KEEP_TIME) {
 			en = System.currentTimeMillis();
 			timeLog.add("Metagaming took " + (en - st) + " ms");
@@ -124,8 +126,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		leafNodesSearched = statesSearched = 0;
 		cacheHits = cacheMisses = 0;
 
-		StateMachine machine = minions[0];
+		StateMachine machine = getStateMachine();
 		MachineState state = getCurrentState();
+		Log.println('i', "State on turn " + rootDepth + " : " + state);
 		Role role = getRole();
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 
@@ -207,6 +210,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				throw new TimeUpException();
 			} else if (hasWon && !preemptiveSearch) {
 				Log.println('i', "Found a win at depth " + (rootDepth + depth) + ". Move towards win: " + bestWorkingMove);
+				if (depth == 1) {
+					printTimeLog();
+				}
 				throw new TimeUpException();
 			}
 		} catch (TimeUpException ex) {

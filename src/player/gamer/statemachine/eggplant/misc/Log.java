@@ -2,7 +2,7 @@ package player.gamer.statemachine.eggplant.misc;
 
 public class Log {
   // Set this string only in Log, to avoid messy code
-  private static final String flags = "ifg";
+  private static final String flags = "ifh";
   
   /*
    * Flag codes:
@@ -10,7 +10,8 @@ public class Log {
    *   c = Code generation
    *   e = Endgame book
    *   f = findFarthestLoss (desperate measures) 
-   *   g = factoring
+   *   g = Factoring debug
+   *   h = Factoring
    *   i = iterative deepening
    *   o = opening book
    *   p = prop net
