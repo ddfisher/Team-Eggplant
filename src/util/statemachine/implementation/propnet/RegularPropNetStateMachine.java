@@ -157,7 +157,7 @@ public class RegularPropNetStateMachine extends StateMachine {
 			factor.terminalProp.setName(referenceMachine.terminal.getName());
 		}
 		
-		// TODO By assumption, goals are disjunctively factorable
+		// TODO By assumption, goals are disjunctively factorable and descendants of terminal
 		
 		// Add goals
 		for (Role role : referenceMachine.goalPropositions.keySet()) {
@@ -177,7 +177,7 @@ public class RegularPropNetStateMachine extends StateMachine {
 			}
 		}
 		
-		// TODO Input consolidation
+		// TODO Input consolidation	
 		for (int i = 0; i < factors.size(); i++) {
 			Log.println('g', "Factor " + i + " has " + factors.get(i).inputProps.size() + " inputs");
 			factors.get(i).legalInputMap = referenceMachine.legalInputMap;
