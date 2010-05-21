@@ -16,15 +16,16 @@ import util.gdl.grammar.GdlPool;
 import util.gdl.grammar.GdlRule;
 import util.gdl.grammar.GdlSentence;
 import util.gdl.grammar.GdlTerm;
-import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.PropNet;
+import util.propnet.architecture.RegularPropNet;
 import util.propnet.architecture.components.And;
 import util.propnet.architecture.components.Constant;
 import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.architecture.components.Transition;
+import util.statemachine.Role;
 
 /**
  * The PropNetConverter class defines PropNet conversion for the PropNetFactory
@@ -53,7 +54,7 @@ public final class PropNetConverter
 	 *            A game description.
 	 * @return An equivalent PropNet.
 	 */
-	public BooleanPropNet convert(List<GdlRule> description)
+	public PropNet convert(List<GdlRule> description)
 	{
 		propositions = new HashMap<GdlTerm, Proposition>();
 		components = new HashSet<Component>();
@@ -72,8 +73,8 @@ public final class PropNetConverter
 
 		fixDisjunctions();
 		addMissingInputs();
-
-		return new BooleanPropNet(components);
+		
+		return new RegularPropNet(Role.computeRoles(description), components);
 	}
 
 	/**

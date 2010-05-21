@@ -1,7 +1,6 @@
 package player.gamer.statemachine.eggplant;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -9,12 +8,7 @@ import player.gamer.statemachine.StateMachineGamer;
 import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
-import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.MobilityType;
-import player.gamer.statemachine.eggplant.heuristic.MonteCarloHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
@@ -24,7 +18,6 @@ import player.gamer.statemachine.eggplant.misc.ValuedMove;
 import player.gamer.statemachine.eggplant.ui.EggplantConfigPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantDetailPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantMoveSelectionEvent;
-import sun.org.mozilla.javascript.internal.EvaluatorException;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -32,7 +25,8 @@ import util.statemachine.StateMachine;
 import util.statemachine.exceptions.GoalDefinitionException;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
-import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
+import util.statemachine.implementation.propnet.RegularPropNetStateMachine;
+import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
 import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
 
@@ -51,14 +45,25 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected int rootDepth;
 	protected ValuedMove bestWorkingMove;
 	protected int nextStartDepth;
+	protected int minGoal;
+	protected int maxGoal;
+	protected double avgGoal;
 	protected HashMap<MachineState, CacheValue> principalMovesCache;
 
 	private final boolean KEEP_TIME = true; 
 	private final long GRACE_PERIOD = 200;
 	private List<String> timeLog = new ArrayList<String>();
+	private final String testers = "mop";
+	/* Heuristic testing codes
+	 * m - Monte Carlo
+	 * o - Opponent mobility
+	 * p - Player mobility
+	 */
 
 	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
 	// the sentences are actually the same objects in memory
+	
+	private RegularPropNetStateMachine[] minions;
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
@@ -76,7 +81,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		StateMachine machine = getStateMachine();
 		MachineState state = getCurrentState();
 		Role role = getRole();
+		findGoalBounds(machine, role);
 
+		
+		minions = ((RegularPropNetStateMachine) machine).factor();
 //		long start = System.currentTimeMillis();
 
 		/*
@@ -84,16 +92,33 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		 * openingBook.expandBook(time + (timeout - time) / 2);
 		 */
 
-		((BooleanPropNetStateMachine) machine).speedTest();
+		//((BooleanPropNetStateMachine) machine).speedTest();
+		
+		switchStateMachine(minions[0]);
 		
 		endBook = new EndgameBook(numPlayers);
 //		endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
-		iterativeDeepening(machine, state, role, 0, 100, true, timeout-GRACE_PERIOD);
+		iterativeDeepening(minions[0], state, role, minGoal-1, maxGoal+1, true, timeout-GRACE_PERIOD);
 		if (KEEP_TIME) {
 			en = System.currentTimeMillis();
 			timeLog.add("Metagaming took " + (en - st) + " ms");
 		}
 	}
+	
+	private void findGoalBounds(StateMachine m, Role role) {
+		int[] values = {0,100}; //TODO UNDO ((BooleanPropNetStateMachine)m).getGoalValues(role);
+		minGoal = values[0];
+		maxGoal = values[values.length - 1];
+		int total = 0;
+		for (int i = 0; i < values.length; i++) total += values[i];
+		avgGoal = total / (double)values.length;
+		Log.println('i', "Min: " + minGoal + ", max: " + maxGoal + ", avg: " + avgGoal);
+	}
+	
+	// Want to know:
+	// Mean and variance of each heuristic
+	// Correllation of each heuristic with good score 
+	private void boof() {}
 
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
@@ -103,11 +128,12 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 		StateMachine machine = getStateMachine();
 		MachineState state = getCurrentState();
+		Log.println('i', "State on turn " + rootDepth + " : " + state);
 		Role role = getRole();
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 
 		try {
-			iterativeDeepening(machine, state, role, 0, 100, machine.getLegalMoves(state, role).size() == 1, timeout - GRACE_PERIOD);
+			iterativeDeepening(machine, state, role, minGoal-1, maxGoal+1, machine.getLegalMoves(state, role).size() == 1, timeout - GRACE_PERIOD);
 			rootDepth++;
 
 			long stop = System.currentTimeMillis();
@@ -127,7 +153,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 //		return new WeightedHeuristic(new Heuristic[] { new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
 //				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) }, new double[] { 0.3, 0.7 });
 //		return new MonteCarloHeuristic(10);
-		return new NullHeuristic(50);
+		return new NullHeuristic((int)avgGoal);
 	}
 
 	protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, boolean preemptiveSearch, long endTime)
@@ -163,11 +189,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				}
 				Log.println('i', "Turn " + rootDepth + ", after depth " + depth + " (abs " + (rootDepth + depth) + "); working = " + move
 						+ " searched " + (statesSearched - alreadySearched) + " new states");
-				if (move.value == 0) {
+				if (move.value == minGoal) {
 					hasLost = true;
 					break;
 				}
-				if (move.value == 100) {
+				if (move.value == maxGoal) {
 					hasWon = true;
 					break;
 				}
@@ -184,6 +210,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				throw new TimeUpException();
 			} else if (hasWon && !preemptiveSearch) {
 				Log.println('i', "Found a win at depth " + (rootDepth + depth) + ". Move towards win: " + bestWorkingMove);
+				if (depth == 1) {
+					printTimeLog();
+				}
 				throw new TimeUpException();
 			}
 		} catch (TimeUpException ex) {
@@ -222,10 +251,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			if (result.move != null) {
 				cache.put(state, new CacheValue(result, alpha, beta));
 			}
-			if (result.value == 0 && !endBook.book.containsKey(state)) {
+			if (result.value == minGoal && !endBook.book.containsKey(state)) {
 				// sure loss
 				endBook.book.put(state, new CacheValue(result, alpha, beta));
-			} else if (result.value == 100 && !endBook.book.containsKey(state)) {
+			} else if (result.value == maxGoal && !endBook.book.containsKey(state)) {
 				// sure win - possibly unsafe
 //				endBook.book.put(state, new CacheValue(result, alpha, beta));
 			}
@@ -278,7 +307,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		for (Move move : possibleMoves) {
 			Log.println('a', "Considering move " + move + " at depth " + depth);
 			List<List<Move>> jointMoves = machine.getLegalJointMoves(state, role, move);
-			int minValue = 101;
+			int minValue = maxGoal+1;
 			int minDepth = rootDepth + depth;
 			int newBeta = beta;
 			for (List<Move> jointMove : jointMoves) {
@@ -289,7 +318,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				int bestMoveValue = bestMove.value;
 				int bestMoveDepth = bestMove.depth;
 				if (bestMoveValue < minValue
-						|| (bestMoveValue == minValue && (bestMoveValue >= 50 && bestMoveDepth > minDepth || bestMoveValue <= 50
+						|| (bestMoveValue == minValue && (bestMoveValue >= (int)avgGoal && bestMoveDepth > minDepth || bestMoveValue <= (int)avgGoal
 								&& bestMoveDepth < minDepth))) { // heuristic to
 					// break
 					// ties
@@ -306,7 +335,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				}
 			}
 			if (maxMove.value < minValue
-					|| (maxMove.value == minValue && (maxMove.value >= 50 && minDepth < maxMove.depth || maxMove.value <= 50
+					|| (maxMove.value == minValue && (maxMove.value >= (int)avgGoal && minDepth < maxMove.depth || maxMove.value <= (int)avgGoal
 							&& minDepth > maxMove.depth))) { // heuristic to
 				// break ties
 				if (maxMove.value == minValue) {
@@ -346,7 +375,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 	@Override
 	public StateMachine getInitialStateMachine() {
-		return new BooleanPropNetStateMachine();
+		//TODO UNDO
+		return new RegularPropNetStateMachine();
 	}
 
 	@Override
@@ -357,5 +387,62 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	@Override
 	public ConfigPanel getConfigPanel() {
 		return config;
+	}
+	
+	class HeuristicStats {
+		private List<Integer> evals;
+		private List<Double> winFractions;
+		private boolean cachedMean, cachedDev, cachedCor;
+		private double mean, stDev, correlation;
+		
+		public HeuristicStats() {
+			evals = new ArrayList<Integer>();
+			cachedMean = cachedDev = cachedCor = false;
+		}
+		
+		public void update(int eval) { 
+			update(eval, .5);
+		}
+		
+		public void update(int eval, double winFraction) {
+			evals.add(eval);
+			winFractions.add(winFraction);
+			cachedMean = cachedDev = cachedCor = false;
+		}
+		
+		public double mean() { 
+			if (!cachedMean) computeMean();
+			return mean;
+		}
+		
+		public double standardDeviation() {
+			if (!cachedDev) computeStDev();
+			return stDev;
+		}
+		
+		public double correlation() {
+			if (!cachedCor) computeCor();
+			return 0.0;
+		}
+		
+		private void computeMean() {
+			int total = 0;
+			for (Integer i : evals) total += i;
+			mean = total / (double) evals.size();
+		}
+		
+		private void computeStDev() {
+			if (!cachedMean) computeMean();
+			double total = 0;
+			for (Integer i : evals) {
+				double diff = i - mean;
+				total += diff * diff;
+			}
+			stDev = Math.sqrt(total / evals.size());
+		}
+		
+		private void computeCor() {
+			correlation = 0;
+		}
 	}
 }

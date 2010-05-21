@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -14,12 +15,14 @@ import sun.misc.BASE64Encoder;
 import util.configuration.ProjectConfiguration;
 import util.gdl.grammar.Gdl;
 import util.gdl.grammar.GdlPool;
+import util.gdl.grammar.GdlProposition;
 import util.gdl.grammar.GdlTerm;
 import util.logging.GamerLogger;
-import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.PropNet;
+import util.propnet.architecture.RegularPropNet;
 import util.propnet.architecture.components.Proposition;
+import util.statemachine.Role;
 
 /**
  * PropNetCache provides a mechanism for loading saved propnets based on their
@@ -86,7 +89,7 @@ public class PropNetCache {
     }
     
     @SuppressWarnings("unchecked")
-    public static BooleanPropNet loadNetworkFromCache(List<Gdl> description) {
+    public static PropNet loadNetworkFromCache(List<Gdl> description) {
         File theCacheFile = getCacheFile(description);
         if(!theCacheFile.exists()) {
             GamerLogger.log("StateMachine", "Could not find propnet in cache.");
@@ -96,7 +99,7 @@ public class PropNetCache {
         GamerLogger.log("StateMachine", "Loading propnet from cache file: " + theCacheFile.getName());
         
         // Deserialize the original description and network.
-        BooleanPropNet theRawNetwork;
+        PropNet theRawNetwork;
         List<Gdl> oldDescription;
         FileInputStream inStream;
         GZIPInputStream zipStream;
@@ -106,7 +109,7 @@ public class PropNetCache {
            zipStream = new GZIPInputStream(inStream);
            objStream = new ObjectInputStream(zipStream);
            oldDescription = (List<Gdl>)objStream.readObject();
-           theRawNetwork = (BooleanPropNet)objStream.readObject();
+           theRawNetwork = (PropNet)objStream.readObject();
            objStream.close();
         } catch(Exception e) {
            GamerLogger.logStackTrace("StateMachine", e);
@@ -135,10 +138,15 @@ public class PropNetCache {
             p.setName((GdlTerm)GdlPool.immerse(p.getName()));
         }
         
-        return theRawNetwork;
+        List<Role> immersedRoles = new ArrayList<Role>();
+        for(Role r : theRawNetwork.getRoles()) {
+            immersedRoles.add(new Role((GdlProposition)GdlPool.immerse(r.getName())));
+        }
+
+        return new RegularPropNet(immersedRoles, theRawNetwork.getComponents());
     }
     
-    public static void saveNetworkToCache(List<Gdl> description, BooleanPropNet theNetwork) {
+    public static void saveNetworkToCache(List<Gdl> description, PropNet theNetwork) {
         File theCacheFile = getCacheFile(description);
         FileOutputStream outStream;
         GZIPOutputStream zipStream;

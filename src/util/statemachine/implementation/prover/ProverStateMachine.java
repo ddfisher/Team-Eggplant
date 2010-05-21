@@ -1,6 +1,5 @@
 package util.statemachine.implementation.prover;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -10,6 +9,7 @@ import util.gdl.grammar.GdlConstant;
 import util.gdl.grammar.GdlProposition;
 import util.gdl.grammar.GdlRelation;
 import util.gdl.grammar.GdlSentence;
+import util.logging.GamerLogger;
 import util.prover.Prover;
 import util.prover.aima.AimaProver;
 import util.statemachine.MachineState;
@@ -39,7 +39,7 @@ public class ProverStateMachine extends StateMachine
 	public void initialize(List<Gdl> description)
 	{
 		prover = new AimaProver(new HashSet<Gdl>(description));
-		roles = computeRoles(description);
+		roles = Role.computeRoles(description);
 		initialState = computeInitialState();
 	}
 
@@ -47,25 +47,6 @@ public class ProverStateMachine extends StateMachine
 	{
 		Set<GdlSentence> results = prover.askAll(ProverQueryBuilder.getInitQuery(), new HashSet<GdlSentence>());
 		return ProverResultParser.toState(results);
-	}	
-
-	private List<Role> computeRoles(List<Gdl> description)
-	{
-		List<Role> roles = new ArrayList<Role>();
-		for (Gdl gdl : description)
-		{
-			if (gdl instanceof GdlRelation)
-			{
-			    //TODO: check if things like ( role ?player ) are legal
-				GdlRelation relation = (GdlRelation) gdl;				
-				if (relation.getName().getValue().equals("role"))
-				{
-					roles.add(new ProverRole((GdlProposition) relation.get(0).toSentence()));
-				}
-			}
-		}
-
-		return roles;
 	}
 
 	@Override
@@ -75,6 +56,7 @@ public class ProverStateMachine extends StateMachine
 
 		if (results.size() != 1)
 		{
+		    GamerLogger.logError("StateMachine", "Got goal results of size: " + results.size() + " when expecting size one.");
 			throw new GoalDefinitionException(state, role);
 		}
 
