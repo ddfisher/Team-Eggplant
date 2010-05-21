@@ -88,6 +88,9 @@ public class RegularPropNetStateMachine extends StateMachine {
 
 		RegularPropNetStateMachine referenceMachine = new RegularPropNetStateMachine();
 		referenceMachine.initialize(description);
+		
+		
+		
 		Map<Proposition, List<Proposition>> lowestLevel = new HashMap<Proposition, List<Proposition>>();
 		findLowestLevel(referenceMachine.terminal, lowestLevel, new LinkedList<Proposition>());
 		
@@ -97,7 +100,7 @@ public class RegularPropNetStateMachine extends StateMachine {
 			factors.add(factor);
 			
 			// Reverse DFS
-			reverseDFS(prop, factor, referenceMachine);
+			reverseDFS(prop, factor, referenceMachine, 0);
 		}
 		
 		// Merge if necessary
@@ -149,12 +152,28 @@ public class RegularPropNetStateMachine extends StateMachine {
 			}
 		}
 		
+		// Set name of each factor's root to terminal 
+		for (Factor factor : factors) {
+			factor.terminalProp.setName(referenceMachine.terminal.getName());
+		}
+		
 		// TODO By assumption, goals are disjunctively factorable
 		
 		// Add goals
 		for (Role role : referenceMachine.goalPropositions.keySet()) {
 			for (Proposition goalProp : referenceMachine.goalPropositions.get(role)) {
-				addGoals(goalProp, goalProp, factors, role);
+				addGoals(goalProp, goalProp, factors, role, new LinkedList<Component>());
+			}
+		}
+		
+		// Add legals
+		for (Factor factor : factors) {
+			for (Proposition inputProp : factor.inputProps) {
+				// Find legal corresponding to each goal
+				Proposition legalProp = referenceMachine.legalInputMap.get(inputProp);
+				reverseDFS(legalProp, factor, referenceMachine, 0);
+				factor.legalInputMap.put(legalProp, inputProp);
+				factor.legalInputMap.put(inputProp, legalProp);
 			}
 		}
 		
@@ -164,21 +183,105 @@ public class RegularPropNetStateMachine extends StateMachine {
 			factors.get(i).legalInputMap = referenceMachine.legalInputMap;
 		}
 		
+		// TODO Init hack around
+		
 		Log.println('g', "Found factors : " + factors);
 		
+		Set<Component> alreadyVisited = new HashSet<Component>();
+		List<Component> toVisit = new LinkedList<Component>();
+		// BFS
+		int depth = 0;
+		toVisit.add(referenceMachine.init);
+		while (true) {
+			List<Component> willVisit = new LinkedList<Component>();
+			while (!toVisit.isEmpty()) {
+				Component curr = toVisit.remove(0);	
+				int factor = -1;
+				for (int i = 0; i < factors.size(); i++) {
+					if (factors.get(i).components.contains(curr)) {
+						factor = i;
+						break;
+					}
+				}
+
+				if (!alreadyVisited.contains(curr)) {
+					Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+				
+					alreadyVisited.add(curr);
+					for (Component next : curr.getOutputs()) {
+						willVisit.add(next);
+					}
+				}
+				else {
+					Log.println('g', String.format("%" + (depth + 1) + "s :%2d: visited " + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+				}
+			}
+			if (willVisit.isEmpty()) {
+				break;
+			}
+			toVisit = willVisit;
+			depth++;
+		}
+		
+		// Add entire init subtree to all factors
+		for (Factor factor : factors) {
+			factor.components.addAll(alreadyVisited);
+			for (Component comp : alreadyVisited) {
+				if (comp instanceof Proposition) {
+					factor.internalProps.add((Proposition) comp);
+				}
+			}
+		}
+		
+		alreadyVisited = new HashSet<Component>();
+		toVisit = new LinkedList<Component>();
+		// BFS
+		depth = 0;
+		toVisit.add(referenceMachine.terminal);
+		while (true) {
+			List<Component> willVisit = new LinkedList<Component>();
+			while (!toVisit.isEmpty()) {
+				Component curr = toVisit.remove(0);	
+				
+				int factor = -1;
+				for (int i = 0; i < factors.size(); i++) {
+					if (factors.get(i).components.contains(curr)) {
+						factor = i;
+						break;
+					}
+				}
+				
+				Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+				
+				alreadyVisited.add(curr);
+				for (Component next : curr.getInputs()) {
+					if (!alreadyVisited.contains(next)) {
+						willVisit.add(next);
+					}
+				}
+			}
+			if (willVisit.isEmpty()) {
+				break;
+			}
+			toVisit = willVisit;
+			depth++;
+		}
 		// Generate the new statemachines
 		RegularPropNetStateMachine[] minions = new RegularPropNetStateMachine[factors.size()];
 		for (int i = 0; i < factors.size(); i++) {
 			minions[i] = new RegularPropNetStateMachine();
 			minions[i].initialize(factors.get(i).components, roles);
+			minions[i].pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test" + i + ".out");			
 			Log.println('g', minions[i].toString());
+			MachineState initialState = minions[i].getInitialState();
+			Log.println('g', "Initial state " + initialState);
 		}
 		
 		return minions;
 	}
 	
 	// Has the potential to search the entire supertree of goalProp
-	private void addGoals(Proposition prop, Proposition goalProp, List<Factor> factors, Role role) {
+	private void addGoals(Proposition prop, Proposition goalProp, List<Factor> factors, Role role, List<Component> trail) {
 		Log.println('g', "exploring " + prop.getName() + " with goal " + goalProp.getName());
 		for (Factor factor : factors) {
 			if (factor.internalProps.contains(prop)) { // Proposition intersects factored tree; should only happen once
@@ -186,20 +289,13 @@ public class RegularPropNetStateMachine extends StateMachine {
 				if (!factor.goalProps.containsKey(role)) {
 					factor.goalProps.put(role, new HashSet<Proposition>());
 				}
-				// Rewire with a single-input / output And gate
-				Proposition duplicateGoal = new Proposition(goalProp.getName());
-				Component connector = new And();
-				prop.getOutputs().clear();
-				prop.addOutput(connector);
-				connector.addInput(goalProp);
-				connector.addOutput(duplicateGoal);
-				duplicateGoal.addInput(connector);
-				
-				// Add duplicate goal to factor's mapping
-				factor.goalProps.get(role).add(duplicateGoal);
-				factor.components.add(connector);
-				factor.components.add(duplicateGoal);
-				
+				factor.goalProps.get(role).add(goalProp);
+				for (Component c : trail) {
+					if (c instanceof Proposition) {
+						factor.internalProps.add((Proposition) c);
+					}
+					factor.components.add(c);
+				}
 				return; // Only one factor will contain prop
 			}
 		}
@@ -208,34 +304,55 @@ public class RegularPropNetStateMachine extends StateMachine {
 		}
 		Component comp = prop.getSingleInput();
 		for (Component higherProp : comp.getInputs()) {
-			addGoals((Proposition) higherProp, goalProp, factors, role);
+			List<Component> trailCopy = new LinkedList<Component>(trail);
+			trailCopy.add(prop);
+			trailCopy.add(comp);
+			addGoals((Proposition) higherProp, goalProp, factors, role, trailCopy);
 		}
 	}
 	
-	private void reverseDFS(Proposition prop, Factor factor, RegularPropNetStateMachine referenceMachine) {
-		Log.println('g', "Reached " + prop.getName());
-		
+	private void reverseDFS(Proposition prop, Factor factor, RegularPropNetStateMachine referenceMachine, int depth) {
 		if (referenceMachine.inputPropositions.containsValue(prop)) {
-			Log.println('g', "Found input");
+			Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Reached " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + " input"));
 			factor.inputProps.add(prop);
 			factor.components.add(prop);
 			return;
-		}
-		if (prop.getInputs().size() == 1) { // Not a spurious proposition	
-			if (referenceMachine.basePropositions.containsValue(prop)) {
-				Log.println('g', "Found base");
-				factor.baseProps.add(prop);
+		}	
+		boolean continueSearching = prop.getInputs().size() == 1;
+		if (referenceMachine.basePropositions.containsValue(prop)) {
+			if (factor.baseProps.add(prop)) { 
 				factor.components.add(prop);
 			}
-			if(factor.internalProps.add(prop)) {
-				factor.components.add(prop);
-				Component comp = prop.getSingleInput();
-				factor.components.add(comp);
-				for (Component input : comp.getInputs()) {
-					reverseDFS((Proposition)input, factor, referenceMachine);
+			else {
+				continueSearching = false;
+			}
+		}
+		else if(!factor.internalProps.contains(prop)) {
+			int numMatches = 0;
+			for (Proposition p : factor.internalProps) {
+				if (p.hashCode() == prop.hashCode()) {
+					numMatches++;
 				}
 			}
+			if (numMatches != 0) {
+				System.err.println("Problem ");
+			}
+			factor.internalProps.add(prop);
+			factor.components.add(prop);
 		}
+		else {
+			continueSearching = false;
+		}
+		Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Reached " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + (continueSearching ? "" : " stopping")));
+		if (continueSearching) { // Not a spurious proposition
+			Component comp = prop.getSingleInput();
+			factor.components.add(comp);
+			Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Expanding " + comp.getClass().getName() + comp.hashCode() + " " + comp.getInputs().size() + " inputs"));
+			for (Component input : comp.getInputs()) {
+				reverseDFS((Proposition)input, factor, referenceMachine, depth + 1);
+			}
+		}
+
 	}
 	
 	private void findLowestLevel(Proposition prop, Map<Proposition, List<Proposition>> level, LinkedList<Proposition> trail) {

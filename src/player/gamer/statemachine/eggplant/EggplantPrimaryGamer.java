@@ -62,6 +62,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
 	// the sentences are actually the same objects in memory
+	
+	private RegularPropNetStateMachine[] minions;
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
@@ -82,7 +84,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		findGoalBounds(machine, role);
 
 		
-		RegularPropNetStateMachine[] minions = ((RegularPropNetStateMachine) machine).factor();
+		minions = ((RegularPropNetStateMachine) machine).factor();
 //		long start = System.currentTimeMillis();
 
 		/*
@@ -94,7 +96,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		
 		endBook = new EndgameBook(numPlayers);
 //		endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
-		iterativeDeepening(machine, state, role, minGoal-1, maxGoal+1, true, timeout-GRACE_PERIOD);
+		//iterativeDeepening(machine, state, role, minGoal-1, maxGoal+1, true, timeout-GRACE_PERIOD);
 		if (KEEP_TIME) {
 			en = System.currentTimeMillis();
 			timeLog.add("Metagaming took " + (en - st) + " ms");
@@ -122,7 +124,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		leafNodesSearched = statesSearched = 0;
 		cacheHits = cacheMisses = 0;
 
-		StateMachine machine = getStateMachine();
+		StateMachine machine = minions[0];
 		MachineState state = getCurrentState();
 		Role role = getRole();
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
