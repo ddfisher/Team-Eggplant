@@ -20,8 +20,6 @@ import util.gdl.grammar.GdlSentence;
 import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
-import util.propnet.architecture.components.And;
-import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.factory.CachedPropNetFactory;
 import util.statemachine.BooleanMachineState;

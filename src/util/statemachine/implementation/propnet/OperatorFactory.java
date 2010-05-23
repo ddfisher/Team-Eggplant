@@ -10,6 +10,7 @@ import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtNewMethod;
 import javassist.NotFoundException;
+import player.gamer.statemachine.eggplant.misc.Log;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.components.And;
 import util.propnet.architecture.components.Constant;
@@ -39,7 +40,7 @@ public class OperatorFactory {
 
 			addTransition(operatorClass, transitionOrdering, propMap);
 			addInternalPropagate(operatorClass, internalOrdering, propMap);
-			System.out.println("Constant Propositions: " + constantProps + "\tInternal Propositions: " + internalProps);
+			Log.println('c', "Constant Propositions: " + constantProps + "\tInternal Propositions: " + internalProps);
 			addTerminalPropagate(operatorClass, terminalOrdering, propMap);
 			addLegalPropagate(operatorClass, legalOrderings, propMap);
 			addGoalPropagate(operatorClass, goalOrderings, propMap);

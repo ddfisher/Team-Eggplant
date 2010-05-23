@@ -1,9 +1,5 @@
 package util.propnet.architecture;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -12,12 +8,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import player.gamer.statemachine.eggplant.misc.Log;
 import util.gdl.grammar.GdlConstant;
 import util.gdl.grammar.GdlFunction;
 import util.gdl.grammar.GdlProposition;
 import util.gdl.grammar.GdlRelation;
 import util.gdl.grammar.GdlTerm;
-import util.logging.GamerLogger;
+import util.propnet.architecture.components.And;
+import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.architecture.components.Transition;
 import util.statemachine.Role;
@@ -110,6 +108,8 @@ public final class BooleanPropNet extends PropNet {
 	 */
 	public BooleanPropNet(List<Role> roles, Set<Component> components) {
 		super(roles, components);
+
+		this.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test1.out");
 		propMap = new HashMap<Proposition, Integer>();
 		basePropMap = new HashMap<GdlTerm, Integer>();
 		inputPropMap = new HashMap<GdlTerm, Integer>();
@@ -117,12 +117,73 @@ public final class BooleanPropNet extends PropNet {
 		List<Proposition> allBasePropositionsList = new LinkedList<Proposition>();
 		List<Proposition> allInputPropositionsList = new LinkedList<Proposition>();
 		Proposition initProposition = null, terminalProposition = null;
-
+		
 		Map<Role, Set<Proposition>> tempLegalPropositions = new HashMap<Role, Set<Proposition>>();
 		Map<Role, Set<Proposition>> tempGoalPropositions = new HashMap<Role, Set<Proposition>>();
+		
+		// First pass: condense all single input, single output Or and And
+		int numFiltered = 0;
+		Set<Component> filteredComponents = new HashSet<Component>(components);
+		
+loop:	for (Component component : components) {
+			if ((component instanceof Or || component instanceof And) &&
+					component.getInputs().size() == 1 && component.getOutputs().size() == 1) { 
+				Proposition above = (Proposition) component.getSingleInput();
+				Proposition below = (Proposition) component.getSingleOutput();
+				
+				// Make sure below is not a special node
 
+				if (below.getName() instanceof GdlConstant) {
+					String constantName = ((GdlConstant) below.getName()).getValue();
+					if (constantName.equals("INIT") || constantName.equals("terminal")) {
+						continue loop;
+					}
+				}
+				else if (below.getName() instanceof GdlFunction) {
+					String functionName = ((GdlFunction) below.getName()).getName().getValue();
+					if (functionName.equals("does") || functionName.equals("legal") || functionName.equals("goal")) {
+						continue loop;
+					}
+				}
+				
+				// Make sure below does not lead to a transition (only internal nodes can propagate)
+
+				Set<Component> belowOutputs = below.getOutputs();
+				for (Component connector : belowOutputs) {
+					if (connector instanceof Transition) {
+						continue loop;
+					}
+				}
+				
+				Log.println('s', "Before filtering #" + numFiltered + ": " + above + " " + below);
+				Log.println('s', "Debug #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs() + " " + below.getOutputs());
+				
+				// Rewire the connections: all of below's outputs become above's outputs
+				Set<Component> aboveOutputs = above.getOutputs();
+				Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
+				for (Component connector : belowOutputs) {
+					Log.println('s', "Processing " + connector);
+					aboveOutputs.add(connector);
+					connector.addInput(above);
+					connector.getInputs().remove(below);
+				}
+				aboveOutputs.remove(component);
+				// At this point, component points to below points to belowOutputs; can be removed
+				filteredComponents.remove(component);
+				filteredComponents.remove(below);
+				Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
+				Log.println('s', "After filtering #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs());
+
+				numFiltered++;
+			}
+		}
+		
+		// Update all components field 
+		this.components = filteredComponents;
+		Log.println('t', "Filtered " + numFiltered + " / " + components.size() + " connectives");
+		
 		// One pass: count up all the propositions
-		for (Component component : components) {
+		for (Component component : filteredComponents) {
 			if (component instanceof Proposition) {
 				Proposition proposition = (Proposition) component;
 				if (proposition.getInputs().size() != 0) { // over-zealously prune spurious nodes
@@ -135,11 +196,11 @@ public final class BooleanPropNet extends PropNet {
 					}
 				}
 				if (proposition.getName() instanceof GdlConstant) {
-					GdlConstant constant = (GdlConstant) proposition.getName();
-					if (constant.getValue().equals("INIT")) {
+					String constantName = ((GdlConstant) proposition.getName()).getValue();
+					if (constantName.equals("INIT")) {
 						initProposition = proposition;
 					}
-					else if (constant.getValue().equals("terminal")) {
+					else if (constantName.equals("terminal")) {
 						terminalProposition = proposition;
 					}
 				}
@@ -259,9 +320,6 @@ public final class BooleanPropNet extends PropNet {
 	 * Getter methods
 	 */
 	
-	public Set<Component> getComponents() {
-		return components;
-	}
 	public Proposition[] getPropIndex() {
 		return propIndex;
 	}
@@ -297,44 +355,5 @@ public final class BooleanPropNet extends PropNet {
 	}
 	public int getTerminalIndex() {
 		return terminalIndex;
-	}
-	
-	
-	/**
-	 * Returns a representation of the PropNet in .dot format.
-	 * 
-	 * @see java.lang.Object#toString()
-	 */
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-
-		sb.append("digraph propNet\n{\n");
-		for (Component component : components) {
-			sb.append("\t" + component.toString() + "\n");
-		}
-		sb.append("}");
-
-		return sb.toString();
-	}
-
-	/**
-	 * Outputs the propnet in .dot format to a particular file. This can be
-	 * viewed with tools like Graphviz and ZGRViewer.
-	 * 
-	 * @param filename
-	 *            the name of the file to output to
-	 */
-	public void renderToFile(String filename) {
-		try {
-			File f = new File(filename);
-			FileOutputStream fos = new FileOutputStream(f);
-			OutputStreamWriter fout = new OutputStreamWriter(fos, "UTF-8");
-			fout.write(toString());
-			fout.close();
-			fos.close();
-		} catch (Exception e) {
-			GamerLogger.logStackTrace("StateMachine", e);
-		}
 	}
 }

@@ -204,44 +204,6 @@ public final class RegularPropNet extends PropNet {
 	}
 
 	/**
-	 * Returns a representation of the PropNet in .dot format.
-	 * 
-	 * @see java.lang.Object#toString()
-	 */
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-
-		sb.append("digraph propNet\n{\n");
-		for (Component component : components) {
-			sb.append("\t" + component.toString() + "\n");
-		}
-		sb.append("}");
-
-		return sb.toString();
-	}
-
-	/**
-	 * Outputs the propnet in .dot format to a particular file. This can be
-	 * viewed with tools like Graphviz and ZGRViewer.
-	 * 
-	 * @param filename
-	 *            the name of the file to output to
-	 */
-	public void renderToFile(String filename) {
-		try {
-			File f = new File(filename);
-			FileOutputStream fos = new FileOutputStream(f);
-			OutputStreamWriter fout = new OutputStreamWriter(fos, "UTF-8");
-			fout.write(toString());
-			fout.close();
-			fos.close();
-		} catch (Exception e) {
-			GamerLogger.logStackTrace("StateMachine", e);
-		}
-	}
-
-	/**
 	 * Builds an index over the BasePropositions in the PropNet.
 	 * 
 	 * @return An index over the BasePropositions in the PropNet.

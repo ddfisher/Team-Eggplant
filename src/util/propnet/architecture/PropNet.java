@@ -55,10 +55,10 @@ import util.statemachine.Role;
 public abstract class PropNet implements Serializable
 {
 	/** References to every component in the PropNet. */
-	protected final Set<Component> components;
+	protected Set<Component> components;
 	
 	/** A helper list of all of the roles. */
-	protected final List<Role> roles;
+	protected List<Role> roles;
 
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
@@ -95,7 +95,7 @@ public abstract class PropNet implements Serializable
 		sb.append("digraph propNet\n{\n");
 		for ( Component component : components )
 		{
-			sb.append("\t" + component.toString() + "\n");
+			sb.append("\t" + component.toDot() + "\n");
 		}
 		sb.append("}");
 
