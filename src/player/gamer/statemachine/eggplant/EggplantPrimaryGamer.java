@@ -25,8 +25,8 @@ import util.statemachine.StateMachine;
 import util.statemachine.exceptions.GoalDefinitionException;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
+import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 import util.statemachine.implementation.propnet.RegularPropNetStateMachine;
-import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
 import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
 
@@ -63,7 +63,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	// TODO: Hashcode is NOT overridden by GDLSentence - this will only check if
 	// the sentences are actually the same objects in memory
 	
-	private RegularPropNetStateMachine[] minions;
+	private StateMachine[] minions;
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
@@ -84,7 +84,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		findGoalBounds(machine, role);
 
 		
-		minions = ((RegularPropNetStateMachine) machine).factor();
+//		minions = ((RegularPropNetStateMachine) machine).factor();
 //		long start = System.currentTimeMillis();
 
 		/*
@@ -93,7 +93,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		 */
 
 		//((BooleanPropNetStateMachine) machine).speedTest();
-		
+		minions = new StateMachine[]{machine};
 		switchStateMachine(minions[0]);
 		
 		endBook = new EndgameBook(numPlayers);
@@ -106,7 +106,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 	
 	private void findGoalBounds(StateMachine m, Role role) {
-		int[] values = {0,100}; //TODO UNDO ((BooleanPropNetStateMachine)m).getGoalValues(role);
+		int[] values = ((BooleanPropNetStateMachine)m).getGoalValues(role);
 		minGoal = values[0];
 		maxGoal = values[values.length - 1];
 		int total = 0;
@@ -375,8 +375,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 	@Override
 	public StateMachine getInitialStateMachine() {
-		//TODO UNDO
-		return new RegularPropNetStateMachine();
+		return new BooleanPropNetStateMachine();
 	}
 
 	@Override

@@ -16,9 +16,9 @@ import util.gdl.grammar.GdlPool;
 import util.gdl.grammar.GdlRule;
 import util.gdl.grammar.GdlSentence;
 import util.gdl.grammar.GdlTerm;
+import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.PropNet;
-import util.propnet.architecture.RegularPropNet;
 import util.propnet.architecture.components.And;
 import util.propnet.architecture.components.Constant;
 import util.propnet.architecture.components.Not;
@@ -74,7 +74,7 @@ public final class PropNetConverter
 		fixDisjunctions();
 		addMissingInputs();
 		
-		return new RegularPropNet(Role.computeRoles(description), components);
+		return new BooleanPropNet(Role.computeRoles(description), components);
 	}
 
 	/**

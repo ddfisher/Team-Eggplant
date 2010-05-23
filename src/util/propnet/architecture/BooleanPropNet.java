@@ -65,9 +65,7 @@ import util.statemachine.implementation.propnet.PropNetRole;
  * @author Sam Schreiber
  */
 @SuppressWarnings("serial")
-public final class BooleanPropNet implements Serializable {
-	/** References to every component in the PropNet. */
-	private final Set<Component> components;
+public final class BooleanPropNet extends PropNet {
 	/** References to every Proposition in the PropNet. */
 	private final Proposition[] propIndex;
 	/** References to every Proposition in the PropNet. */
@@ -110,8 +108,8 @@ public final class BooleanPropNet implements Serializable {
 	 * @param components
 	 *            A list of Components.
 	 */
-	public BooleanPropNet(Set<Component> components) {
-		this.components = components;
+	public BooleanPropNet(List<Role> roles, Set<Component> components) {
+		super(roles, components);
 		propMap = new HashMap<Proposition, Integer>();
 		basePropMap = new HashMap<GdlTerm, Integer>();
 		inputPropMap = new HashMap<GdlTerm, Integer>();

@@ -13,6 +13,7 @@ public class Log {
    *   g = Factoring debug
    *   h = Factoring
    *   i = iterative deepening
+   *   m = Code generation, Monte carlo
    *   o = opening book
    *   p = prop net
    *   r = Rearrangment of ordering in boolean propnet

@@ -3,11 +3,11 @@ package util.statemachine.implementation.propnet;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import player.gamer.statemachine.eggplant.misc.Log;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.components.And;
 import util.propnet.architecture.components.Constant;
@@ -15,7 +15,6 @@ import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.architecture.components.Transition;
-import util.statemachine.BooleanMachineState;
 
 public class NativeOperatorFactory {
 	private static final String GEN_DIR = "gen";
@@ -61,15 +60,15 @@ public class NativeOperatorFactory {
 			Process p = rt.exec("gcc -shared -fPIC -std=c99 -I/usr/lib/jvm/java-6-sun/include -I/usr/lib/jvm/java-6-sun/include/linux " +
 					fileName + ".c -o lib" + fileName + ".so", null, new File(GEN_DIR));
 			if (p.waitFor() == 0) {
-				System.out.println("Compilation successful!");
+				Log.println('m', "Compilation successful!");
 			} else {
-				System.err.println("Compilation error!");
+				Log.println('m', "Compilation error!");
 				return null;
 			}
 			
 			NativeOperator no = new NativeOperator();
 			no.initMonteCarlo(legalPropMap, legalInputMap);
-			System.out.println("Monte Carlo Initialized!");
+			Log.println('m', "Monte Carlo Initialized!");
 			return no;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -77,6 +76,8 @@ public class NativeOperatorFactory {
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (Exception e) {
+			Log.println('m', "Monte Carlo not initialized!");
 		}
 
 		return null;

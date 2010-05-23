@@ -18,9 +18,9 @@ import util.gdl.grammar.GdlPool;
 import util.gdl.grammar.GdlProposition;
 import util.gdl.grammar.GdlTerm;
 import util.logging.GamerLogger;
+import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.PropNet;
-import util.propnet.architecture.RegularPropNet;
 import util.propnet.architecture.components.Proposition;
 import util.statemachine.Role;
 
@@ -143,7 +143,7 @@ public class PropNetCache {
             immersedRoles.add(new Role((GdlProposition)GdlPool.immerse(r.getName())));
         }
 
-        return new RegularPropNet(immersedRoles, theRawNetwork.getComponents());
+        return new BooleanPropNet(immersedRoles, theRawNetwork.getComponents());
     }
     
     public static void saveNetworkToCache(List<Gdl> description, PropNet theNetwork) {
