@@ -124,7 +124,7 @@ public final class BooleanPropNet extends PropNet {
 		// First pass: condense all single input, single output Or and And
 		int numFiltered = 0;
 		Set<Component> filteredComponents = new HashSet<Component>(components);
-		
+
 loop:	for (Component component : components) {
 			if ((component instanceof Or || component instanceof And) &&
 					component.getInputs().size() == 1 && component.getOutputs().size() == 1) { 
@@ -180,7 +180,6 @@ loop:	for (Component component : components) {
 		
 		// Update all components field 
 		this.components = filteredComponents;
-		Log.println('t', "Filtered " + numFiltered + " / " + components.size() + " connectives");
 		
 		// One pass: count up all the propositions
 		for (Component component : filteredComponents) {
@@ -232,6 +231,8 @@ loop:	for (Component component : components) {
 			}
 		}
 		propIndex = new Proposition[1 + allPropositions.size()]; // 1 for init, which is special case
+
+		Log.println('t', "Filtered " + numFiltered + " props; now " + allPropositions.size() + " remaining");
 		// Setup init
 		int index = 0;
 		propIndex[index] = initProposition;

@@ -83,7 +83,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		findGoalBounds(machine, role);
 
 		
-//		minions = ((RegularPropNetStateMachine) machine).factor();
+		minions = ((BooleanPropNetStateMachine) machine).factor();
 //		long start = System.currentTimeMillis();
 
 		/*
@@ -92,8 +92,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		 */
 
 		//((BooleanPropNetStateMachine) machine).speedTest();
-		minions = new StateMachine[]{machine};
+		//minions = new StateMachine[]{machine};
+		Log.println('h', "Switching to factor 0");
 		switchStateMachine(minions[0]);
+		state = minions[0].getInitialState();
 		
 		endBook = new EndgameBook(numPlayers);
 //		endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start + (timeout - start) / 2);
