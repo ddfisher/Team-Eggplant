@@ -157,6 +157,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		defaultOrdering = getOrdering(null);
 
+		
 		initOperator();
 	}
 
@@ -317,32 +318,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			return generatePropArray(basePropStart, inputPropStart);
 		}
 	}
-
-	// private void propagateInternalOnly() {
-	//		
-	// // All the input propositions are set, update all propositions in order
-	// for (Proposition prop : ordering) {
-	// prop.setValue(prop.getSingleInput().getValue());
-	// }
-	// }
-	//
-	// private void propagate() {
-	// boolean[] props = operator.propagate(generatePropArray());
-	// propagateInternalOnly();
-	//
-	// // All the internal propositions are updated, update all base
-	// // propositions
-	// for (Proposition baseProposition : basePropositions.values()) {
-	// baseProposition.setValue(baseProposition.getSingleInput().getValue());
-	// }
-	//		
-	// for (int i = 0; i < booleanOrdering.length; i++) {
-	// if (booleanOrdering[i].getValue() != props[i]) {
-	// System.err.println("INCORRECT!");
-	// }
-	// }
-	// }
-
+	
 	/**
 	 * This should compute the topological ordering of propositions. Each
 	 * component is either a proposition, logical gate, or transition. Logical
@@ -616,20 +592,20 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 	}
 	
+	@Override
+	public String toString() {
+		int numGoals = 0;
+		for(int[][] role : goalPropMap) {
+			numGoals += role.length;
+		}
+		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (propIndex.length - internalPropStart) + " internal " + numGoals + " goals, " + terminalIndex + " term, "; 
+	}
+	
 	/** Factoring logic */
 	
 	public BooleanPropNetStateMachine[] factor() {
 		
 		Log.println('g', "Starting factoring with " + this.toString());
-		/*
-		 for (Proposition prop : basePropositions.values()) {
-		 
-			System.err.println("Base : " + prop.getName());
-		}
-		for (Proposition prop : inputPropositions.values()) {
-			System.err.println("Input : " + prop.getName());
-		}
-		*/
 		
 		BooleanPropNetStateMachine referenceMachine = new BooleanPropNetStateMachine();
 		referenceMachine.initialize(description);
@@ -652,8 +628,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				HashSet<Proposition> copy = new HashSet<Proposition>(factors.get(i).internalProps);
 				copy.retainAll(factors.get(j).internalProps);
 				if (copy.size() > 0) { // Should merge
-					Log.println('g', "Merging yikes!!!!!1");
-					
+										
 					// Find most recent ancestor
 					List<Proposition> trail1 = lowestLevel.get(factors.get(i).terminalProp);
 					List<Proposition> trail2 = lowestLevel.get(factors.get(j).terminalProp);
@@ -666,15 +641,15 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					// Find all factors that have this as an ancestor
 					for (int k = 0; k < factors.size(); k++) {
 						if (lowestLevel.get(factors.get(k).terminalProp).contains(ancestor)) {
-							newFactor.internalProps.addAll(factors.get(k).internalProps);
-							newFactor.components.addAll(factors.get(k).components);
 							lowestLevel.remove(factors.get(k).terminalProp);
 							factors.remove(k);
 							k--;
 						}
 					}
-					trail1.remove(0);
-					lowestLevel.put(ancestor, trail1); // Throw this back into the pool of factors
+					factors.add(newFactor);
+					reverseDFS(ancestor, newFactor, referenceMachine, 0);
+					Log.println('g', "Merged into " + newFactor);
+					// lowestLevel.put(ancestor, trail1); // Throw this back into the pool of factors
 					
 					// Hacky way to reset loop
 					i = -1;
@@ -705,11 +680,27 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		// Add goals
 		for (int role = 0; role < referenceMachine.goalPropMap.length; role++) {
 			for (int[] goalProp : referenceMachine.goalPropMap[role]) {
-				addGoals(referenceMachine.propIndex[goalProp[0]], referenceMachine.propIndex[goalProp[0]], factors, referenceMachine.roleIndex[role], new LinkedList<Component>());
+				int[] numFactorsFound = new int[]{0};
+				addGoals(referenceMachine.propIndex[goalProp[0]], referenceMachine.propIndex[goalProp[0]], factors, referenceMachine.roleIndex[role], new LinkedList<Component>(), numFactorsFound);
+			}
+		}
+		
+		// Ensure all inputs are present first
+		for (Factor factor : factors) {
+			for (int role = 0; role < referenceMachine.legalPropMap.length; role++) {
+				int[] legals = referenceMachine.legalPropMap[role];
+				for (int legal = 0; legal < legals.length; legal++) {
+					if (!factor.inputProps.contains(referenceMachine.propIndex[referenceMachine.legalInputMap[legals[legal]]])) {
+						factor.inputProps.add(referenceMachine.propIndex[referenceMachine.legalInputMap[legals[legal]]]);
+						factor.components.add(referenceMachine.propIndex[referenceMachine.legalInputMap[legals[legal]]]);
+						factor.components.add(referenceMachine.propIndex[legals[legal]]);
+					}
+				}
 			}
 		}
 		
 		// Input consolidation
+		
 		Map<Proposition, List<Proposition>> highestLevel = new HashMap<Proposition, List<Proposition>>();
 		for (int inputProp = inputPropStart; inputProp < internalPropStart; inputProp++) {
 			findHighestLevel(referenceMachine.propIndex[inputProp], highestLevel, referenceMachine.propIndex[inputProp]);
@@ -757,7 +748,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				}
 			}
 		}
-		
 		
 		// Add legals
 		for (Factor factor : factors) {
@@ -864,6 +854,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			minions[i].initialize(factors.get(i).components, rolesList);
 			minions[i].pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test" + i + ".out");			
 			Log.println('f', "Factor " + i + " : " + minions[i].toString());
+			for (int role = 0; role < minions[i].legalPropMap.length; role++) {
+				for (int legal = 0; legal < minions[i].legalPropMap[role].length; legal++) {
+					Log.println('f', "Factor " + i + " legal " + legal + " for " + role + " : " + minions[i].propIndex[minions[i].legalPropMap[role][legal]] + " " + minions[i].legalInputMap[minions[i].legalPropMap[role][legal]]);
+				}
+			}
 			MachineState initialState = minions[i].getInitialState();
 		}
 		
@@ -871,7 +866,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 	
 	// Has the potential to search the entire supertree of goalProp
-	private void addGoals(Proposition prop, Proposition goalProp, List<Factor> factors, Role role, List<Component> trail) {
+	private void addGoals(Proposition prop, Proposition goalProp, List<Factor> factors, Role role, List<Component> trail, int[] numFactorsFound) {
+		if (numFactorsFound[0] == factors.size()) {
+			return;
+		}
 		Log.println('g', "exploring " + prop.getName() + " with goal " + goalProp.getName());
 		for (Factor factor : factors) {
 			if (factor.internalProps.contains(prop)) { // Proposition intersects factored tree; should only happen once
@@ -886,6 +884,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					}
 					factor.components.add(c);
 				}
+				numFactorsFound[0]++;
 				return; // Only one factor will contain prop
 			}
 		}
@@ -897,7 +896,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			List<Component> trailCopy = new LinkedList<Component>(trail);
 			trailCopy.add(prop);
 			trailCopy.add(comp);
-			addGoals((Proposition) higherProp, goalProp, factors, role, trailCopy);
+			addGoals((Proposition) higherProp, goalProp, factors, role, trailCopy, numFactorsFound);
 		}
 	}
 	
@@ -967,6 +966,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		*/
 		//Log.println('g', "At prop " + prop.getName());
+		if (prop.getOutputs().size() == 0) {
+			return false;
+		}
 		Component comp = prop.getSingleOutput();
 		if (comp.getInputs().size() > 1) {
 			Proposition disjunctiveNode = (Proposition) comp.getSingleOutput();

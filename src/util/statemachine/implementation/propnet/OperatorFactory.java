@@ -110,7 +110,7 @@ public class OperatorFactory {
 		}
 
 		method.append("}\n");
-//		System.out.println(method);
+		Log.println('c', method.toString());
 		operatorClass.addMethod(CtNewMethod.make(method.toString(), operatorClass));
 	}
 	
@@ -119,7 +119,7 @@ public class OperatorFactory {
 		method.append("public void " + methodName + "(boolean[] props, int roleIndex) {\n");
 		method.append(body);
 		method.append("}\n");
-//		System.out.println(method);
+		Log.println('c', method.toString());
 		operatorClass.addMethod(CtNewMethod.make(method.toString(), operatorClass));
 	}
 
