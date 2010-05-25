@@ -1,8 +1,10 @@
 package util.statemachine.implementation.propnet;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +21,7 @@ import util.propnet.architecture.components.Transition;
 public class NativeOperatorFactory {
 	private static final String GEN_DIR = "gen";
 	private static String fileName = "NativeOperator";
+	private static final String libPath = GEN_DIR + File.separator + "lib" + fileName + ".so";
 	private static final String path = GEN_DIR + File.separator + fileName + ".c";
 	private static final String HEADER_NAME = "util_statemachine_implementation_propnet_NativeOperator.h";
 
@@ -62,11 +65,16 @@ public class NativeOperatorFactory {
 			if (p.waitFor() == 0) {
 				Log.println('m', "Compilation successful!");
 			} else {
+				BufferedReader stderr = new BufferedReader(new InputStreamReader(p.getErrorStream()));
 				Log.println('m', "Compilation error!");
+				String line;
+				while ((line = stderr.readLine()) != null) {
+					Log.println('m', line);
+				}
 				return null;
 			}
 			
-			NativeOperator no = new NativeOperator();
+			NativeOperator no = new NativeOperator(System.getProperty("user.dir") + File.separator + libPath);
 			no.initMonteCarlo(legalPropMap, legalInputMap);
 			Log.println('m', "Monte Carlo Initialized!");
 			return no;

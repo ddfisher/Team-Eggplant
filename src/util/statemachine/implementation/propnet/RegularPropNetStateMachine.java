@@ -318,8 +318,7 @@ public class RegularPropNetStateMachine extends StateMachine {
 		RegularPropNetStateMachine[] minions = new RegularPropNetStateMachine[factors.size()];
 		for (int i = 0; i < factors.size(); i++) {
 			minions[i] = new RegularPropNetStateMachine();
-			minions[i].initialize(factors.get(i).components, roles);
-			minions[i].pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test" + i + ".out");			
+			minions[i].initialize(factors.get(i).components, roles);			
 			Log.println('f', "Factor " + i + " : " + minions[i].toString());
 			MachineState initialState = minions[i].getInitialState();
 		}
@@ -778,7 +777,7 @@ public class RegularPropNetStateMachine extends StateMachine {
 		pnet = (RegularPropNet) CachedPropNetFactory.create(description);
 		roles = computeRoles(description);
 		initializeFromPropNet(pnet);
-		pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test.out");
+
 	}
 	
 	public void initialize(Set<Component> components, List<Role> roles) {

@@ -109,7 +109,6 @@ public final class BooleanPropNet extends PropNet {
 	public BooleanPropNet(List<Role> roles, Set<Component> components) {
 		super(roles, components);
 
-		this.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test1.out");
 		propMap = new HashMap<Proposition, Integer>();
 		basePropMap = new HashMap<GdlTerm, Integer>();
 		inputPropMap = new HashMap<GdlTerm, Integer>();

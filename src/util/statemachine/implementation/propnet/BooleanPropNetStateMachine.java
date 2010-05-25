@@ -1,5 +1,6 @@
 package util.statemachine.implementation.propnet;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -37,6 +38,9 @@ import util.statemachine.implementation.prover.query.ProverQueryBuilder;
 
 public class BooleanPropNetStateMachine extends StateMachine {
 
+	private static final String PNET_FOLDER = "pnet";
+	private static final String ORIGINAL_PNET_PATH = "pnet" + File.separator + "orig.dot";
+	
 	/** The original description */ 
 	private List<Gdl> description;
 	
@@ -116,7 +120,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		this.description = description;
 		this.pnet = (BooleanPropNet) CachedPropNetFactory.create(description);
 		this.rolesList = computeRoles(description);
-		this.pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test.out");
+		this.pnet.renderToFile(ORIGINAL_PNET_PATH);
 		initializeFromPropNet(this.pnet);
 	}
 	
@@ -518,9 +522,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			goalOrderings.add(getOrdering(goalProps));
 		}
 		
-		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
-//		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
-//				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
+//		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
+		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
+				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 //		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
 	}
 	
@@ -852,7 +856,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		for (int i = 0; i < factors.size(); i++) {
 			minions[i] = new BooleanPropNetStateMachine();
 			minions[i].initialize(factors.get(i).components, rolesList);
-			minions[i].pnet.renderToFile("D:\\Code\\Stanford\\cs227b_svn\\logs\\test" + i + ".out");			
+			minions[i].pnet.renderToFile(PNET_FOLDER + File.separator + "factor" + i + ".dot");			
 			Log.println('f', "Factor " + i + " : " + minions[i].toString());
 			for (int role = 0; role < minions[i].legalPropMap.length; role++) {
 				for (int legal = 0; legal < minions[i].legalPropMap[role].length; legal++) {

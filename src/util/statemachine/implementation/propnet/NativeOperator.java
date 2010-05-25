@@ -1,9 +1,11 @@
 package util.statemachine.implementation.propnet;
 
+import java.io.File;
+
 public class NativeOperator extends Operator {
 	
-	public NativeOperator() {
-		System.loadLibrary("NativeOperator");
+	public NativeOperator(String libPath) {
+		System.load(libPath);
 	}
 
 	@Override
