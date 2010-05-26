@@ -585,7 +585,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				while (!legal) {
 					Arrays.fill(props, inputPropStart, internalPropStart, false); // set all input props to false
 					for (int role = 0; role < legalPropMap.length; role++) { // set one random input prop to true for each role
-						int index = random.nextInt(legalPropMap[0].length);
+						int index = random.nextInt(legalPropMap[role].length);
 						int inputIndex = legalInputMap[legalPropMap[role][index]];
 						props[inputIndex] = true;
 						input[role] = inputIndex;
