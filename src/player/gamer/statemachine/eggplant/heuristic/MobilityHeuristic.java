@@ -89,20 +89,20 @@ public class MobilityHeuristic implements Heuristic {
 	protected int evalVarStep(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int properDepth, int evalDepth, long timeout)
 	throws MoveDefinitionException, TransitionDefinitionException, TimeUpException {
-		long st;
-		if (TIME) st = System.currentTimeMillis();
+		/*long st;
+		if (TIME) st = System.currentTimeMillis();*/
 		BranchingData data = getFirstRelevantBranchingData(machine, state, role, evalDepth, timeout, samplesLimit());
 		double avg = 0;
-		Log.println('t', "	samples taken: " + data.samples);
+		//Log.println('t', "	samples taken: " + data.samples);
 		if (data.samples > 0) avg = data.total / (double) data.samples;
 		else return (alpha + beta) / 2;
 		int ev = judgeRelevantMobility(avg);
-		if (TIME) {
+		/*if (TIME) {
 			varTime += (System.currentTimeMillis() - st);
 			varRuns++;
 			Log.println('t', "Var mobility stats: time " + varTime + ", runs " 
 					+ varRuns + ", avg " + (double)varTime/varRuns + ", result " + avg);
-		}
+		}*/
 		return (ev >= 0) ? ev : (alpha + beta) / 2;
 	}
 
