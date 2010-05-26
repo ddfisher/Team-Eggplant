@@ -26,7 +26,9 @@ public class NativeOperator extends Operator {
 	@Override
 	public native void propagateGoalOnly(boolean[] props, int role);
 	
-	public native void monteCarlo(boolean[] props);
+	@Override
+	public native boolean monteCarlo(boolean[] props, int maxDepth);
 	
+	@Override
 	public native void initMonteCarlo(int[][] legalPropMap, int[] legalInputMap);
 }

@@ -88,5 +88,19 @@ public class CheckedOperator extends Operator {
     	}
     	return true;
 	}
-
+	
+	@Override
+	public boolean monteCarlo(boolean[] props, int maxDepth) {
+		boolean[] check = props.clone();
+		boolean nativeResult = nativeOperator.monteCarlo(props, maxDepth);
+		boolean javassistResult = javassistOperator.monteCarlo(check, maxDepth);
+		check(props, check);
+		return nativeResult && javassistResult;
+	}
+	
+	@Override
+	public void initMonteCarlo(int[][] legalPropMap, int[] legalInputMap) {
+		nativeOperator.initMonteCarlo(legalPropMap, legalInputMap);
+		javassistOperator.initMonteCarlo(legalPropMap, legalInputMap);
+	}
 }

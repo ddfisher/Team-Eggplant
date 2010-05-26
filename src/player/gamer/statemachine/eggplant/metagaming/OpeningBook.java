@@ -47,7 +47,7 @@ public class OpeningBook {
 	    try {
 		    for (int depth = bookDepth + 1; ; depth++) {
 		    	HashMap<MachineState, ValuedMove> tCache = new HashMap<MachineState, ValuedMove>();
-		    	heuristic = new MonteCarloHeuristic(2);
+		    	heuristic = new MonteCarloHeuristic(2, 50);
 		    	memoizedMiniMax(machine, state, role, 0, depth, tCache, endTime);
 		    	if (tCache.size() == cache.size()) break;
 		    	cache = tCache;

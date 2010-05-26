@@ -26,13 +26,16 @@ public class OperatorFactory {
 	private static final String TERMINAL = "propagateTerminalOnly";
 	private static final String LEGAL = "propagateLegalOnly";
 	private static final String GOAL = "propagateGoalOnly";
+	private static final String MONTE_CARLO = "monteCarlo";
+	private static final String MONTE_CARLO_INIT = "initMonteCarlo";
 	
 	private static int classCount = 0;
 	private static int constantProps = 0;
 	private static int internalProps = 0;
 
 	public static Operator buildOperator(Map<Proposition, Integer> propMap, List<Proposition> transitionOrdering, List<Proposition> internalOrdering,
-			List<Proposition> terminalOrdering, List<List<Proposition>> legalOrderings, List<List<Proposition>> goalOrderings) {
+			List<Proposition> terminalOrdering, List<List<Proposition>> legalOrderings, List<List<Proposition>> goalOrderings,
+			int[][] legalPropMap, int[] legalInputMap, int inputPropStart, int inputPropLength, int terminalIndex) {
 		try {
 			CtClass operatorSuperclass = ClassPool.getDefault().get("util.statemachine.implementation.propnet.Operator");
 			CtClass operatorClass = ClassPool.getDefault().makeClass("util.statemachine.implementation.propnet.OperatorClass" + (classCount++));
@@ -45,8 +48,11 @@ public class OperatorFactory {
 			addLegalPropagate(operatorClass, legalOrderings, propMap);
 			addGoalPropagate(operatorClass, goalOrderings, propMap);
 
+			addMonteCarlo(operatorClass, legalPropMap.length, legalPropMap[0].length, inputPropStart, inputPropLength, terminalIndex);
+			addMonteCarloInit(operatorClass);
 			
 			Operator operator = (Operator) operatorClass.toClass().newInstance();
+			operator.initMonteCarlo(legalPropMap, legalInputMap);
 			return operator;
 		} catch (IllegalAccessException ex) {
 			ex.printStackTrace();
@@ -91,6 +97,45 @@ public class OperatorFactory {
 		addRoleDependentHelpers(goalOrderings, propMap, operatorClass, GOAL);
 		StringBuilder body = generateRoleDependentBody(GOAL, goalOrderings.size());
 		addRoleDependentMethod(operatorClass, body, GOAL);
+	}
+
+	private static void addMonteCarlo(CtClass operatorClass, int numRoles, int numLegals, int inputStart, int numInputs, int terminalIndex)
+			throws CannotCompileException {
+		StringBuilder body = new StringBuilder();
+		body.append("public boolean " + MONTE_CARLO + "(boolean[] props, int maxDepth) {\n");
+		body.append("int[] input = new int[" + numRoles + "];\n");
+		body.append("int depth = 0;\n");
+		body.append("while (depth < maxDepth) {\n");
+			body.append("boolean legal = false;\n");
+			body.append("depth++;\n");
+			body.append("while (!legal) {\n");
+				body.append("java.util.Arrays.fill(props, " + inputStart + ", " + (inputStart + numInputs) + ", false);\n");
+				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
+					body.append("int index = rand.nextInt(" + numLegals + ");\n");
+					body.append("int inputIndex = legalInputMap[ legalPropMap[role][index] ];\n");
+					body.append("props[inputIndex] = true;\n");
+					body.append("input[role] = inputIndex;\n");
+				body.append("}\n");
+				
+				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
+					body.append("propagateLegalOnly(props, role);\n");
+				body.append("}\n");
+
+				body.append("legal = true;\n");
+				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
+					body.append("legal = legal && props[ legalInputMap[ input[role] ] ];\n");
+				body.append("}\n");
+			body.append("}\n");
+
+			body.append("propagateInternal(props);\n");
+			body.append("if (props[" + terminalIndex + "])\n");
+				body.append("return true;\n");
+			body.append("transition(props);\n");
+		body.append("}\n");
+		body.append("return false;\n");
+		body.append("}\n");
+		Log.println('c', body.toString());
+		operatorClass.addMethod(CtNewMethod.make(body.toString(), operatorClass));
 	}
 
 	private static void addMethod(CtClass operatorClass, StringBuilder[] parts, String methodName) throws CannotCompileException {
@@ -251,5 +296,21 @@ public class OperatorFactory {
 		} else {
 			throw new RuntimeException("Unexpected Class");
 		}
+	}
+
+	private static void generateMonteCarloMethodBody(int numRoles, int numLegals, int inputStart, int numInputs, int terminalIndex) {
+		
+		
+	}
+	
+	private static void addMonteCarloInit(CtClass operatorClass) throws CannotCompileException{
+		StringBuilder body = new StringBuilder();
+		body.append("public void " + MONTE_CARLO_INIT + "(int[][] legalPropMap, int[] legalInputMap) {\n");
+		body.append("this.legalPropMap = legalPropMap;\n");
+		body.append("this.legalInputMap = legalInputMap;\n");
+		body.append("this.rand = new java.util.Random();\n");
+		body.append("}\n");
+		Log.println('c', body.toString());
+		operatorClass.addMethod(CtNewMethod.make(body.toString(), operatorClass));
 	}
 }

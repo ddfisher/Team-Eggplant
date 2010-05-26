@@ -1,5 +1,7 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
+import com.sun.org.apache.xerces.internal.parsers.IntegratedParserConfiguration;
+
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
 import util.statemachine.MachineState;
 import util.statemachine.Role;
@@ -12,9 +14,21 @@ import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 public class MonteCarloHeuristic implements Heuristic {
 
 	private int numTrials;
+	private int maxDepth;
+	private double avgGoal;
 
 	public MonteCarloHeuristic(int trials) {
+		this(trials, Integer.MAX_VALUE, 50);
+	}
+	
+	public MonteCarloHeuristic(int trials, double avgGoal) {
+		this(trials, Integer.MAX_VALUE, avgGoal);
+	}
+	
+	public MonteCarloHeuristic(int trials, int maxDepth, double avgGoal) {
 		this.numTrials = trials;
+		this.maxDepth = maxDepth;
+		this.avgGoal = avgGoal;
 	}
 
 	@Override
@@ -22,22 +36,23 @@ public class MonteCarloHeuristic implements Heuristic {
 	throws TimeUpException {
 		if (machine instanceof BooleanPropNetStateMachine) {
 			int sum = 0;
+			int successfulTrials = 0;
 			for (int i = 0; i < numTrials; i++) {
 				BooleanPropNetStateMachine bool = (BooleanPropNetStateMachine)machine;
-				MachineState result = bool.monteCarlo(state);
-				try {
-					sum += bool.getGoal(result, role);
-				} catch (GoalDefinitionException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					continue;
+				MachineState result = bool.monteCarlo(state, maxDepth);
+				if (result != null) {
+					try {
+						sum += bool.getGoal(result, role);
+						successfulTrials++;
+					} catch (GoalDefinitionException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+						continue;
+					}
 				}
 			}
-			int avg = sum/numTrials;
-//			System.out.println(avg);
-			if (avg == 0) avg = 1;
-			if (avg == 100) avg = 99;
-			return sum/numTrials;
+			int avg = (int) ((sum + avgGoal) / (successfulTrials + 1));
+			return avg;
 		}
 		int successfulTrials = 0;
 		int sum = 0;

@@ -19,7 +19,7 @@ public class WeightedHeuristic implements Heuristic{
 
 	public WeightedHeuristic(int numPlayers) {
 		heuristics = new Heuristic[2];
-		heuristics[0] = new MonteCarloHeuristic(2);
+		heuristics[0] = new MonteCarloHeuristic(2, 50);
 		heuristics[1] =  new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers);
 		
 		weights = new double[2];

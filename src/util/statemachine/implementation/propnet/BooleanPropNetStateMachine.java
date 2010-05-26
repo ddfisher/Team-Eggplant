@@ -523,7 +523,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			goalOrderings.add(getOrdering(goalProps));
 		}
 		
-		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
+		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
+				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 //		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
 				//goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 //		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
@@ -554,7 +555,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		long start = System.currentTimeMillis();
 		for (long i = 0; i < 1000; i++) {
-            MachineState newState = monteCarlo(state);
+            MachineState newState = monteCarlo(state, Integer.MAX_VALUE);
 //            System.out.println("Terminal? " + isTerminal(newState));
 		}
 		long end = System.currentTimeMillis();
@@ -563,7 +564,15 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	
 
 	
-	public BooleanMachineState monteCarlo(MachineState state) {
+	public BooleanMachineState monteCarlo(MachineState state, int maxDepth) {
+		boolean[] props = initBasePropositionsFromState(state);
+		if (operator.monteCarlo(props, maxDepth)) { // if successfully reached within maxDepth
+			return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
+		}
+		else {
+			return null;
+		}
+		/*
 		if (operator instanceof NativeOperator) {
 			boolean[] props = initBasePropositionsFromState(state);
 			((NativeOperator)operator).monteCarlo(props);
@@ -574,7 +583,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			while (true) {
 				boolean legal = false;
 				while (!legal) {
-					Arrays.fill(props, inputPropStart, inputPropStart + inputPropMap.size(), false); // set all input props to false
+					Arrays.fill(props, inputPropStart, internalPropStart, false); // set all input props to false
 					for (int role = 0; role < legalPropMap.length; role++) { // set one random input prop to true for each role
 						int index = random.nextInt(legalPropMap[0].length);
 						int inputIndex = legalInputMap[legalPropMap[role][index]];
@@ -595,6 +604,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				operator.transition(props);
 			}
 		}
+		*/
 	}
 	
 	@Override

@@ -10,6 +10,7 @@ import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.MobilityType;
+import player.gamer.statemachine.eggplant.heuristic.MonteCarloHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
@@ -179,9 +180,12 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 
 	private Heuristic getHeuristic() {
-		return new WeightedHeuristic(new Heuristic[] { new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
-				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) }, new double[] { 0.3, 0.7 });
-		// return new MonteCarloHeuristic(10);
+		return new WeightedHeuristic(new Heuristic[] {
+				new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
+				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers),
+				new MonteCarloHeuristic(3, avgGoal)
+				}, new double[] { 0.2, 0.4, 0.4 });
+		// return new MonteCarloHeuristic(4, 5, avgGoal);
 		// return new NullHeuristic((int) avgGoal);
 	}
 
