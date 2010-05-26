@@ -52,12 +52,14 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected int minGoal;
 	protected int maxGoal;
 	protected double avgGoal;
+	protected int heuristicUpdateCounter;
 	protected HashMap<MachineState, CacheValue> principalMovesCache;
 
 	private final boolean KEEP_TIME = true;
 	private final long GRACE_PERIOD = 200;
 	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.1f;
 	private final float DEPTH_INITIAL_OFFSET = 0.5f;
+	private int heuristicUpdateInterval = 0;
 	private List<String> timeLog = new ArrayList<String>();
 	private final String testers = "mop";
 	/*
@@ -85,6 +87,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		numPlayers = getStateMachine().getRoles().size();
 		expansionEvaluator = new DepthLimitedExpansionEvaluator(10);
 		principalMovesCache = new HashMap<MachineState, CacheValue>();
+		heuristicUpdateCounter = 0;
 
 		StateMachine machine = getStateMachine();
 		MachineState state = getCurrentState();
@@ -149,7 +152,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 		StateMachine machine = getStateMachine();
 		MachineState state = getCurrentState();
-		Log.println('i', "State on turn " + rootDepth + " : " + state);
+		Log.println('i', "State on turn " + rootDepth + " : " + state.getContents());
 		Role role = getRole();
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 
@@ -210,6 +213,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		alreadySearched = alreadyPVSearched = 0;
 		try {
 			while (depth <= maxSearchDepth) {
+				heuristicUpdateCounter = heuristicUpdateInterval = rootDepth + depth;
+				
 				expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
 				heuristic = getHeuristic();
 				alreadySearched = statesSearched;
@@ -375,7 +380,13 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
 		// Collections.shuffle(possibleMoves); // TODO: Remove this line
-		heuristic.update(machine, state, role, alpha, beta, depth, rootDepth);
+		if (heuristicUpdateCounter == heuristicUpdateInterval) {
+			heuristic.update(machine, state, role, alpha, beta, depth, rootDepth);
+			heuristicUpdateCounter = 0;
+		}
+		else {
+			heuristicUpdateCounter++;
+		}
 		Log.println('a', "At depth " + depth + "; searched " + statesSearched
 				+ "; searching " + state + " ; moves: " + possibleMoves);
 
