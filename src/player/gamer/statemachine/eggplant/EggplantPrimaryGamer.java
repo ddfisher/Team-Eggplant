@@ -26,6 +26,7 @@ import util.statemachine.exceptions.GoalDefinitionException;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
 import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
+import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
 import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
 
@@ -83,7 +84,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		findGoalBounds(machine, role);
 
 		
-		minions = new BooleanPropNetStateMachine[]{(BooleanPropNetStateMachine)machine};//((BooleanPropNetStateMachine) machine).factor();
+		minions = new StateMachine[]{machine};//((BooleanPropNetStateMachine) machine).factor();
 //		long start = System.currentTimeMillis();
 
 		/*
@@ -93,7 +94,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 		//((BooleanPropNetStateMachine) machine).speedTest();
 		//minions = new StateMachine[]{machine};
-		if (minions.length > 1) {
+		if (minions != null && minions.length > 1) {
 			Log.println('h', "Switching to factor 0");
 			switchStateMachine(minions[0]);
 			state = minions[0].getInitialState();
@@ -109,7 +110,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 	
 	private void findGoalBounds(StateMachine m, Role role) {
-		int[] values = ((BooleanPropNetStateMachine)m).getGoalValues(role);
+		int[] values = {0, 100} ; // ((BooleanPropNetStateMachine)m).getGoalValues(role);
 		minGoal = values[0];
 		maxGoal = values[values.length - 1];
 		int total = 0;
