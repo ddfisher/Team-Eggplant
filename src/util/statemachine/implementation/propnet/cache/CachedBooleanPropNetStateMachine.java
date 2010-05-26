@@ -119,15 +119,4 @@ public final class CachedBooleanPropNetStateMachine extends BooleanPropNetStateM
 	{
 		ttlCache.prune();
 	}
-
-	// Eggplant: added functionality
-	@Override
-    public MachineState getNextStateDestructively(MachineState state, List<Move> moves) throws TransitionDefinitionException
-    {
-        Entry entry = getEntry(state);
-        synchronized (entry)
-        {
-            return super.getNextState(state, moves);
-        }
-    }
 }

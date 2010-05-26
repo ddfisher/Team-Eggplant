@@ -122,6 +122,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		this.rolesList = computeRoles(description);
 		this.pnet.renderToFile(ORIGINAL_PNET_PATH);
 		initializeFromPropNet(this.pnet);
+		Log.println('q', this.toString());
 	}
 	
 	public void initialize(Set<Component> components, List<Role> roles) {
@@ -599,10 +600,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	@Override
 	public String toString() {
 		int numGoals = 0;
-		for(int[][] role : goalPropMap) {
-			numGoals += role.length;
+		for (int[][] roleGoals : goalPropMap) {
+			numGoals += roleGoals.length;
 		}
-		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (propIndex.length - internalPropStart) + " internal " + numGoals + " goals, " + terminalIndex + " term, "; 
+		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (propIndex.length - internalPropStart) + " internal, " + numGoals + " goals"; 
 	}
 	
 	/** Factoring logic */
