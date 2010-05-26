@@ -8,7 +8,10 @@ import player.gamer.statemachine.StateMachineGamer;
 import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
-import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityType;
+import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
@@ -25,7 +28,7 @@ import util.statemachine.StateMachine;
 import util.statemachine.exceptions.GoalDefinitionException;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
-import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
+import util.statemachine.implementation.propnet.cache.CachedBooleanPropNetStateMachine;
 import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
 
@@ -53,7 +56,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 	private final boolean KEEP_TIME = true;
 	private final long GRACE_PERIOD = 200;
-	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.1f;
+	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.2f;
 	private final float DEPTH_INITIAL_OFFSET = 0.5f;
 	private List<String> timeLog = new ArrayList<String>();
 	private final String testers = "mop";
@@ -173,12 +176,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 
 	private Heuristic getHeuristic() {
-		// return new WeightedHeuristic(new Heuristic[] { new
-		// MobilityHeuristic(MobilityType.VAR_STEP, numPlayers),
-		// new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) }, new
-		// double[] { 0.3, 0.7 });
+		return new WeightedHeuristic(new Heuristic[] { new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
+				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers) }, new double[] { 0.3, 0.7 });
 		// return new MonteCarloHeuristic(10);
-		return new NullHeuristic((int) avgGoal);
+		// return new NullHeuristic((int) avgGoal);
 	}
 
 	protected void iterativeDeepening(StateMachine machine, MachineState state,
@@ -376,12 +377,16 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		if (principalMove != null) {
 			if (possibleMoves.remove(principalMove.valuedMove.move)) {
 				principalMoveFound = true;
-				principalMoveSignificance = ((float) (principalMove.valuedMove.value - principalMove.alpha))
-						/ (principalMove.beta - principalMove.alpha + 1);
-				if (principalMoveSignificance < 0) {
+				int cachedValue = principalMove.valuedMove.value;
+				int cachedAlpha = principalMove.alpha;
+				int cachedBeta = principalMove.beta;
+				
+				if (cachedValue <= cachedAlpha) {
 					principalMoveSignificance = 0;
-				} else if (principalMoveSignificance > 1) {
+				} else if (cachedValue >= cachedBeta) {
 					principalMoveSignificance = 1;
+				} else {
+					principalMoveSignificance = ((float) (cachedValue - cachedAlpha)) / (cachedBeta - cachedAlpha);
 				}
 				possibleMoves.add(0, principalMove.valuedMove.move);
 				Log.println('a', "At depth " + depth + "; searched "
@@ -485,7 +490,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 	@Override
 	public StateMachine getInitialStateMachine() {
-		return new BooleanPropNetStateMachine();
+		return new CachedBooleanPropNetStateMachine();
 	}
 
 	@Override
