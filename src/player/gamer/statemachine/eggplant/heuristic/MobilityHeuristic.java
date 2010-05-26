@@ -1,7 +1,9 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
@@ -20,7 +22,7 @@ public class MobilityHeuristic implements Heuristic {
 	private int numPlayers;
 	private int depthLimit;
 	protected final MobilityType type;
-	private final int BRANCH_QUO = 4;
+	private final int BRANCH_QUO = 3;
 	private long varTime, varRuns;
 	private final boolean TIME = true;
 
@@ -87,21 +89,20 @@ public class MobilityHeuristic implements Heuristic {
 	protected int evalVarStep(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int properDepth, int evalDepth, long timeout)
 	throws MoveDefinitionException, TransitionDefinitionException, TimeUpException {
-		/*long st;
-		  if (TIME) st = System.currentTimeMillis();*/
-		BranchingData data = getFirstRelevantBranchingData(machine, state, role, 
-				alpha, beta, evalDepth, timeout, samplesLimit());
+		long st;
+		if (TIME) st = System.currentTimeMillis();
+		BranchingData data = getFirstRelevantBranchingData(machine, state, role, evalDepth, timeout, samplesLimit());
 		double avg = 0;
 		Log.println('t', "	samples taken: " + data.samples);
 		if (data.samples > 0) avg = data.total / (double) data.samples;
 		else return (alpha + beta) / 2;
 		int ev = judgeRelevantMobility(avg);
-		/*if (TIME) {
+		if (TIME) {
 			varTime += (System.currentTimeMillis() - st);
 			varRuns++;
 			Log.println('t', "Var mobility stats: time " + varTime + ", runs " 
 					+ varRuns + ", avg " + (double)varTime/varRuns);
-		}*/
+		}
 		return (ev >= 0) ? ev : (alpha + beta) / 2;
 	}
 
@@ -146,7 +147,7 @@ public class MobilityHeuristic implements Heuristic {
 		return new BranchingData(samples, total);
 	}
 	
-	private BranchingData getFirstRelevantBranchingData(StateMachine machine, MachineState state, Role role, 
+	/*private BranchingData getFirstRelevantBranchingData(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int maxDepth, long timeout, int limit)
 	throws MoveDefinitionException, TransitionDefinitionException, TimeUpException {
 		if (machine.isTerminal(state)) return new BranchingData(0, 0);
@@ -175,6 +176,42 @@ public class MobilityHeuristic implements Heuristic {
 					alpha, beta, maxDepth - 1, timeout, limit - samples);
 			samples += data.samples;
 			total += data.total;
+		}
+		return new BranchingData(samples, total);
+	}*/
+	
+	class StateGroup {
+		StateGroup(MachineState state, int depth) {
+			this.state = state;
+			this.depth = depth;
+		}
+		public MachineState state;
+		public int depth;
+	}
+	
+	private BranchingData getFirstRelevantBranchingData(StateMachine machine, MachineState state, Role role, int depthLeft, long timeout, int limit) 
+	throws MoveDefinitionException, TransitionDefinitionException {
+		int samples = 0, total = 0;
+		Queue<StateGroup> gQueue = new LinkedList<StateGroup>();
+		gQueue.add(new StateGroup(state, depthLeft));
+		while (!gQueue.isEmpty() && samples < limit) {
+			if (System.currentTimeMillis() > timeout) break;
+			StateGroup g = gQueue.poll();
+			if (machine.isTerminal(state)) continue;
+			List<Move> moves = machine.getLegalMoves(g.state, role);
+			if (relevant(moves)) {
+				samples++;
+				total += moves.size();
+				if (samples >= limit) break;
+				continue;
+			} else if (g.depth > 0) {
+				List<List<Move>> joints = machine.getLegalJointMoves(g.state);
+				for (List<Move> joint : joints) {
+					if (System.currentTimeMillis() > timeout) break;
+					MachineState nextState = machine.getNextState(g.state, joint);
+					gQueue.add(new StateGroup(nextState, g.depth - 1));
+				}
+			}
 		}
 		return new BranchingData(samples, total);
 	}
