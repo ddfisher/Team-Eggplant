@@ -8,6 +8,7 @@ public class Log {
    * Flag codes:
    *   a = AlphaBeta debug 
    *   c = Code generation
+   *   d = Non-uniform IDS
    *   e = Endgame book
    *   f = findFarthestLoss (desperate measures) 
    *   g = Factoring debug
