@@ -101,6 +101,7 @@ public class NativeOperatorFactory {
 		//add globals
 		source.append("jint **legalPropMap;\n");
 		source.append("jint *legalInputMap;\n");
+		source.append("jint *numInputs;\n");
 	}
 
 	private static void addTransition(StringBuilder source, List<Proposition> transitionOrdering, Map<Proposition, Integer> propMap) {
@@ -304,7 +305,7 @@ public class NativeOperatorFactory {
 			body.append("while (!legal) {\n");
 				body.append("memset(props+" + inputStart + ", false, sizeof(jboolean)*" + numInputs + ");\n");
 				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
-					body.append("int index = rand() % " + numLegals + ";\n");
+					body.append("int index = rand() % numInputs[role];\n");
 					body.append("int inputIndex = legalInputMap[ legalPropMap[role][index] ];\n");
 					body.append("props[inputIndex] = true;\n");
 					body.append("input[role] = inputIndex;\n");
@@ -335,16 +336,16 @@ public class NativeOperatorFactory {
 //		body.append("printf(\"Monte Carlo Init!\\n\");\n");
 		body.append("jint *tempLegalInputMap = (*env)->GetIntArrayElements(env, javaLegalInputMap, NULL);\n");
 		body.append("int inputLen = (*env)->GetArrayLength(env, javaLegalInputMap);\n");
-		body.append("legalInputMap = malloc(sizeof(jint) * inputLen);");
+		body.append("legalInputMap = malloc(sizeof(jint) * inputLen);\n");
 		body.append("for(int i = 0; i < inputLen; i++) legalInputMap[i] = tempLegalInputMap[i];\n");
 		body.append("(*env)->ReleaseIntArrayElements(env, javaLegalInputMap, tempLegalInputMap, JNI_ABORT);\n");
-		
-		
 		body.append("int rowLen = (*env)->GetArrayLength(env, javaLegalPropMap);\n");
 		body.append("legalPropMap = malloc(sizeof(jint *) * rowLen);\n");
+		body.append("numInputs = malloc(sizeof(jint) * rowLen);\n");
 		body.append("for(int i=0; i<rowLen; i++) {\n");
 			body.append("jintArray oneDim = (jintArray)(*env)->GetObjectArrayElement(env, javaLegalPropMap, i);\n");
 			body.append("int colLen = (*env)->GetArrayLength(env, oneDim);\n");
+			body.append("numInputs[i] = colLen;\n");
 			body.append("legalPropMap[i] = malloc(sizeof(jint) * colLen);\n");
 			body.append("jint *element=(*env)->GetIntArrayElements(env, oneDim, NULL);\n");
 			body.append("for(int j=0; j<colLen; j++) {\n");

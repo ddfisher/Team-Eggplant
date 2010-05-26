@@ -28,6 +28,7 @@ import util.statemachine.StateMachine;
 import util.statemachine.exceptions.GoalDefinitionException;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
+import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 import util.statemachine.implementation.propnet.cache.CachedBooleanPropNetStateMachine;
 import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
@@ -110,6 +111,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			switchStateMachine(minions[0]);
 			state = minions[0].getInitialState();
 		}
+		
+		((BooleanPropNetStateMachine)machine).speedTest();
 
 		endBook = new EndgameBook(numPlayers);
 		// endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start +
