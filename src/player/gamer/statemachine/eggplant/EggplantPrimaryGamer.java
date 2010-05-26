@@ -184,7 +184,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
 				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers),
 				new MonteCarloHeuristic(3, avgGoal)
-				}, new double[] { 0.2, 0.4, 0.4 });
+				}, new double[] { 0.15, 0.35, 0.5 });
 		// return new MonteCarloHeuristic(4, 5, avgGoal);
 		// return new NullHeuristic((int) avgGoal);
 	}
