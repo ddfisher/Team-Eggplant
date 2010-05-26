@@ -1,7 +1,11 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
+
+import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic.BranchingData;
 
 import util.statemachine.MachineState;
 import util.statemachine.Move;
@@ -27,7 +31,7 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 			switch (type) {
 			case VAR_STEP:
 				BranchingData data = getRelevantOpponentBranchingData(machine, state, role, 
-						alpha, beta, getDepthLimit(), endTime, samplesLimit());
+						getDepthLimit(), endTime, samplesLimit());
 				if (data.samples == 0) return (alpha + beta) / 2;
 				avg = (double) data.total / data.samples;
 				return judgeRelevantMobility(avg);
@@ -43,7 +47,7 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 		return (alpha + beta) / 2;
 	}
 	
-	private BranchingData getRelevantOpponentBranchingData(StateMachine machine, MachineState state, Role role, 
+	/*private BranchingData getRelevantOpponentBranchingData(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int maxDepth, long endTime, int limit)
 	throws MoveDefinitionException, TransitionDefinitionException {
 		if (machine.isTerminal(state) || limit == 0) return new BranchingData(0, 0);
@@ -73,6 +77,34 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 				getRelevantOpponentBranchingData(machine, ns, role, alpha, beta, maxDepth - 1, endTime, limit - samples);
 			samples += data.samples;
 			total += data.total;
+		}
+		return new BranchingData(samples, total);
+	}*/
+	
+	private BranchingData getRelevantOpponentBranchingData(StateMachine machine, MachineState state, Role role, int depthLeft, long timeout, int limit) 
+	throws MoveDefinitionException, TransitionDefinitionException {
+		int samples = 0, total = 0;
+		Queue<StateGroup> gQueue = new LinkedList<StateGroup>();
+		gQueue.add(new StateGroup(state, depthLeft));
+		while (!gQueue.isEmpty() && samples < limit) {
+			if (System.currentTimeMillis() > timeout) break;
+			StateGroup g = gQueue.poll();
+			if (machine.isTerminal(state)) continue;
+			List<List<Move>> joints = machine.getLegalJointMoves(g.state);
+			List<Move> moves = machine.getLegalMoves(g.state, role);
+			int sumMoves = joints.size(), roleMoves = moves.size(), quo = sumMoves / roleMoves;
+			if (relevant(quo)) {
+				samples++;
+				total += quo;
+				if (samples >= limit) break;
+				continue;
+			} else if (g.depth > 0) {
+				for (List<Move> joint : joints) {
+					if (System.currentTimeMillis() > timeout) break;
+					MachineState nextState = machine.getNextState(g.state, joint);
+					gQueue.add(new StateGroup(nextState, g.depth - 1));
+				}
+			}
 		}
 		return new BranchingData(samples, total);
 	}
