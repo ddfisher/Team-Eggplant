@@ -56,7 +56,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 	private final boolean KEEP_TIME = true;
 	private final long GRACE_PERIOD = 200;
-	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.2f;
+	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.1f;
 	private final float DEPTH_INITIAL_OFFSET = 0.5f;
 	private List<String> timeLog = new ArrayList<String>();
 	private final String testers = "mop";
@@ -206,12 +206,14 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				+ " with best = " + bestWorkingMove + "; end book size = "
 				+ endBook.book.size());
 		boolean hasLost = false, hasWon = false;
+		int alreadySearched, alreadyPVSearched;
+		alreadySearched = alreadyPVSearched = 0;
 		try {
 			while (depth <= maxSearchDepth) {
 				expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
 				heuristic = getHeuristic();
-				int alreadySearched = statesSearched;
-				int alreadyPVSearched = pvStatesSearched;
+				alreadySearched = statesSearched;
+				alreadyPVSearched = pvStatesSearched;
 				HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
 				ValuedMove move = memoizedAlphaBeta(machine, state, role,
 						alpha, beta, 0, DEPTH_INITIAL_OFFSET, currentCache,
@@ -222,7 +224,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				Log.println('i', "Turn " + rootDepth + ", after depth " + depth
 						+ " (max " + maxSearchActualDepth + "; abs "
 						+ (rootDepth + depth) + "); working = " + move
-						+ " searched " + (statesSearched - alreadySearched)
+						+ " searched " + (statesSearched - alreadySearched - (pvStatesSearched - alreadyPVSearched))
 						+ " new states, "
 						+ (pvStatesSearched - alreadyPVSearched)
 						+ " additional PV states");
@@ -258,6 +260,13 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(
 						state, role));
 			}
+			Log.println('i', "Turn " + rootDepth + ", interrupted at depth " + depth
+					+ " (max " + maxSearchActualDepth + "; abs "
+					+ (rootDepth + depth) + "); best = " + bestWorkingMove
+					+ " searched " + (statesSearched - alreadySearched - (pvStatesSearched - alreadyPVSearched))
+					+ " new states, "
+					+ (pvStatesSearched - alreadyPVSearched)
+					+ " additional PV states");
 			nextStartDepth = depth - 2;
 			if (nextStartDepth < 1)
 				nextStartDepth = 1;
@@ -380,7 +389,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				int cachedValue = principalMove.valuedMove.value;
 				int cachedAlpha = principalMove.alpha;
 				int cachedBeta = principalMove.beta;
-				
+				principalMoveSignificance = cachedValue / (float) (avgGoal);
+				/*
 				if (cachedValue <= cachedAlpha) {
 					principalMoveSignificance = 0;
 				} else if (cachedValue >= cachedBeta) {
@@ -388,6 +398,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				} else {
 					principalMoveSignificance = ((float) (cachedValue - cachedAlpha)) / (cachedBeta - cachedAlpha);
 				}
+				*/
 				possibleMoves.add(0, principalMove.valuedMove.move);
 				Log.println('a', "At depth " + depth + "; searched "
 						+ statesSearched + " principal move = "
