@@ -17,7 +17,7 @@ import util.statemachine.exceptions.TransitionDefinitionException;
 public class OpponentMobilityHeuristic extends MobilityHeuristic {
 
 	public OpponentMobilityHeuristic(MobilityType type, int numPlayers) {
-		this(type, numPlayers, 1);
+		this(type, numPlayers, (type == MobilityType.VAR_STEP) ? Math.max(2, numPlayers / 2) : 1);
 	}
 	
 	public OpponentMobilityHeuristic(MobilityType type, int numPlayers, int deptLimit) {
@@ -46,40 +46,6 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 		}
 		return (alpha + beta) / 2;
 	}
-	
-	/*private BranchingData getRelevantOpponentBranchingData(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int maxDepth, long endTime, int limit)
-	throws MoveDefinitionException, TransitionDefinitionException {
-		if (machine.isTerminal(state) || limit == 0) return new BranchingData(0, 0);
-		List<Move> moves = machine.getLegalMoves(state, role);
-		List<List<Move>> joints = machine.getLegalJointMoves(state);
-		int sumMoves = joints.size(), roleMoves = moves.size(), quo = sumMoves / roleMoves;
-		if (relevant(quo)) return new BranchingData(1, quo);
-		else if (maxDepth == 0) return new BranchingData(0, 0);
-		int samples = 0, total = 0;
-		List<MachineState> nextStates = new ArrayList<MachineState>();
-		for (List<Move> joint : joints) {
-			if (System.currentTimeMillis() > endTime) break;
-			MachineState nextState = machine.getNextState(state, joint);
-			List<Move> nextMoves = machine.getLegalMoves(nextState, role);
-			List<List<Move>> jointNextMoves = machine.getLegalJointMoves(nextState);
-			if (relevant(nextMoves)) {
-				samples++;
-				total += jointNextMoves.size() / nextMoves.size();
-				if (samples >= limit) break;
-			} else {
-				nextStates.add(nextState);
-			}
-		}
-		for (MachineState ns : nextStates) {
-			if (samples >= limit ||  (System.currentTimeMillis() > endTime)) break;
-			BranchingData data = 
-				getRelevantOpponentBranchingData(machine, ns, role, alpha, beta, maxDepth - 1, endTime, limit - samples);
-			samples += data.samples;
-			total += data.total;
-		}
-		return new BranchingData(samples, total);
-	}*/
 	
 	private BranchingData getRelevantOpponentBranchingData(StateMachine machine, MachineState state, Role role, int depthLeft, long timeout, int limit) 
 	throws MoveDefinitionException, TransitionDefinitionException {
