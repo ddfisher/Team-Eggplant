@@ -124,58 +124,65 @@ public final class BooleanPropNet extends PropNet {
 		int numFiltered = 0;
 		Set<Component> filteredComponents = new HashSet<Component>(components);
 
-loop:	for (Component component : components) {
-			if ((component instanceof Or || component instanceof And) &&
-					component.getInputs().size() == 1 && component.getOutputs().size() == 1) { 
-				Proposition above = (Proposition) component.getSingleInput();
-				Proposition below = (Proposition) component.getSingleOutput();
-				
-				// Make sure below is not a special node
-
-				if (below.getName() instanceof GdlConstant) {
-					String constantName = ((GdlConstant) below.getName()).getValue();
-					if (constantName.equals("INIT") || constantName.equals("terminal")) {
-						continue loop;
+		boolean hasFiltered;
+		do {
+			hasFiltered = false;
+	loop:	for (Component component : components) {
+				if ((component instanceof Or || component instanceof And) &&
+						component.getInputs().size() == 1 && component.getOutputs().size() == 1) { 
+					Proposition above = (Proposition) component.getSingleInput();
+					Proposition below = (Proposition) component.getSingleOutput();
+					
+					// Make sure below is not a special node
+	
+					if (below.getName() instanceof GdlConstant) {
+						String constantName = ((GdlConstant) below.getName()).getValue();
+						if (constantName.equals("INIT") || constantName.equals("terminal")) {
+							continue loop;
+						}
 					}
-				}
-				else if (below.getName() instanceof GdlFunction) {
-					String functionName = ((GdlFunction) below.getName()).getName().getValue();
-					if (functionName.equals("does") || functionName.equals("legal") || functionName.equals("goal")) {
-						continue loop;
+					else if (below.getName() instanceof GdlFunction) {
+						String functionName = ((GdlFunction) below.getName()).getName().getValue();
+						if (functionName.equals("does") || functionName.equals("legal") || functionName.equals("goal")) {
+							continue loop;
+						}
 					}
-				}
-				
-				// Make sure below does not lead to a transition (only internal nodes can propagate)
-
-				Set<Component> belowOutputs = below.getOutputs();
-				for (Component connector : belowOutputs) {
-					if (connector instanceof Transition) {
-						continue loop;
+					
+					// Make sure below does not lead to a transition (only internal nodes can propagate)
+	
+					Set<Component> belowOutputs = below.getOutputs();
+					for (Component connector : belowOutputs) {
+						if (connector instanceof Transition) {
+							continue loop;
+						}
 					}
+					
+					Log.println('s', "Before filtering #" + numFiltered + ": " + above + " " + below);
+					Log.println('s', "Debug #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs() + " " + below.getOutputs());
+					
+					// Rewire the connections: all of below's outputs become above's outputs
+					Set<Component> aboveOutputs = above.getOutputs();
+					Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
+					for (Component connector : belowOutputs) {
+						Log.println('s', "Processing " + connector);
+						aboveOutputs.add(connector);
+						connector.addInput(above);
+						connector.getInputs().remove(below);
+					}
+					aboveOutputs.remove(component);
+					// At this point, component points to below points to belowOutputs; can be removed
+					filteredComponents.remove(component);
+					filteredComponents.remove(below);
+					Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
+					Log.println('s', "After filtering #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs());
+					hasFiltered = true;
+					numFiltered++;
 				}
-				
-				Log.println('s', "Before filtering #" + numFiltered + ": " + above + " " + below);
-				Log.println('s', "Debug #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs() + " " + below.getOutputs());
-				
-				// Rewire the connections: all of below's outputs become above's outputs
-				Set<Component> aboveOutputs = above.getOutputs();
-				Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
-				for (Component connector : belowOutputs) {
-					Log.println('s', "Processing " + connector);
-					aboveOutputs.add(connector);
-					connector.addInput(above);
-					connector.getInputs().remove(below);
-				}
-				aboveOutputs.remove(component);
-				// At this point, component points to below points to belowOutputs; can be removed
-				filteredComponents.remove(component);
-				filteredComponents.remove(below);
-				Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
-				Log.println('s', "After filtering #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs());
-
-				numFiltered++;
 			}
-		}
+			if (hasFiltered)
+				components = new HashSet<Component>(filteredComponents);
+		} while (hasFiltered);
+		
 		
 		// Update all components field 
 		this.components = filteredComponents;

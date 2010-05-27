@@ -574,37 +574,153 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				if (visited[propNum]) {
 					continue;
 				}
+				visited[propNum] = true;
+				Log.println('b', "Processing " + propNum + " " + prop + " " + prop.getOutputs());
 				for (Component output : prop.getOutputs()) {
+					{
+						Proposition nextProp = (Proposition) output.getSingleOutput();
+						int nextPropNum = propMap.get(nextProp);
+						Log.println('b', "Reached " + output + " " + nextProp + " " + nextPropNum);
+					}
+					if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1 && (sameTurnEffects[index][propNum][0] != 0 || sameTurnEffects[index][propNum][1] != 0)) { // some single And / Or cannot be filtered due to special nodes
+						Proposition nextProp = (Proposition) output.getSingleOutput();
+						int nextPropNum = propMap.get(nextProp);
+						for (int tf = 0; tf < 2; tf++) {
+							if (sameTurnEffects[index][propNum][tf] != 0) {
+								sameTurnEffects[index][nextPropNum][tf] = sameTurnEffects[index][propNum][tf];
+							}
+						}
+						queue.add(nextPropNum);
+					}
+					
 					if (output instanceof And && (sameTurnEffects[index][propNum][0] == -1 || sameTurnEffects[index][propNum][1] == -1)) {
 						Proposition nextProp = (Proposition) output.getSingleOutput();
 						int nextPropNum = propMap.get(nextProp);
-						if (sameTurnEffects[index][propNum][0] == -1)
-							sameTurnEffects[index][nextPropNum][0] = -1;
-						else if (sameTurnEffects[index][propNum][1] == -1)
-							sameTurnEffects[index][nextPropNum][1] = -1;
+						for (int tf = 0; tf < 2; tf++) {
+							if (sameTurnEffects[index][propNum][tf] == -1) {
+								sameTurnEffects[index][nextPropNum][tf] = -1;
+							}
+						}
 						queue.add(nextPropNum);
 					}
 					else if (output instanceof Or && (sameTurnEffects[index][propNum][0] == 1 || sameTurnEffects[index][propNum][1] == 1)) {
 						Proposition nextProp = (Proposition) output.getSingleOutput();
 						int nextPropNum = propMap.get(nextProp);
-						if (sameTurnEffects[index][propNum][0] == 1)
-							sameTurnEffects[index][nextPropNum][0] = 1;
-						else if (sameTurnEffects[index][propNum][1] == 1)
-							sameTurnEffects[index][nextPropNum][1] = 1;
+						for (int tf = 0; tf < 2; tf++) {
+							if (sameTurnEffects[index][propNum][tf] == 1) {
+								sameTurnEffects[index][nextPropNum][tf] = 1;
+							}
+						}
 						queue.add(nextPropNum);
 					}
 					else if (output instanceof Not && (sameTurnEffects[index][propNum][0] != 0 || sameTurnEffects[index][propNum][1] != 0)) {
 						Proposition nextProp = (Proposition) output.getSingleOutput();
 						int nextPropNum = propMap.get(nextProp);
-						if (sameTurnEffects[index][propNum][0] != 0)
-							sameTurnEffects[index][nextPropNum][0] = -sameTurnEffects[index][propNum][0];
-						else if (sameTurnEffects[index][propNum][1] != 0)
-							sameTurnEffects[index][nextPropNum][1] = -sameTurnEffects[index][propNum][1];
+						for (int tf = 0; tf < 2; tf++) {
+							if (sameTurnEffects[index][propNum][tf] != 0) {
+								sameTurnEffects[index][nextPropNum][tf] = -sameTurnEffects[index][propNum][tf];
+							}
+						}					
 						queue.add(nextPropNum);
+					}
+					else if (output instanceof Transition && (sameTurnEffects[index][propNum][0] != 0 || sameTurnEffects[index][propNum][1] != 0)) {
+						Proposition nextProp = (Proposition) output.getSingleOutput();
+						int nextPropNum = propMap.get(nextProp);
+						for (int tf = 0; tf < 2; tf++) {
+							if (sameTurnEffects[index][propNum][tf] != 0) {
+								nextTurnEffects[index][nextPropNum][tf] = sameTurnEffects[index][propNum][tf];
+							}
+						}
+					}
+				}
+			}
+			int countSameTurn = 0;
+			int countNextTurn = 0;
+			StringBuilder outputSame = new StringBuilder();
+			StringBuilder outputNext = new StringBuilder();
+			for (int propNum = 0; propNum < propIndex.length; propNum++) {
+				if (sameTurnEffects[index][propNum][0] != 0) {
+					countSameTurn++;
+					outputSame.append("F[" + propNum + "]=" + ( sameTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
+				}
+				if (sameTurnEffects[index][propNum][1] != 0) {
+					countSameTurn++;
+					outputSame.append("T[" + propNum + "]=" + ( sameTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
+				}
+				if (nextTurnEffects[index][propNum][0] != 0) {
+					countNextTurn++;
+					outputNext.append("F[" + propNum + "]=" + ( nextTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
+				}
+				if (nextTurnEffects[index][propNum][1] != 0) {
+					countNextTurn++;
+					outputNext.append("T[" + propNum + "]=" + ( nextTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
+				}
+			}
+			Log.println('b', "Count for index " + index + " = " + countSameTurn + " same turn / " + countNextTurn + " next turn ; (" + propIndex[index].getName() + "): " + outputSame.toString() + "//" + outputNext.toString());
+			
+		}
+		// Compute nextTurnEffects
+		for (int index = 0; index < propIndex.length; index++) {
+			List<Integer> queue = new LinkedList<Integer>();
+			boolean[] visited = new boolean[propIndex.length];
+			for (int propNum = 0; propNum < propIndex.length; propNum++) {
+				if (nextTurnEffects[index][propNum][0] != 0 || nextTurnEffects[index][propNum][1] != 0) {
+					queue.add(propNum);
+				}
+			}
+			Log.println('b', "At index " + index + " " + queue + " " + propIndex[index] + " " + propIndex[index].getOutputs());
+			while (!queue.isEmpty()) {
+				int propNum = queue.remove(0);
+				if (visited[propNum]) {
+					continue;
+				}
+				visited[propNum] = true;
+			
+				for (int tf = 0; tf < 2; tf++) {
+					if (nextTurnEffects[index][propNum][tf] != 0) {
+						int effectOnPropNum = (nextTurnEffects[index][propNum][tf] == 1) ? 1 : 0; 
+						for (int nextPropNum = 0; nextPropNum < propIndex.length; nextPropNum++) {
+							if(sameTurnEffects[propNum][nextPropNum][effectOnPropNum] != 0) {
+								nextTurnEffects[index][nextPropNum][tf] = sameTurnEffects[propNum][nextPropNum][effectOnPropNum];
+								queue.add(nextPropNum);
+							}
+						}
 					}
 				}
 			}
 		}
+		ArrayList<Integer> latches = new ArrayList<Integer>();
+		for (int index = 0; index < propIndex.length; index++) {
+			int countSameTurn = 0;
+			int countNextTurn = 0;
+			StringBuilder outputSame = new StringBuilder();
+			StringBuilder outputNext = new StringBuilder();
+			for (int propNum = 0; propNum < propIndex.length; propNum++) {
+				if (sameTurnEffects[index][propNum][0] != 0) {
+					countSameTurn++;
+					outputSame.append("F[" + propNum + "]=" + ( sameTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
+				}
+				if (sameTurnEffects[index][propNum][1] != 0) {
+					countSameTurn++;
+					outputSame.append("T[" + propNum + "]=" + ( sameTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
+				}
+				if (nextTurnEffects[index][propNum][0] != 0) {
+					countNextTurn++;
+					outputNext.append("F[" + propNum + "]=" + ( nextTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
+				}
+				if (nextTurnEffects[index][propNum][1] != 0) {
+					countNextTurn++;
+					if (propNum == index && nextTurnEffects[index][propNum][1] == 1) {
+						latches.add(propNum);
+					}
+					outputNext.append("T[" + propNum + "]=" + ( nextTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
+				}
+			}
+			Log.println('b', "Count for index " + index + " = " + countSameTurn + " same turn / " + countNextTurn + " next turn ; (" + propIndex[index].getName() + "): " + outputSame.toString() + "//" + outputNext.toString());
+			
+		}
+		Log.println('l', latches.size() + " latches found: " + latches);
+		/*
 		for (Proposition prop : tempTerminalOrdering) {
 			int index = propMap.get(prop);
 			int count = 0;
@@ -619,6 +735,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			}
 			Log.println('r', "");
 		}
+		*/
 		
 	}
 	
