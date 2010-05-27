@@ -2,11 +2,12 @@ package player.gamer.statemachine.eggplant.misc;
 
 public class Log {
   // Set this string only in Log, to avoid messy code
-  private static final String flags = "ifhtmq";
+  private static final String flags = "ifhtmqr";
   
   /*
    * Flag codes:
    *   a = AlphaBeta debug 
+   *   b = Propagation precomputation
    *   c = Code generation
    *   d = Non-uniform IDS
    *   e = Endgame book

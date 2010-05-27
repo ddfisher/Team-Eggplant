@@ -1,7 +1,5 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
-import com.sun.org.apache.xerces.internal.parsers.IntegratedParserConfiguration;
-
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
 import util.statemachine.MachineState;
 import util.statemachine.Role;

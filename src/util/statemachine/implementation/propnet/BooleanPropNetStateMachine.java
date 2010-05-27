@@ -22,6 +22,7 @@ import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.components.And;
+import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.architecture.components.Transition;
@@ -162,8 +163,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		defaultOrdering = getOrdering(null);
 
-		
 		initOperator();
+		
+		calculatePropEffects();
 	}
 
 	/**
@@ -499,6 +501,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			roleMap.put(roleIndex[i], i);
 		}
 	}
+	
+	private List<Proposition> tempTerminalOrdering;
 
 	private void initOperator() {
 		List<Proposition> transitionOrdering = new ArrayList<Proposition>();
@@ -507,6 +511,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		
 		List<Proposition> terminalOrdering = getOrdering(new int[]{terminalIndex});
+		tempTerminalOrdering = terminalOrdering;
+		for (Proposition prop : terminalOrdering) {
+			Log.print('r', propMap.get(prop) + ", ");
+		}
+		Log.println('r', "\n");
 		
 		List<List<Proposition>> legalOrderings = new LinkedList<List<Proposition>>();
 		for (int i = 0; i < roleIndex.length; i++) {
@@ -550,6 +559,69 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		return str;
 	}
 	
+	private void calculatePropEffects() {
+		int[][][] sameTurnEffects = new int[propIndex.length][propIndex.length][2];
+		int[][][] nextTurnEffects = new int[propIndex.length][propIndex.length][2];
+		for (int index = 0; index < propIndex.length; index++) {
+			List<Integer> queue = new LinkedList<Integer>();
+			boolean[] visited = new boolean[propIndex.length];
+			queue.add(index);
+			sameTurnEffects[index][index][0] = -1;
+			sameTurnEffects[index][index][1] = 1;
+			while (!queue.isEmpty()) {
+				int propNum = queue.remove(0);
+				Proposition prop = propIndex[propNum];
+				if (visited[propNum]) {
+					continue;
+				}
+				for (Component output : prop.getOutputs()) {
+					if (output instanceof And && (sameTurnEffects[index][propNum][0] == -1 || sameTurnEffects[index][propNum][1] == -1)) {
+						Proposition nextProp = (Proposition) output.getSingleOutput();
+						int nextPropNum = propMap.get(nextProp);
+						if (sameTurnEffects[index][propNum][0] == -1)
+							sameTurnEffects[index][nextPropNum][0] = -1;
+						else if (sameTurnEffects[index][propNum][1] == -1)
+							sameTurnEffects[index][nextPropNum][1] = -1;
+						queue.add(nextPropNum);
+					}
+					else if (output instanceof Or && (sameTurnEffects[index][propNum][0] == 1 || sameTurnEffects[index][propNum][1] == 1)) {
+						Proposition nextProp = (Proposition) output.getSingleOutput();
+						int nextPropNum = propMap.get(nextProp);
+						if (sameTurnEffects[index][propNum][0] == 1)
+							sameTurnEffects[index][nextPropNum][0] = 1;
+						else if (sameTurnEffects[index][propNum][1] == 1)
+							sameTurnEffects[index][nextPropNum][1] = 1;
+						queue.add(nextPropNum);
+					}
+					else if (output instanceof Not && (sameTurnEffects[index][propNum][0] != 0 || sameTurnEffects[index][propNum][1] != 0)) {
+						Proposition nextProp = (Proposition) output.getSingleOutput();
+						int nextPropNum = propMap.get(nextProp);
+						if (sameTurnEffects[index][propNum][0] != 0)
+							sameTurnEffects[index][nextPropNum][0] = -sameTurnEffects[index][propNum][0];
+						else if (sameTurnEffects[index][propNum][1] != 0)
+							sameTurnEffects[index][nextPropNum][1] = -sameTurnEffects[index][propNum][1];
+						queue.add(nextPropNum);
+					}
+				}
+			}
+		}
+		for (Proposition prop : tempTerminalOrdering) {
+			int index = propMap.get(prop);
+			int count = 0;
+			Log.print('r', "Count for index " + index + " (" + propIndex[index].getName() + "): " );
+			for (int j = 0; j < propIndex.length; j++) {
+				if (sameTurnEffects[index][j][0] != 0) {
+					Log.print('r', "F[" + j + "]=" + ( sameTurnEffects[index][j][0] == 1 ? "T" : "F" ) + ";");
+				}
+				if (sameTurnEffects[index][j][1] != 0) {
+					Log.print('r', "T[" + j + "]=" + ( sameTurnEffects[index][j][1] == 1 ? "T" : "F" ) + ";");
+				}
+			}
+			Log.println('r', "");
+		}
+		
+	}
+	
 	public void speedTest() {
 		BooleanMachineState state = getInitialState();
 		
@@ -562,7 +634,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		System.out.println((end-start) + " ms");
 	}
 	
-
+	
 	
 	public BooleanMachineState monteCarlo(MachineState state, int maxDepth) {
 		boolean[] props = initBasePropositionsFromState(state);
@@ -613,7 +685,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		for (int[][] roleGoals : goalPropMap) {
 			numGoals += roleGoals.length;
 		}
-		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (propIndex.length - internalPropStart) + " internal, " + numGoals + " goals"; 
+		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (propIndex.length - internalPropStart) + " internal, " + numGoals + " goals, terminal = " + terminalIndex; 
 	}
 	
 	/** Factoring logic */
