@@ -40,10 +40,10 @@ public class CheckedOperator extends Operator {
 	}
 
 	@Override
-	public void propagateLegalOnly(boolean[] props, int role) {
+	public void propagateLegalOnly(boolean[] props, int role, int legalIndex) {
 		boolean[] check = props.clone();
-		nativeOperator.propagateLegalOnly(props, role);
-		javassistOperator.propagateLegalOnly(check, role);
+		nativeOperator.propagateLegalOnly(props, role, legalIndex);
+		javassistOperator.propagateLegalOnly(check, role, legalIndex);
 		check(props, check);
 	}
 

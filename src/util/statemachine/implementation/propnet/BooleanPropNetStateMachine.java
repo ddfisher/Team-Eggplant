@@ -93,6 +93,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	/** A the index of the single, unique TerminalProposition. */
 	private int terminalIndex;
 	
+	private int numProps;
 	
 	/** The topological ordering of the propositions */
 	private List<Proposition> defaultOrdering;
@@ -135,6 +136,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 
 	private void initializeFromPropNet(BooleanPropNet pnet) {
 		propIndex = pnet.getPropIndex();
+		numProps = propIndex.length;
 		propMap = pnet.getPropMap();
 		basePropMap = pnet.getBasePropMap();
 		inputPropMap = pnet.getInputPropMap();
@@ -156,7 +158,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			goalPropMap[role] = rolesGoalPropMap.get(roleIndex[role]);
 		}
 		
-		moveIndex = new Move[propIndex.length]; 
+		moveIndex = new Move[numProps]; 
 		for (int i = inputPropStart; i < internalPropStart; i++) {
 			moveIndex[i] = getMoveFromProposition(propIndex[i]);
 		}
@@ -239,7 +241,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public BooleanMachineState getInitialState() {
-		boolean[] props = new boolean[propIndex.length];
+		boolean[] props = new boolean[numProps];
 		props[initIndex] = true;
 		operator.propagate(props);
 		return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
@@ -266,7 +268,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			for (int i = 0; i < legals.length; i++) {
 				int inputIndex = legalInputMap[legals[i]];
 				props[inputIndex] = true;
-				operator.propagateLegalOnly(props, roleIndex);
+				operator.propagateLegalOnly(props, roleIndex, i);
 				if (props[legals[i]]) {
 					legalMoves.add(moveIndex[inputIndex]);
 				}
@@ -312,7 +314,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 
 	private boolean[] initBasePropositionsFromState(MachineState state) {
 		if (state instanceof BooleanMachineState) {
-			boolean[] props = new boolean[propIndex.length];
+			boolean[] props = new boolean[numProps];
 			boolean[] baseProps = ((BooleanMachineState) state).getBooleanContents();
 			System.arraycopy(baseProps, 0, props, 1, baseProps.length);
 			return props;
@@ -347,7 +349,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		// All of the internal propositions in the prop net
 		HashSet<Proposition> propositions = new HashSet<Proposition>();
-		for (int i = internalPropStart; i < propIndex.length; i++) {
+		for (int i = internalPropStart; i < numProps; i++) {
 			propositions.add(propIndex[i]);
 		}
 		
@@ -495,24 +497,34 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		
 		List<Proposition> terminalOrdering = getOrdering(new int[]{terminalIndex});
+		/*
 		for (Proposition prop : terminalOrdering) {
 			Log.print('r', propMap.get(prop) + ", ");
 		}
 		Log.println('r', "\n");
+		*/
+		Log.println('r', "Terminal ordering : " + terminalOrdering.size());
 		
-		List<List<Proposition>> legalOrderings = new LinkedList<List<Proposition>>();
-		for (int i = 0; i < roleIndex.length; i++) {
-			legalOrderings.add(getOrdering(legalPropMap[i]));
+		List<List<List<Proposition>>> legalOrderings = new LinkedList<List<List<Proposition>>>();
+		for (int role = 0; role < roleIndex.length; role++) {
+			List<List<Proposition>> legalOrderingForRole = new LinkedList<List<Proposition>>();
+			for (int i = 0; i < legalPropMap[role].length; i++) {
+				int legalProp = legalPropMap[role][i];
+				legalOrderingForRole.add(getOrdering(new int[]{legalProp}));
+				Log.println('r', "Role " + role + " legal ordering for " + propIndex[legalProp] + " : " + legalOrderingForRole.get(i).size());
+			}
+			legalOrderings.add(legalOrderingForRole);
 		}
 		
 		List<List<Proposition>> goalOrderings = new LinkedList<List<Proposition>>();
 		for (int role = 0; role < roleIndex.length; role++) {
 			int[][] goalPropsAndValues = goalPropMap[role];
 			int[] goalProps = new int[goalPropsAndValues.length];
-			for (int j = 0; j < goalProps.length; j++) {
-				goalProps[j] = goalPropsAndValues[j][0];
+			for (int i = 0; i < goalProps.length; i++) {
+				goalProps[i] = goalPropsAndValues[i][0];
 			}
 			goalOrderings.add(getOrdering(goalProps));
+			Log.println('r', "Role " + role + " goal ordering : " + goalOrderings.get(role).size());
 		}
 		
 		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
@@ -525,7 +537,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	
 
 	private boolean[] generatePropArray(int start, int end) {
-		boolean[] props = new boolean[propIndex.length];
+		boolean[] props = new boolean[numProps];
 		for (int i = start; i < end; i++) {
 			props[i] = propIndex[i].getValue();
 		}
@@ -543,11 +555,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 	
 	private void calculatePropEffects() {
-		int[][][] sameTurnEffects = new int[propIndex.length][propIndex.length][2];
-		int[][][] nextTurnEffects = new int[propIndex.length][propIndex.length][2];
-		for (int index = 0; index < propIndex.length; index++) {
+		int[][][] sameTurnEffects = new int[numProps][numProps][2];
+		int[][][] nextTurnEffects = new int[numProps][numProps][2];
+		for (int index = 0; index < numProps; index++) {
 			List<Integer> queue = new LinkedList<Integer>();
-			boolean[] visited = new boolean[propIndex.length];
+			boolean[] visited = new boolean[numProps];
 			queue.add(index);
 			sameTurnEffects[index][index][0] = -1;
 			sameTurnEffects[index][index][1] = 1;
@@ -616,37 +628,13 @@ public class BooleanPropNetStateMachine extends StateMachine {
 						}
 					}
 				}
-			}
-			int countSameTurn = 0;
-			int countNextTurn = 0;
-			StringBuilder outputSame = new StringBuilder();
-			StringBuilder outputNext = new StringBuilder();
-			for (int propNum = 0; propNum < propIndex.length; propNum++) {
-				if (sameTurnEffects[index][propNum][0] != 0) {
-					countSameTurn++;
-					outputSame.append("F[" + propNum + "]=" + ( sameTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
-				}
-				if (sameTurnEffects[index][propNum][1] != 0) {
-					countSameTurn++;
-					outputSame.append("T[" + propNum + "]=" + ( sameTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
-				}
-				if (nextTurnEffects[index][propNum][0] != 0) {
-					countNextTurn++;
-					outputNext.append("F[" + propNum + "]=" + ( nextTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
-				}
-				if (nextTurnEffects[index][propNum][1] != 0) {
-					countNextTurn++;
-					outputNext.append("T[" + propNum + "]=" + ( nextTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
-				}
-			}
-			Log.println('b', "Count for index " + index + " = " + countSameTurn + " same turn / " + countNextTurn + " next turn ; (" + propIndex[index].getName() + "): " + outputSame.toString() + "//" + outputNext.toString());
-			
+			}			
 		}
 		// Compute nextTurnEffects
-		for (int index = 0; index < propIndex.length; index++) {
+		for (int index = 0; index < numProps; index++) {
 			List<Integer> queue = new LinkedList<Integer>();
-			boolean[] visited = new boolean[propIndex.length];
-			for (int propNum = 0; propNum < propIndex.length; propNum++) {
+			boolean[] visited = new boolean[numProps];
+			for (int propNum = 0; propNum < numProps; propNum++) {
 				if (nextTurnEffects[index][propNum][0] != 0 || nextTurnEffects[index][propNum][1] != 0) {
 					queue.add(propNum);
 				}
@@ -662,7 +650,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				for (int tf = 0; tf < 2; tf++) {
 					if (nextTurnEffects[index][propNum][tf] != 0) {
 						int effectOnPropNum = (nextTurnEffects[index][propNum][tf] == 1) ? 1 : 0; 
-						for (int nextPropNum = 0; nextPropNum < propIndex.length; nextPropNum++) {
+						for (int nextPropNum = 0; nextPropNum < numProps; nextPropNum++) {
 							if(sameTurnEffects[propNum][nextPropNum][effectOnPropNum] != 0) {
 								nextTurnEffects[index][nextPropNum][tf] = sameTurnEffects[propNum][nextPropNum][effectOnPropNum];
 								queue.add(nextPropNum);
@@ -672,13 +660,14 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				}
 			}
 		}
+		
 		ArrayList<Integer> latches = new ArrayList<Integer>();
-		for (int index = 0; index < propIndex.length; index++) {
+		for (int index = 0; index < numProps; index++) {
 			int countSameTurn = 0;
 			int countNextTurn = 0;
 			StringBuilder outputSame = new StringBuilder();
 			StringBuilder outputNext = new StringBuilder();
-			for (int propNum = 0; propNum < propIndex.length; propNum++) {
+			for (int propNum = 0; propNum < numProps; propNum++) {
 				if (sameTurnEffects[index][propNum][0] != 0) {
 					countSameTurn++;
 					outputSame.append("F[" + propNum + "]=" + ( sameTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
@@ -686,6 +675,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				if (sameTurnEffects[index][propNum][1] != 0) {
 					countSameTurn++;
 					outputSame.append("T[" + propNum + "]=" + ( sameTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
+				}
+				if (propNum != index && sameTurnEffects[index][propNum][0] != 0 && sameTurnEffects[index][propNum][1] != 0) {
+					outputSame.append("=[" + propNum + "]!;");
 				}
 				if (nextTurnEffects[index][propNum][0] != 0) {
 					countNextTurn++;
@@ -708,7 +700,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			int index = propMap.get(prop);
 			int count = 0;
 			Log.print('r', "Count for index " + index + " (" + propIndex[index].getName() + "): " );
-			for (int j = 0; j < propIndex.length; j++) {
+			for (int j = 0; j < numProps; j++) {
 				if (sameTurnEffects[index][j][0] != 0) {
 					Log.print('r', "F[" + j + "]=" + ( sameTurnEffects[index][j][0] == 1 ? "T" : "F" ) + ";");
 				}
@@ -785,7 +777,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		for (int[][] roleGoals : goalPropMap) {
 			numGoals += roleGoals.length;
 		}
-		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (propIndex.length - internalPropStart) + " internal, " + numGoals + " goals, terminal = " + terminalIndex; 
+		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (numProps - internalPropStart) + " internal, " + numGoals + " goals, terminal = " + terminalIndex; 
 	}
 	
 	/** Factoring logic */

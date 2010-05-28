@@ -15,7 +15,7 @@ public abstract class Operator {
 	public abstract void transition(boolean[] props);
 	public abstract void propagateInternal(boolean[] props);
 	public abstract void propagateTerminalOnly(boolean[] props);
-	public abstract void propagateLegalOnly(boolean[] props, int role);
+	public abstract void propagateLegalOnly(boolean[] props, int role, int legalIndex);
 	public abstract void propagateGoalOnly(boolean[] props, int role);
 	public abstract boolean monteCarlo(boolean[] props, int maxDepth);
 	public abstract void initMonteCarlo(int[][] legalPropMap, int[] legalInputMap);

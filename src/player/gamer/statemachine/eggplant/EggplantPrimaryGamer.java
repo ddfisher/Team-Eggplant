@@ -113,7 +113,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			state = minions[0].getInitialState();
 		}
 		
-		((BooleanPropNetStateMachine)machine).speedTest();
+		//((BooleanPropNetStateMachine)machine).speedTest();
 
 		endBook = new EndgameBook(numPlayers);
 		// endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start +
@@ -186,8 +186,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		return new WeightedHeuristic(new Heuristic[] {
 				new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
 				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers),
-				new MonteCarloHeuristic(3, avgGoal)
-				}, new double[] { 0.15, 0.35, 0.5 });
+				//new MonteCarloHeuristic(3, avgGoal)
+				}, new double[] { 0.15, 0.85, });
 		// return new MonteCarloHeuristic(4, 5, avgGoal);
 		// return new NullHeuristic((int) avgGoal);
 	}

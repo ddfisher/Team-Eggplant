@@ -21,7 +21,7 @@ public class NativeOperator extends Operator {
 	public native void propagateTerminalOnly(boolean[] props);
 	
 	@Override
-	public native void propagateLegalOnly(boolean[] props, int role);
+	public native void propagateLegalOnly(boolean[] props, int role, int legalIndex);
 	
 	@Override
 	public native void propagateGoalOnly(boolean[] props, int role);

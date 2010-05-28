@@ -1,5 +1,6 @@
 package util.statemachine.implementation.propnet;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,7 @@ public class OperatorFactory {
 	private static int internalProps = 0;
 
 	public static Operator buildOperator(Map<Proposition, Integer> propMap, List<Proposition> transitionOrdering, List<Proposition> internalOrdering,
-			List<Proposition> terminalOrdering, List<List<Proposition>> legalOrderings, List<List<Proposition>> goalOrderings,
+			List<Proposition> terminalOrdering, List<List<List<Proposition>>> legalOrderings, List<List<Proposition>> goalOrderings,
 			int[][] legalPropMap, int[] legalInputMap, int inputPropStart, int inputPropLength, int terminalIndex) {
 		try {
 			CtClass operatorSuperclass = ClassPool.getDefault().get("util.statemachine.implementation.propnet.Operator");
@@ -85,11 +86,15 @@ public class OperatorFactory {
 		addMethod(operatorClass, parts, TERMINAL);
 	}
 
-	private static void addLegalPropagate(CtClass operatorClass, List<List<Proposition>> legalOrderings, Map<Proposition, Integer> propMap)
+	private static void addLegalPropagate(CtClass operatorClass, List<List<List<Proposition>>> legalOrderings, Map<Proposition, Integer> propMap)
 			throws CannotCompileException {
-		addRoleDependentHelpers(legalOrderings, propMap, operatorClass, LEGAL);
-		StringBuilder body = generateRoleDependentBody(LEGAL, legalOrderings.size());
-		addRoleDependentMethod(operatorClass, body, LEGAL);
+		addRoleAuxDependentHelpers(legalOrderings, propMap, operatorClass, LEGAL);
+		List<Integer> auxSizes = new ArrayList<Integer>();
+		for (int i = 0; i < legalOrderings.size(); i++) {
+			auxSizes.add(legalOrderings.get(i).size());
+		}
+		StringBuilder body = generateRoleAuxDependentBody(LEGAL, auxSizes);
+		addRoleAuxDependentMethod(operatorClass, body, LEGAL);
 	}
 
 	private static void addGoalPropagate(CtClass operatorClass, List<List<Proposition>> goalOrderings, Map<Proposition, Integer> propMap)
@@ -103,27 +108,19 @@ public class OperatorFactory {
 			throws CannotCompileException {
 		StringBuilder body = new StringBuilder();
 		body.append("public boolean " + MONTE_CARLO + "(boolean[] props, int maxDepth) {\n");
-		body.append("int[] input = new int[" + numRoles + "];\n");
 		body.append("int depth = 0;\n");
 		body.append("while (depth < maxDepth) {\n");
-			body.append("boolean legal = false;\n");
 			body.append("depth++;\n");
-			body.append("while (!legal) {\n");
-				body.append("java.util.Arrays.fill(props, " + inputStart + ", " + (inputStart + numInputs) + ", false);\n");
-				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
+			body.append("java.util.Arrays.fill(props, " + inputStart + ", " + (inputStart + numInputs) + ", false);\n");
+			body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
+				body.append("while (true) {\n");
 					body.append("int index = rand.nextInt(" + numLegals + ");\n");
 					body.append("int inputIndex = legalInputMap[ legalPropMap[role][index] ];\n");
 					body.append("props[inputIndex] = true;\n");
-					body.append("input[role] = inputIndex;\n");
-				body.append("}\n");
-				
-				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
-					body.append("propagateLegalOnly(props, role);\n");
-				body.append("}\n");
-
-				body.append("legal = true;\n");
-				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
-					body.append("legal = legal && props[ legalInputMap[ input[role] ] ];\n");
+					body.append("propagateLegalOnly(props, role, index);\n");
+					body.append("if (props[ legalInputMap[ inputIndex ] ])\n");
+						body.append("break;\n");
+					body.append("props[inputIndex] = false;\n");
 				body.append("}\n");
 			body.append("}\n");
 
@@ -162,6 +159,15 @@ public class OperatorFactory {
 	private static void addRoleDependentMethod(CtClass operatorClass, StringBuilder body, String methodName) throws CannotCompileException {
 		StringBuilder method = new StringBuilder();
 		method.append("public void " + methodName + "(boolean[] props, int roleIndex) {\n");
+		method.append(body);
+		method.append("}\n");
+		Log.println('c', method.toString());
+		operatorClass.addMethod(CtNewMethod.make(method.toString(), operatorClass));
+	}
+	
+	private static void addRoleAuxDependentMethod(CtClass operatorClass, StringBuilder body, String methodName) throws CannotCompileException {
+		StringBuilder method = new StringBuilder();
+		method.append("public void " + methodName + "(boolean[] props, int roleIndex, int auxData) {\n");
 		method.append(body);
 		method.append("}\n");
 		Log.println('c', method.toString());
@@ -210,11 +216,39 @@ public class OperatorFactory {
 		return body;
 	}
 
+	private static StringBuilder generateRoleAuxDependentBody(String name, List<Integer> auxSizes) {
+		StringBuilder body = new StringBuilder();
+		body.append("switch (roleIndex) {\n");
+		for (int roleIndex = 0; roleIndex < auxSizes.size(); roleIndex++) {
+			body.append("case " + roleIndex + ":\n");
+				body.append("switch (auxData) {\n");
+				for (int auxData = 0; auxData < auxSizes.get(roleIndex); auxData++) {
+					body.append("case " + auxData + ":\n");
+					body.append(name + "Role" + roleIndex + "Aux" + auxData + "(props);\n");
+					body.append("break;\n");
+				}
+				body.append("}\n");
+			body.append("break;\n");
+		}
+		body.append("}\n");
+		return body;
+	}
+
 	private static void addRoleDependentHelpers(List<List<Proposition>> orderings, Map<Proposition, Integer> propMap, CtClass operatorClass,
 			String name) throws CannotCompileException {
 		for (int roleIndex = 0; roleIndex < orderings.size(); roleIndex++) {
 			StringBuilder[] parts = generateInternalMethodBody(orderings.get(roleIndex), propMap);
 			addMethod(operatorClass, parts, name + "Role" + roleIndex);
+		}
+	}
+	
+	private static void addRoleAuxDependentHelpers(List<List<List<Proposition>>> orderings, Map<Proposition, Integer> propMap, CtClass operatorClass,
+			String name) throws CannotCompileException {
+		for (int roleIndex = 0; roleIndex < orderings.size(); roleIndex++) {
+			for (int auxData = 0; auxData < orderings.get(roleIndex).size(); auxData++) {
+				StringBuilder[] parts = generateInternalMethodBody(orderings.get(roleIndex).get(auxData), propMap);
+				addMethod(operatorClass, parts, name + "Role" + roleIndex + "Aux" + auxData);
+			}
 		}
 	}
 	
@@ -296,11 +330,6 @@ public class OperatorFactory {
 		} else {
 			throw new RuntimeException("Unexpected Class");
 		}
-	}
-
-	private static void generateMonteCarloMethodBody(int numRoles, int numLegals, int inputStart, int numInputs, int terminalIndex) {
-		
-		
 	}
 	
 	private static void addMonteCarloInit(CtClass operatorClass) throws CannotCompileException{
