@@ -7,8 +7,7 @@ import java.util.List;
 import player.gamer.statemachine.StateMachineGamer;
 import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
-import player.gamer.statemachine.eggplant.heuristic.Heuristic;
-import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.*;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
@@ -195,14 +194,17 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 
 	private Heuristic getHeuristic() {
-		/*return new WeightedHeuristic(new Heuristic[] {
-				new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
-				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers),
+		MobilityHeuristic h1 = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
+			h2 = new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers);
+		int av = (avgGoal > 0 ? (int)avgGoal : 50);
+		h1.setAvgGoal(av);
+		h2.setAvgGoal(av);
+		return new WeightedHeuristic(new Heuristic[] {
+				h1, h2,
 				//new MonteCarloHeuristic(3, avgGoal)
 				}, new double[] { 0.15, 0.85 });
-				*/
 		// return new MonteCarloHeuristic(4, 5, avgGoal);
-		return new NullHeuristic((int) avgGoal);
+		//return new NullHeuristic((int) avgGoal);
 	}
 
 	protected void iterativeDeepening(StateMachine machine, MachineState state,
