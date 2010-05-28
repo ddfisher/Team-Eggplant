@@ -3,6 +3,7 @@ package util.propnet.architecture;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -266,9 +267,14 @@ public final class BooleanPropNet extends PropNet {
 			index++;
 		}
 		
-		// Setup internal props
+		// Setup internal props with ordering given by topological sort from terminal
+		// Allows for spatial locality optimization in the propgation methods
 		internalPropStart = index;
-		for (Proposition internalProp : allPropositions) {
+		List<Proposition> preferredOrdering = new LinkedList<Proposition>();
+		preferredOrdering.add(terminalProposition);
+		preferredOrdering.addAll(allPropositions);
+		List<Proposition> ordering = getOrdering(allPropositions, preferredOrdering);
+		for (Proposition internalProp : ordering) {
 			propIndex[index] = internalProp;
 			propMap.put(internalProp, index);
 			index++;
@@ -363,4 +369,50 @@ public final class BooleanPropNet extends PropNet {
 	public int getTerminalIndex() {
 		return terminalIndex;
 	}
+	
+	public List<Proposition> getOrdering(Set<Proposition> propositions, List<Proposition> preferredOrdering) {
+		LinkedList<Proposition> order = new LinkedList<Proposition>();
+
+		// All of the components in the PropNet
+		HashSet<Component> components = new HashSet<Component>(this.components);
+				
+		// Remove all base propositions from components 
+		for (int i = initIndex; i < inputPropStart; i++) {
+			components.remove(propIndex[i]);
+		}
+		
+		// TODO: Optimize this. Not efficient at all
+		Iterator<Component> componentIterator = components.iterator();
+		while (componentIterator.hasNext()) {
+			Component component = componentIterator.next();
+			if ((component instanceof Proposition) && component.getInputs().size() < 1) {
+				componentIterator.remove();
+			}
+		}
+		
+		// Use DFS to compute topological sort of propositions
+		
+		for (int i = 0; i < preferredOrdering.size(); i++) {
+			Proposition currComponent = preferredOrdering.get(i);
+			if (propositions.contains(currComponent)) {
+				topologicalSort(currComponent, order, propositions, components);
+			}
+		}
+		return order;
+	}
+
+	public static void topologicalSort(Component currComponent, List<Proposition> order,
+			Set<Proposition> propositions, Set<Component> components) {
+		for (Component input : currComponent.getInputs()) {
+			if (components.contains(input)) { // not yet visited
+				topologicalSort(input, order, propositions, components);
+			}
+		}
+		if (currComponent instanceof Proposition) {
+			order.add((Proposition) currComponent);
+			propositions.remove(currComponent);
+		}
+		components.remove(currComponent);
+	}
+
 }

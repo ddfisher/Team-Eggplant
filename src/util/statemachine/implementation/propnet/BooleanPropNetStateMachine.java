@@ -369,34 +369,20 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		if (preferredOrdering == null) { // sort all
 			while (!propositions.isEmpty()) {
 				Proposition currComponent = propositions.iterator().next();
-				topologicalSort(currComponent, order, propositions, components);
+				BooleanPropNet.topologicalSort(currComponent, order, propositions, components);
 			}
 		}
 		else {
 			for (int i = 0; i < preferredOrdering.length; i++) {
 				Proposition currComponent = propIndex[preferredOrdering[i]];
 				if (propositions.contains(currComponent)) {
-					topologicalSort(currComponent, order, propositions, components);
+					BooleanPropNet.topologicalSort(currComponent, order, propositions, components);
 				}
 			}
 		}
 		
 		Log.println('p', "Order: " + order);
 		return order;
-	}
-
-	private void topologicalSort(Component currComponent, LinkedList<Proposition> order,
-			HashSet<Proposition> propositions, HashSet<Component> components) {
-		for (Component input : currComponent.getInputs()) {
-			if (components.contains(input)) { // not yet visited
-				topologicalSort(input, order, propositions, components);
-			}
-		}
-		if (currComponent instanceof Proposition) {
-			order.add((Proposition) currComponent);
-			propositions.remove(currComponent);
-		}
-		components.remove(currComponent);
 	}
 
 	/** Already implemented for you */
@@ -501,8 +487,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			roleMap.put(roleIndex[i], i);
 		}
 	}
-	
-	private List<Proposition> tempTerminalOrdering;
 
 	private void initOperator() {
 		List<Proposition> transitionOrdering = new ArrayList<Proposition>();
@@ -511,7 +495,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		
 		List<Proposition> terminalOrdering = getOrdering(new int[]{terminalIndex});
-		tempTerminalOrdering = terminalOrdering;
 		for (Proposition prop : terminalOrdering) {
 			Log.print('r', propMap.get(prop) + ", ");
 		}
