@@ -163,7 +163,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 
 		initOperator();
 		
-		calculatePropEffects();
+		// calculatePropEffects();
 	}
 
 	/**
@@ -516,19 +516,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				//goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 //		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
 	}
-	
-	
-
-	private boolean[] generatePropArray(int start, int end) {
-		boolean[] props = new boolean[numProps];
-		for (int i = start; i < end; i++) {
-			props[i] = propIndex[i].getValue();
-		}
-
-		return props;
-	}
 
 	private void calculatePropEffects() {
+		Log.println('l', "Begin latch calculations");
 		int[][][] sameTurnEffects = new int[numProps][numProps][2];
 		int[][][] nextTurnEffects = new int[numProps][numProps][2];
 		for (int index = 0; index < numProps; index++) {

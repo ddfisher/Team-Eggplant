@@ -8,7 +8,10 @@ import player.gamer.statemachine.StateMachineGamer;
 import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
-import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityType;
+import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
@@ -195,14 +198,14 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 
 	private Heuristic getHeuristic() {
-		/*return new WeightedHeuristic(new Heuristic[] {
+		return new WeightedHeuristic(new Heuristic[] {
 				new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
 				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers),
 				//new MonteCarloHeuristic(3, avgGoal)
 				}, new double[] { 0.15, 0.85 });
-				*/
+				
 		// return new MonteCarloHeuristic(4, 5, avgGoal);
-		return new NullHeuristic((int) avgGoal);
+		//return new NullHeuristic((int) avgGoal);
 	}
 
 	protected void iterativeDeepening(StateMachine machine, MachineState state,
@@ -533,7 +536,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 	
 	public void calculateBooleanPropNetStateMachine() {
-		Log.println('y', "Threaded BPNSM compute started " + System.currentTimeMillis());
+		Log.println('y', "Threadedit  BPNSM compute started " + System.currentTimeMillis());
 		CachedBooleanPropNetStateMachine bpnet = new CachedBooleanPropNetStateMachine();
 		bpnet.initialize(getMatch().getDescription());
 		Log.println('y', "Threaded BPNSM compute ended " + System.currentTimeMillis());
