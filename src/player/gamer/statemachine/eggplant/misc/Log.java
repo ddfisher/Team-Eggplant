@@ -2,7 +2,7 @@ package player.gamer.statemachine.eggplant.misc;
 
 public class Log {
   // Set this string only in Log, to avoid messy code
-  private static final String flags = "ifhtmqrl";
+  private static final String flags = "ifhtmqly";
   
   /*
    * Flag codes:
@@ -23,6 +23,7 @@ public class Log {
    *   r = Rearrangment of ordering in boolean propnet
    *   s = Filtering in boolean propnet debug
    *   t = Filtering
+   *   y = Threaded computation of prop nets
    *   z = Additional code generation info
    */
   

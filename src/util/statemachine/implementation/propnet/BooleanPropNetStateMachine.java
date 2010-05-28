@@ -9,12 +9,10 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 
 import player.gamer.statemachine.eggplant.misc.Log;
 import util.gdl.grammar.Gdl;
-import util.gdl.grammar.GdlConstant;
 import util.gdl.grammar.GdlProposition;
 import util.gdl.grammar.GdlRelation;
 import util.gdl.grammar.GdlSentence;
@@ -107,8 +105,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private Move[] moveIndex;
 	
 	private Operator operator;
-	
-	private static Random random = new Random();
 
 	/**
 	 * Initializes the PropNetStateMachine. You should compute the topological
@@ -316,15 +312,15 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		if (state instanceof BooleanMachineState) {
 			boolean[] props = new boolean[numProps];
 			boolean[] baseProps = ((BooleanMachineState) state).getBooleanContents();
-			System.arraycopy(baseProps, 0, props, 1, baseProps.length);
+			System.arraycopy(baseProps, 0, props, basePropStart, baseProps.length);
 			return props;
 		} else {
 			Set<GdlSentence> initialTrueSentences = state.getContents();
+			boolean[] props = new boolean[numProps];
 			for (GdlTerm propName : basePropMap.keySet()) {
-				propIndex[basePropMap.get(propName)].setValue(
-						initialTrueSentences.contains(propName.toSentence()));
+				props[basePropMap.get(propName)] = initialTrueSentences.contains(propName.toSentence());
 			}
-			return generatePropArray(basePropStart, inputPropStart);
+			return props;
 		}
 	}
 	
@@ -447,19 +443,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 
 	/**
-	 * Helper method for parsing the value of a goal proposition
-	 * 
-	 * @param goalProposition
-	 * @return the integer value of the goal proposition
-	 */
-
-	private int getGoalValue(Proposition goalProposition) {
-		GdlRelation relation = (GdlRelation) goalProposition.getName().toSentence();
-		GdlConstant constant = (GdlConstant) relation.get(1);
-		return Integer.parseInt(constant.toString());
-	}
-
-	/**
 	 * Helper method, used to get compute roles. You should only be using this
 	 * for Role indexing (because of compatibility with the GameServer state
 	 * machine's roles)
@@ -545,15 +528,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		return props;
 	}
 
-	private String booleanArrayToString(boolean[] array) {
-		String str = "[";
-		for (int i = 0; i < array.length; i++) {
-			str += array[i] ? "1" : "0";
-		}
-		str += "]";
-		return str;
-	}
-	
 	private void calculatePropEffects() {
 		int[][][] sameTurnEffects = new int[numProps][numProps][2];
 		int[][][] nextTurnEffects = new int[numProps][numProps][2];
@@ -719,7 +693,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		long start = System.currentTimeMillis();
 		for (long i = 0; i < 1000; i++) {
-            MachineState newState = monteCarlo(state, Integer.MAX_VALUE);
+            //MachineState newState = 
+            	monteCarlo(state, Integer.MAX_VALUE);
 //            System.out.println("Terminal? " + isTerminal(newState));
 		}
 		long end = System.currentTimeMillis();
@@ -770,7 +745,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		*/
 	}
-	
+		
 	@Override
 	public String toString() {
 		int numGoals = 0;
@@ -1038,7 +1013,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					Log.println('f', "Factor " + i + " legal " + legal + " for " + role + " : " + minions[i].propIndex[minions[i].legalPropMap[role][legal]] + " " + minions[i].legalInputMap[minions[i].legalPropMap[role][legal]]);
 				}
 			}
-			MachineState initialState = minions[i].getInitialState();
 		}
 		
 		return minions;

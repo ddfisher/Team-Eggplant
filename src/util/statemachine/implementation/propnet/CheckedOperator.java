@@ -1,9 +1,5 @@
 package util.statemachine.implementation.propnet;
 
-import java.util.List;
-import java.util.Map;
-
-import util.propnet.architecture.components.Proposition;
 
 public class CheckedOperator extends Operator {
 	private Operator nativeOperator, javassistOperator;

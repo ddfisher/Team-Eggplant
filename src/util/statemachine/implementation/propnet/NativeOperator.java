@@ -1,6 +1,5 @@
 package util.statemachine.implementation.propnet;
 
-import java.io.File;
 
 public class NativeOperator extends Operator {
 	

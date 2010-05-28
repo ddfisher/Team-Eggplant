@@ -6,6 +6,7 @@ import java.util.List;
 import player.gamer.exception.MetaGamingException;
 import player.gamer.exception.MoveSelectionException;
 import player.gamer.statemachine.eggplant.EggplantPrimaryGamer;
+import player.proxy.ProxyGamePlayer;
 import util.gdl.grammar.GdlProposition;
 import util.gdl.grammar.GdlSentence;
 import util.match.Match;
