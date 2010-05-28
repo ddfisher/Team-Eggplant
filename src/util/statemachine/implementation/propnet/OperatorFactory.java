@@ -113,8 +113,19 @@ public class OperatorFactory {
 			body.append("depth++;\n");
 			body.append("java.util.Arrays.fill(props, " + inputStart + ", " + (inputStart + numInputs) + ", false);\n");
 			body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
-				body.append("while (true) {\n");
-					body.append("int index = rand.nextInt(" + numLegals + ");\n");
+				body.append("int[] order = new int[" + numLegals + "];\n");
+				body.append("for (int index = 0; index < " + numLegals + "; index++) {\n");
+					body.append("order[index] = index;\n");
+				body.append("}\n");
+				body.append("for (int index = " + numLegals + "; index > 0; index--) {\n");
+					body.append("int swapIndex = rand.nextInt(index);\n");
+					body.append("int temp = order[swapIndex];\n");
+					body.append("order[swapIndex] = order[index];\n");
+					body.append("order[index] = temp;\n");
+				body.append("}\n");
+				
+				body.append("for (int index = 0; index < " + numLegals + "; index++) {\n");
+					body.append("int index = order[index];\n");
 					body.append("int inputIndex = legalInputMap[ legalPropMap[role][index] ];\n");
 					body.append("props[inputIndex] = true;\n");
 					body.append("propagateLegalOnly(props, role, index);\n");

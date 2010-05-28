@@ -140,12 +140,6 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				+ avgGoal);
 	}
 
-	// Want to know:
-	// Mean and variance of each heuristic
-	// Correllation of each heuristic with good score
-	private void boof() {
-	}
-
 	@Override
 	public Move stateMachineSelectMove(long timeout)
 			throws TransitionDefinitionException, MoveDefinitionException,

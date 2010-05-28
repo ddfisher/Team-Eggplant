@@ -13,10 +13,11 @@ public class MonteCarloHeuristic implements Heuristic {
 
 	private int numTrials;
 	private int maxDepth;
-	private double avgGoal;
+	private float goalSum;
+	private int goalObservations;
 
 	public MonteCarloHeuristic(int trials) {
-		this(trials, Integer.MAX_VALUE, 50);
+		this(trials, 50);
 	}
 	
 	public MonteCarloHeuristic(int trials, double avgGoal) {
@@ -26,7 +27,8 @@ public class MonteCarloHeuristic implements Heuristic {
 	public MonteCarloHeuristic(int trials, int maxDepth, double avgGoal) {
 		this.numTrials = trials;
 		this.maxDepth = maxDepth;
-		this.avgGoal = avgGoal;
+		this.goalSum = (float) avgGoal;
+		this.goalObservations = 1;
 	}
 
 	@Override
@@ -49,7 +51,9 @@ public class MonteCarloHeuristic implements Heuristic {
 					}
 				}
 			}
-			int avg = (int) ((sum + avgGoal) / (successfulTrials + 1));
+			goalSum += sum;
+			goalObservations += successfulTrials;
+			int avg = (int) (goalSum / goalObservations);
 			return avg;
 		}
 		int successfulTrials = 0;
