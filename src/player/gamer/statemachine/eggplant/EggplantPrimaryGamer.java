@@ -198,12 +198,15 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 
 	private Heuristic getHeuristic() {
+		MobilityHeuristic h1 = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
+			h2 = new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers);
+		int av = (avgGoal > 0 ? (int)avgGoal : 50);
+		h1.setAvgGoal(av);
+		h2.setAvgGoal(av);
 		return new WeightedHeuristic(new Heuristic[] {
-				new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
-				new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers),
+				h1, h2,
 				//new MonteCarloHeuristic(3, avgGoal)
 				}, new double[] { 0.15, 0.85 });
-				
 		// return new MonteCarloHeuristic(4, 5, avgGoal);
 		//return new NullHeuristic((int) avgGoal);
 	}

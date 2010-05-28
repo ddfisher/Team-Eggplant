@@ -21,8 +21,10 @@ public class MobilityHeuristic implements Heuristic {
 	private int[] samples;
 	private int numPlayers;
 	private int depthLimit;
+	private int avgGoal;
 	protected final MobilityType type;
 	private final int BRANCH_QUO = 3;
+	private final int AVG_DEFAULT = 50;
 	private long varTime, varRuns;
 	private final boolean TIME = true;
 
@@ -34,6 +36,7 @@ public class MobilityHeuristic implements Heuristic {
 		this.type = type;
 		this.numPlayers = numPlayers;
 		this.depthLimit = deptLimit;
+		this.avgGoal = AVG_DEFAULT;
 
 		int n = 0;
 		switch (type) {
@@ -45,8 +48,12 @@ public class MobilityHeuristic implements Heuristic {
 		samples = new int[n];
 	}
 	
+	public void setAvgGoal(int goal) {
+		this.avgGoal = goal;
+	}
+	
 	public int avgBranchingFactor(int index) {
-		if (samples[index] == 0) return 0;
+		if (samples[index] == 0) return -1;
 		return (int) (totalBranchingFactor[index] / samples[index]);
 	}
 	
@@ -63,10 +70,11 @@ public class MobilityHeuristic implements Heuristic {
 		int total;
 	}
 
+	// -1: failure; caller to handle
 	protected int judgeMobility(double mobility, int index) {
-		if (samples[index] < 1) return -1;
-		double averageBranching = (double) totalBranchingFactor[index] / samples[index];
-		return judge(mobility, averageBranching);
+		int abf = avgBranchingFactor(index);
+		if (samples[index] < 1 || abf < 1) return avgGoal;
+		return judge(mobility, avgBranchingFactor(index));
 	}
 	
 	protected int judgeRelevantMobility(double mobility) {
@@ -83,7 +91,7 @@ public class MobilityHeuristic implements Heuristic {
 	 */
 	private int judge(double mobility, double avg) {
 		return (int) Math
-		.round((1 / (double) (1 + Math.exp(-1.0 / (avg / 3) * (mobility - avg)))) * 100);
+		.round((1.0 / (1.0 + Math.exp(-1.0 / (avg / 3.0) * (mobility - avg)))) * 100.0);
 	}
 	
 	protected int evalVarStep(StateMachine machine, MachineState state, Role role, 
@@ -113,14 +121,16 @@ public class MobilityHeuristic implements Heuristic {
 		double avg;
 		if (data.samples > 0) avg = data.total / (double) data.samples;
 		else return (alpha + beta) / 2;
-		int ev = judgeRelevantMobility(avg);
+		int ev = judgeMobility(avg, getIndex(properDepth));
 		return (ev >= 0) ? ev : (alpha + beta) / 2;
 	}
 
 	protected int evalOneStep(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int properDepth)
 	throws MoveDefinitionException, TransitionDefinitionException {
-		return evalNStep(machine, state, role, alpha, beta, properDepth, 0);
+		int ev = judgeMobility(machine.getLegalMoves(state, role).size(), getIndex(properDepth));
+		//System.out.println("res " + (ev > 0 ? ev : (alpha + beta) / 2) + " for bf " + machine.getLegalMoves(state, role).size() + " against avg " + avgBranchingFactor(getIndex(properDepth)));
+		return (ev >= 0) ? ev : (alpha + beta) / 2;
 	}
 
 	// Counts the branching factor the current and next depth turns if countCurrent is true,

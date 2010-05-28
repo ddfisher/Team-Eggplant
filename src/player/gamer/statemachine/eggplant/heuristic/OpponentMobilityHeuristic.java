@@ -34,10 +34,13 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 						getDepthLimit(), endTime, samplesLimit());
 				if (data.samples == 0) return (alpha + beta) / 2;
 				avg = (double) data.total / data.samples;
-				return judgeRelevantMobility(avg);
+				int ev = judgeRelevantMobility(avg);
+				return (ev > 0) ? ev : (alpha + beta) / 2;
 			default: 
 				avg = machine.getLegalJointMoves(state).size() / machine.getLegalMoves(state, role).size();
-				return judgeMobility(avg, getIndex(depth + absDepth));
+				int eval = judgeMobility(avg, getIndex(depth + absDepth));
+				//System.out.println("opp res " + (eval > 0 ? eval : (alpha + beta) / 2) + " for bf " + avg + " against avg " + avgBranchingFactor(getIndex(depth + absDepth)) + "\n");
+				return (eval > 0) ? eval : (alpha + beta) / 2;
 			}
 		} catch (MoveDefinitionException e) {
 			e.printStackTrace();
