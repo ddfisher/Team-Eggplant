@@ -39,7 +39,8 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 			default: 
 				avg = machine.getLegalJointMoves(state).size() / machine.getLegalMoves(state, role).size();
 				int eval = judgeMobility(avg, getIndex(depth + absDepth));
-				//System.out.println("opp res " + (eval > 0 ? eval : (alpha + beta) / 2) + " for bf " + avg + " against avg " + avgBranchingFactor(getIndex(depth + absDepth)) + "\n");
+				/*System.out.println("opp res " + (eval > 0 ? eval : (alpha + beta) / 2) + " for bf " + avg 
+						+ " against avg " + avgBranchingFactor(getIndex(depth + absDepth)) + " at depth " + (depth + absDepth) + "\n");*/
 				return (eval > 0) ? eval : (alpha + beta) / 2;
 			}
 		} catch (MoveDefinitionException e) {
@@ -84,7 +85,7 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 	throws MoveDefinitionException {
 		int pmSize = machine.getLegalMoves(state, role).size();
 		int oppSize = machine.getLegalJointMoves(state).size() / pmSize;
-		updateAverage(oppSize, depth + absDepth);
+		updateAvg(oppSize, depth + absDepth);
 	}
 
 }

@@ -1,6 +1,9 @@
 package util.propnet.architecture;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -239,7 +242,7 @@ public final class BooleanPropNet extends PropNet {
 		}
 		propIndex = new Proposition[1 + allPropositions.size()]; // 1 for init, which is special case
 
-		Log.println('t', "Filtered " + numFiltered + " props; now " + allPropositions.size() + " remaining");
+		Log.println('t', "Filtered " + numFiltered + " props; now " + ( 1 + allPropositions.size() ) + " remaining");
 		// Setup init
 		int index = 0;
 		propIndex[index] = initProposition;
@@ -303,11 +306,15 @@ public final class BooleanPropNet extends PropNet {
 			Set<Proposition> goalProps = tempGoalPropositions.get(role);
 			int[][] goalPropsArray = new int[goalProps.size()][2];
 			index = 0;
-			for (Proposition goalProp : goalProps) {
+			List<Proposition> sortedGoalProps = new ArrayList<Proposition>(goalProps);
+			Collections.sort(sortedGoalProps, new Comparator<Proposition>() {
+				public int compare(Proposition a, Proposition b) {
+					return getGoalValue(a) - getGoalValue(b);
+				}
+			});
+			for (Proposition goalProp : sortedGoalProps) {
 				goalPropsArray[index][0] = propMap.get(goalProp);
-				GdlRelation relation = (GdlRelation) goalProp.getName().toSentence();
-				GdlConstant constant = (GdlConstant) relation.get(1);
-				goalPropsArray[index][1] = Integer.parseInt(constant.toString());
+				goalPropsArray[index][1] = getGoalValue(goalProp);
 				index++;
 			}
 			goalPropMap.put(role, goalPropsArray);
@@ -327,6 +334,12 @@ public final class BooleanPropNet extends PropNet {
 				}
 			}
 		}
+	}
+	
+	private int getGoalValue(Proposition goalProp) {
+		GdlRelation relation = (GdlRelation) goalProp.getName().toSentence();
+		GdlConstant constant = (GdlConstant) relation.get(1);
+		return Integer.parseInt(constant.toString());
 	}
 
 	/**

@@ -7,11 +7,9 @@ import java.util.List;
 import player.gamer.statemachine.StateMachineGamer;
 import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
+import player.gamer.statemachine.eggplant.heuristic.GoalHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
-import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.MobilityType;
-import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
-import player.gamer.statemachine.eggplant.heuristic.WeightedHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
@@ -61,7 +59,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	
 	private final boolean KEEP_TIME = true;
 	private final long GRACE_PERIOD = 200;
-	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.1f;
+	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.0f;
 	private final float DEPTH_INITIAL_OFFSET = 0.5f;
 	private int heuristicUpdateInterval = 0;
 	private List<String> timeLog = new ArrayList<String>();
@@ -87,7 +85,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		Log.println('y', "Before thread init");
 		(new Thread() {
 			public void run() {
-				calculateBooleanPropNetStateMachine();
+				generateBooleanPropNetStateMachine();
 			}
 		}).start();
 		Log.println('y', "After thread init");
@@ -176,6 +174,13 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 
 		try {
+			if (machine instanceof BooleanPropNetStateMachine && rootDepth > 1) {
+				MachineState previousState = getPreviousState();
+				if (previousState != null) {
+					((BooleanPropNetStateMachine) machine).updateSatisfiedLatches(previousState, getLastMoves());
+				}
+			}
+			
 			iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
 					machine.getLegalMoves(state, role).size() == 1, timeout
 							- GRACE_PERIOD);
@@ -197,16 +202,25 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		return new ValuedMove(-2, machine.getRandomMove(state, role)).move;
 	}
 
-	private Heuristic getHeuristic() {
+	private Heuristic getHeuristic(StateMachine machine, Role role) {
+		/*
 		MobilityHeuristic h1 = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers),
 			h2 = new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers);
-		int av = (avgGoal > 0 ? (int)avgGoal : 50);
-		h1.setAvgGoal(av);
-		h2.setAvgGoal(av);
+		h1.setAvgGoal((int) avgGoal, minGoal, maxGoal);
+		h2.setAvgGoal((int) avgGoal, minGoal, maxGoal);
 		return new WeightedHeuristic(new Heuristic[] {
 				h1, h2,
 				//new MonteCarloHeuristic(3, avgGoal)
 				}, new double[] { 0.15, 0.85 });
+		 */
+		if (machine instanceof BooleanPropNetStateMachine) {
+			BooleanPropNetStateMachine bpnsm = (BooleanPropNetStateMachine) machine;
+			int roleIndex = bpnsm.getRoleIndices().get(role);
+			return new GoalHeuristic((BooleanPropNetStateMachine)machine, roleIndex);
+		}
+		else {
+			return new NullHeuristic((int) avgGoal);
+		}
 		// return new MonteCarloHeuristic(4, 5, avgGoal);
 		//return new NullHeuristic((int) avgGoal);
 	}
@@ -240,6 +254,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		long searchStartTime = System.currentTimeMillis();
 		long searchEndTime;
 		try {
+			heuristic = getHeuristic(machine, role);
+			Log.println('x', "Current state evaluates " + heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth, 0));
 			while (depth <= maxSearchDepth) {
 				// Check for update to statemachine
 				synchronized (updateStateMachineLock) {
@@ -248,13 +264,14 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 						switchStateMachine(updateStateMachine);
 						machine = getStateMachine();
 						state = getCurrentState();
+						role = getRole();
 						updateStateMachine = null;
+						heuristic = getHeuristic(machine, role);
 					}
 				}
 				
 				heuristicUpdateCounter = heuristicUpdateInterval = rootDepth + depth;
 				expansionEvaluator = new DepthLimitedExpansionEvaluator(depth);
-				heuristic = getHeuristic();
 				alreadySearched = statesSearched;
 				alreadyPVSearched = pvStatesSearched;
 				HashMap<MachineState, CacheValue> currentCache = new HashMap<MachineState, CacheValue>();
@@ -279,6 +296,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 					hasLost = true;
 					break;
 				}
+				
 				if (move.value == maxGoal) {
 					hasWon = true;
 					break;
@@ -407,7 +425,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			// stop
 			Log.println('a', "Heuristic; stopping expanding at depth " + depth);
 			return new ValuedMove(heuristic.eval(machine, state, role, alpha,
-					beta, depth, rootDepth, endTime), null, rootDepth + depth,
+					beta, actualDepth, rootDepth, endTime), null, rootDepth + depth,
 					false);
 		}
 
@@ -426,7 +444,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		List<Move> possibleMoves = machine.getLegalMoves(state, role);
 		// Collections.shuffle(possibleMoves); // TODO: Remove this line
 		if (heuristicUpdateCounter == heuristicUpdateInterval) {
-			heuristic.update(machine, state, role, alpha, beta, depth, rootDepth);
+			heuristic.update(machine, state, role, alpha, beta, actualDepth, rootDepth);
 			heuristicUpdateCounter = 0;
 		}
 		else {
@@ -538,7 +556,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		return maxMove;
 	}
 	
-	public void calculateBooleanPropNetStateMachine() {
+	public void generateBooleanPropNetStateMachine() {
 		Log.println('y', "Threadedit  BPNSM compute started " + System.currentTimeMillis());
 		CachedBooleanPropNetStateMachine bpnet = new CachedBooleanPropNetStateMachine();
 		bpnet.initialize(getMatch().getDescription());

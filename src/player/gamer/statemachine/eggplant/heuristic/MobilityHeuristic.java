@@ -22,6 +22,8 @@ public class MobilityHeuristic implements Heuristic {
 	private int numPlayers;
 	private int depthLimit;
 	private int avgGoal;
+	private int minGoal;
+	private int maxGoal;
 	protected final MobilityType type;
 	private final int BRANCH_QUO = 3;
 	private final int AVG_DEFAULT = 50;
@@ -48,8 +50,10 @@ public class MobilityHeuristic implements Heuristic {
 		samples = new int[n];
 	}
 	
-	public void setAvgGoal(int goal) {
+	public void setAvgGoal(int goal, int minGoal, int maxGoal) {
 		this.avgGoal = goal;
+		this.minGoal = minGoal;
+		this.maxGoal = maxGoal;
 	}
 	
 	public int avgBranchingFactor(int index) {
@@ -90,8 +94,11 @@ public class MobilityHeuristic implements Heuristic {
 	 * produce a result of 73.
 	 */
 	private int judge(double mobility, double avg) {
-		return (int) Math
-		.round((1.0 / (1.0 + Math.exp(-1.0 / (avg / 3.0) * (mobility - avg)))) * 100.0);
+		int res = (int) Math
+		.round((1.0 / (1.0 + Math.exp(-1.0 / (avg / 3.0) * (mobility - avg)))) * maxGoal) + minGoal;
+		if (res <= minGoal) return minGoal + 1;
+		if (res >= maxGoal) return maxGoal - 1;
+		return res;
 	}
 	
 	protected int evalVarStep(StateMachine machine, MachineState state, Role role, 
@@ -114,47 +121,13 @@ public class MobilityHeuristic implements Heuristic {
 		return (ev >= 0) ? ev : (alpha + beta) / 2;
 	}
 
-	protected int evalNStep(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int properDepth, int evalDepth)
-	throws MoveDefinitionException, TransitionDefinitionException {
-		BranchingData data = getBranchingData(machine, state, role, alpha, beta, evalDepth, false);
-		double avg;
-		if (data.samples > 0) avg = data.total / (double) data.samples;
-		else return (alpha + beta) / 2;
-		int ev = judgeMobility(avg, getIndex(properDepth));
-		return (ev >= 0) ? ev : (alpha + beta) / 2;
-	}
-
 	protected int evalOneStep(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int properDepth)
 	throws MoveDefinitionException, TransitionDefinitionException {
 		int ev = judgeMobility(machine.getLegalMoves(state, role).size(), getIndex(properDepth));
-		//System.out.println("res " + (ev > 0 ? ev : (alpha + beta) / 2) + " for bf " + machine.getLegalMoves(state, role).size() + " against avg " + avgBranchingFactor(getIndex(properDepth)));
+	/*	System.out.println("res " + (ev > 0 ? ev : (alpha + beta) / 2) + " for bf " + machine.getLegalMoves(state, role).size() 
+				+ " against avg " + avgBranchingFactor(getIndex(properDepth)) + " at depth " + properDepth); */
 		return (ev >= 0) ? ev : (alpha + beta) / 2;
-	}
-
-	// Counts the branching factor the current and next depth turns if countCurrent is true,
-	// and over the moves at the nth turn down if countCurrent is false.
-	// N.B. Setting countCurrent to true will usually cause counting over both op-turns and noop-turns.
-	private BranchingData getBranchingData(StateMachine machine, MachineState state, Role role, 
-			int alpha, int beta, int depth, boolean countCurrent)
-	throws MoveDefinitionException, TransitionDefinitionException {
-		if (machine.isTerminal(state)) return new BranchingData(0, 0);
-		if (depth == 0) return new BranchingData(1, machine.getLegalMoves(state, role).size());
-		List<List<Move>> joints = machine.getLegalJointMoves(state);
-		int samples = 0, total = 0;
-		for (List<Move> joint : joints) {
-			MachineState nextState = machine.getNextState(state, joint);
-			BranchingData data = getBranchingData(machine, nextState, role, 
-					alpha, beta, depth - 1, countCurrent);
-			samples += data.samples;
-			total += data.total;
-			if (countCurrent) {
-				samples += 1;
-				total += machine.getLegalMoves(nextState, role).size();
-			}
-		}
-		return new BranchingData(samples, total);
 	}
 	
 	class StateGroup {
@@ -208,8 +181,6 @@ public class MobilityHeuristic implements Heuristic {
 		int properDepth = absDepth + depth;
 		try {
 			switch (type) {
-			case N_STEP:
-				return evalNStep(machine, state, role, alpha, beta, properDepth, depthLimit);
 			case VAR_STEP:
 				return evalVarStep(machine, state, role, alpha, beta, properDepth, depthLimit, timeout);
 			default:
@@ -227,10 +198,10 @@ public class MobilityHeuristic implements Heuristic {
 	public void update(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int depth, int absDepth) 
 	throws MoveDefinitionException {
-		updateAverage(machine.getLegalMoves(state, role).size(), depth + absDepth);	
+		updateAvg(machine.getLegalMoves(state, role).size(), depth + absDepth);	
 	}
 
-	protected void updateAverage(int branchingFactor, int properDepth) {
+	protected void updateAvg(int branchingFactor, int properDepth) {
 		int index = 0;
 		if (type != MobilityType.VAR_STEP) index = getIndex(properDepth);
 		else if (branchingFactor <= 1) return;

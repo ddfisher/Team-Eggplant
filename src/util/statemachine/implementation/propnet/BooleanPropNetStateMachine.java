@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 
 import player.gamer.statemachine.eggplant.misc.Log;
@@ -47,7 +48,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private BooleanPropNet pnet;
 	
 	/** References to every Proposition in the PropNet. */
-	private Proposition[] propIndex;
+	public Proposition[] propIndex;
 	
 	/** References to every Proposition in the PropNet. */
 	private Map<Proposition, Integer> propMap;
@@ -103,6 +104,14 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private Map<Role, Integer> roleMap;
 	
 	private Move[] moveIndex;
+	
+	/** Latch mechanism */
+	private int[][][] sameTurnEffects;
+	private int[][][] nextTurnEffects;
+	private List<Integer> trueLatches;
+	private List<Integer> falseLatches;
+	private Set<Proposition> satisfiedLatches;
+	private Set<Proposition> relevantPropositions;
 	
 	private Operator operator;
 
@@ -163,7 +172,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 
 		initOperator();
 		
-		// calculatePropEffects();
+		calculatePropEffects();
 	}
 
 	/**
@@ -307,6 +316,61 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		return null;
 	}
+	
+	public void updateSatisfiedLatches(MachineState previousState, List<Move> lastMoves) {
+		try {
+			// Set up the base propositions
+			boolean[] props = initBasePropositionsFromState(previousState);
+
+			// Set up the input propositions
+			List<GdlTerm> doeses = toDoes(lastMoves);
+			
+			// All input props start as false
+
+			for (GdlTerm does : doeses) {
+				Log.println('l', "Marking move with " + does);
+				props[inputPropMap.get(does)] = true;
+			}
+
+			Log.println('c', "Before propagate: " + Arrays.toString(props));
+			operator.propagate(props);
+			Log.println('c', "After propagate: " + Arrays.toString(props));
+			Log.println('l', "Using for update "+ new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex).getContents());
+			for (int latch : trueLatches) {
+				if (props[latch]) {
+					if (satisfiedLatches.add(propIndex[latch])) {
+						for (int otherProp = 0; otherProp < numProps; otherProp++) {
+							if (sameTurnEffects[latch][otherProp][1] != 0 || nextTurnEffects[latch][otherProp][1] != 0) {
+								if (relevantPropositions.remove(propIndex[otherProp])) {
+									Log.println('l', "Removed " + propIndex[otherProp]);
+								}
+							}
+						}
+					}
+				}
+			}
+			for (int latch : falseLatches) {
+				if (!props[latch]) {
+					satisfiedLatches.add(propIndex[latch]);
+					if (satisfiedLatches.add(propIndex[latch])) {
+						relevantPropositions.remove(propIndex[latch]);
+						for (int otherProp = 0; otherProp < numProps; otherProp++) {
+							if (sameTurnEffects[latch][otherProp][0] != 0 || nextTurnEffects[latch][otherProp][1] != 0) {
+								if (relevantPropositions.remove(propIndex[otherProp])) {
+									Log.println('l', "Removed " + propIndex[otherProp]);
+								}
+							}
+						}
+					}
+				}
+			}
+			Log.println('l', satisfiedLatches.size() + " satified latches: " + satisfiedLatches);
+			Log.println('l', relevantPropositions.size() + " relevant props");
+
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
 
 	private boolean[] initBasePropositionsFromState(MachineState state) {
 		if (state instanceof BooleanMachineState) {
@@ -405,6 +469,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	@Override
 	public List<Role> getRoles() {
 		return rolesList;
+	}
+	
+	public int[][][] getGoalPropMap() {
+		return goalPropMap;
 	}
 
 	/* Helper methods */
@@ -516,15 +584,93 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				//goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 //		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
 	}
+	
+	// The heuristic does not have access to most of the prop net info, so we pass in
+	// arrays of length 1 in the first dimension and use it as a pointer / reference
+	public void populateGoalHeuristicArrays(int role, float[][][][] significanceRef, int[][] goalValuesRef) {
+		int numGoals = goalPropMap[role].length;
+		goalValuesRef[0] = new int[numGoals];
+		significanceRef[0] = new float[numGoals][][];
+		for (int goal = 0; goal < numGoals; goal++) {
+			Log.println('x', "Sigs for role " + role + " and goal " + propIndex[goalPropMap[role][goal][0]]);
+			significanceRef[0][goal] = calculateGoalHeuristic(goalPropMap[role][goal][0]);
+			goalValuesRef[0][goal] = goalPropMap[role][goal][1];
+			if (false) {
+				for (int i = basePropStart; i < inputPropStart; i++) {
+					Log.println('x', propIndex[i] + " = " + Arrays.toString(significanceRef[0][goal][i-basePropStart]));
+				}
+			}
+		}
+	}
+	
+	private float[][] calculateGoalHeuristic(int goalNum) {
+		float[][] significance = new float[numProps][2];
+		significance[goalNum][0] = 1;
+		PriorityQueue<Integer> queue = new PriorityQueue<Integer>();
+		queue.add(-goalNum); // reverse of natural ordering desired
+		float trueSignificance, falseSignificance;
+		int maxPropNum = numProps;
+		float totalDrained = 1;
+		while (!queue.isEmpty()) {
+			int propNum = -queue.poll();
+			if (propNum == maxPropNum) {
+				continue;
+			}
+			
+			maxPropNum = propNum;
+			Proposition prop = propIndex[propNum];
+			if (prop.getInputs().size() != 1) {
+				continue;
+			}
+			Component connector = prop.getSingleInput();
+			int initialInputSize = connector.getInputs().size();
+			Set<Component> inputs = new HashSet<Component>(connector.getInputs());
+			inputs.retainAll(relevantPropositions);
+			if (inputs.size() != initialInputSize);
+			//inputs.removeAll(satisfiedLatches);
+			//Log.println('x', "Processing " + prop + " " + significance[propNum][0] + "," + significance[propNum][1] + " with connector " + connector + " to " + inputs);
+			if (connector instanceof And) {
+				trueSignificance = significance[propNum][0] / inputs.size();
+				falseSignificance = significance[propNum][1]; // * initialInputSize / inputs.size();
+			}
+			else if (connector instanceof Or) {
+				trueSignificance = significance[propNum][0]; // * initialInputSize / inputs.size();
+				falseSignificance = significance[propNum][1] / inputs.size();
+			}
+			else if (connector instanceof Not) {
+				trueSignificance = significance[propNum][1];
+				falseSignificance = significance[propNum][0];
+			}
+			else {
+				continue;
+			}
+			totalDrained += (trueSignificance + falseSignificance) * inputs.size() - (significance[propNum][0] + significance[propNum][1]);
+			for(Component input : inputs) {
+				Integer prevPropNum = propMap.get(input);
+				if (prevPropNum != null) {
+					significance[prevPropNum][0] += trueSignificance;
+					significance[prevPropNum][1] += falseSignificance;
+					queue.add(-prevPropNum);
+				}
+			}
+		}
+		Log.println('x', "Total drained " + totalDrained);
+		return Arrays.copyOfRange(significance, basePropStart, inputPropStart);
+	}
 
 	private void calculatePropEffects() {
 		Log.println('l', "Begin latch calculations");
-		int[][][] sameTurnEffects = new int[numProps][numProps][2];
-		int[][][] nextTurnEffects = new int[numProps][numProps][2];
+		sameTurnEffects = new int[numProps][numProps][2];
+		nextTurnEffects = new int[numProps][numProps][2];
 		for (int index = 0; index < numProps; index++) {
 			List<Integer> queue = new LinkedList<Integer>();
 			boolean[] visited = new boolean[numProps];
 			queue.add(index);
+			if (index >= inputPropStart && index < internalPropStart) {
+				for (int propNum = inputPropStart; propNum < internalPropStart; propNum++) {
+					sameTurnEffects[index][propNum][1] = -1;
+				}
+			}
 			sameTurnEffects[index][index][0] = -1;
 			sameTurnEffects[index][index][1] = 1;
 			while (!queue.isEmpty()) {
@@ -625,7 +771,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			}
 		}
 		
-		ArrayList<Integer> latches = new ArrayList<Integer>();
+		trueLatches = new ArrayList<Integer>();
+		falseLatches = new ArrayList<Integer>();
+		satisfiedLatches = new HashSet<Proposition>();
+		relevantPropositions = new HashSet<Proposition>(this.propMap.keySet());
 		for (int index = 0; index < numProps; index++) {
 			int countSameTurn = 0;
 			int countNextTurn = 0;
@@ -645,20 +794,22 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				}
 				if (nextTurnEffects[index][propNum][0] != 0) {
 					countNextTurn++;
+					if (propNum == index && nextTurnEffects[index][propNum][0] == -1) {
+						falseLatches.add(propNum);
+					}
 					outputNext.append("F[" + propNum + "]=" + ( nextTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
 				}
 				if (nextTurnEffects[index][propNum][1] != 0) {
 					countNextTurn++;
 					if (propNum == index && nextTurnEffects[index][propNum][1] == 1) {
-						latches.add(propNum);
+						trueLatches.add(propNum);
 					}
 					outputNext.append("T[" + propNum + "]=" + ( nextTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
 				}
 			}
 			Log.println('b', "Count for index " + index + " = " + countSameTurn + " same turn / " + countNextTurn + " next turn ; (" + propIndex[index].getName() + "): " + outputSame.toString() + "//" + outputNext.toString());
-			
 		}
-		Log.println('l', latches.size() + " latches found: " + latches);
+		Log.println('l', trueLatches.size() + " true latches and " + falseLatches.size() + " false latches found");
 		/*
 		for (Proposition prop : tempTerminalOrdering) {
 			int index = propMap.get(prop);
