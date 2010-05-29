@@ -318,6 +318,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 	
 	public void updateSatisfiedLatches(MachineState previousState, List<Move> lastMoves) {
+		if (satisfiedLatches.size() == trueLatches.size() + falseLatches.size())
+			return;
 		try {
 			// Set up the base propositions
 			boolean[] props = initBasePropositionsFromState(previousState);
