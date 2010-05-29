@@ -48,7 +48,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private BooleanPropNet pnet;
 	
 	/** References to every Proposition in the PropNet. */
-	public Proposition[] propIndex;
+	private Proposition[] propIndex;
 	
 	/** References to every Proposition in the PropNet. */
 	private Map<Proposition, Integer> propMap;
@@ -592,14 +592,14 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		goalValuesRef[0] = new int[numGoals];
 		significanceRef[0] = new float[numGoals][][];
 		for (int goal = 0; goal < numGoals; goal++) {
-			Log.println('x', "Sigs for role " + role + " and goal " + propIndex[goalPropMap[role][goal][0]]);
+			// Log.println('x', "Sigs for role " + role + " and goal " + propIndex[goalPropMap[role][goal][0]]);
 			significanceRef[0][goal] = calculateGoalHeuristic(goalPropMap[role][goal][0]);
 			goalValuesRef[0][goal] = goalPropMap[role][goal][1];
-			if (false) {
+			/*
 				for (int i = basePropStart; i < inputPropStart; i++) {
 					Log.println('x', propIndex[i] + " = " + Arrays.toString(significanceRef[0][goal][i-basePropStart]));
 				}
-			}
+			*/
 		}
 	}
 	
@@ -610,7 +610,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		queue.add(-goalNum); // reverse of natural ordering desired
 		float trueSignificance, falseSignificance;
 		int maxPropNum = numProps;
-		float totalDrained = 1;
 		while (!queue.isEmpty()) {
 			int propNum = -queue.poll();
 			if (propNum == maxPropNum) {
@@ -644,7 +643,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			else {
 				continue;
 			}
-			totalDrained += (trueSignificance + falseSignificance) * inputs.size() - (significance[propNum][0] + significance[propNum][1]);
 			for(Component input : inputs) {
 				Integer prevPropNum = propMap.get(input);
 				if (prevPropNum != null) {
@@ -654,7 +652,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				}
 			}
 		}
-		Log.println('x', "Total drained " + totalDrained);
 		return Arrays.copyOfRange(significance, basePropStart, inputPropStart);
 	}
 

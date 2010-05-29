@@ -59,7 +59,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	
 	private final boolean KEEP_TIME = true;
 	private final long GRACE_PERIOD = 200;
-	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.0f;
+	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.1f;
 	private final float DEPTH_INITIAL_OFFSET = 0.5f;
 	private int heuristicUpdateInterval = 0;
 	private List<String> timeLog = new ArrayList<String>();
@@ -248,7 +248,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		Log.println('i', "Turn " + rootDepth + ", starting search at " + depth
 				+ " with best = " + bestWorkingMove + "; end book size = "
 				+ endBook.book.size());
-		boolean hasLost = false, hasWon = false;
+		boolean hasLost = false;
 		int alreadySearched, alreadyPVSearched;
 		alreadySearched = alreadyPVSearched = 0;
 		long searchStartTime = System.currentTimeMillis();
@@ -267,6 +267,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 						role = getRole();
 						updateStateMachine = null;
 						heuristic = getHeuristic(machine, role);
+						findGoalBounds(machine, role);
+						alpha = minGoal - 1;
+						beta = maxGoal + 1;
 					}
 				}
 				
@@ -297,12 +300,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 					break;
 				}
 				
-				if (move.value == maxGoal) {
-					hasWon = true;
-					break;
-				}
 				principalMovesCache = currentCache;
 				depth++;
+				if (move.value == maxGoal) {
+					break;
+				}
 			}
 			// Try to make opponents' life hard / force them to respond
 			// Iterative blunder approach: give opponent more and more ways to
@@ -312,7 +314,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				if (principalMovesCache.containsKey(state))
 					bestWorkingMove = principalMovesCache.get(state).valuedMove;
 				throw new TimeUpException();
-			} else if (hasWon && !preemptiveSearch) {
+			} else if (bestWorkingMove.value == maxGoal && !preemptiveSearch) {
 				Log.println('i', "Found a win at depth " + (rootDepth + depth)
 						+ ". Move towards win: " + bestWorkingMove);
 				if (depth == 1) {
@@ -338,7 +340,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			nextStartDepth = depth - 2;
 			if (nextStartDepth < 1)
 				nextStartDepth = 1;
-			if (hasWon || hasLost)
+			if (hasLost || bestWorkingMove.value == maxGoal)
 				nextStartDepth = 1;
 		} catch (RuntimeException e) {
 			e.printStackTrace();
@@ -461,8 +463,6 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			if (possibleMoves.remove(principalMove.valuedMove.move)) {
 				principalMoveFound = true;
 				int cachedValue = principalMove.valuedMove.value;
-				int cachedAlpha = principalMove.alpha;
-				int cachedBeta = principalMove.beta;
 				principalMoveSignificance = cachedValue / (float) (avgGoal);
 				/*
 				if (cachedValue <= cachedAlpha) {

@@ -102,6 +102,7 @@ public final class BooleanPropNet extends PropNet {
 	/** A reference to the single, unique, TerminalProposition. */
 	private final int terminalIndex;
 	
+	public static final int GOAL_SCALE_FACTOR = 1000;
 
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
@@ -339,7 +340,7 @@ public final class BooleanPropNet extends PropNet {
 	private int getGoalValue(Proposition goalProp) {
 		GdlRelation relation = (GdlRelation) goalProp.getName().toSentence();
 		GdlConstant constant = (GdlConstant) relation.get(1);
-		return Integer.parseInt(constant.toString());
+		return GOAL_SCALE_FACTOR * Integer.parseInt(constant.toString());
 	}
 
 	/**

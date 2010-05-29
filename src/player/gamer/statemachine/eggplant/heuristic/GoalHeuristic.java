@@ -1,10 +1,10 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
 import java.util.Arrays;
-import java.util.TreeMap;
 
 import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
+import util.propnet.architecture.BooleanPropNet;
 import util.statemachine.BooleanMachineState;
 import util.statemachine.MachineState;
 import util.statemachine.Role;
@@ -35,8 +35,9 @@ public class GoalHeuristic implements Heuristic {
 			}
 			/* if (goal == numGoals - 1)
 				Log.println('x', "At initializing goal " + goalValues[goal] + ": with sum " + sum);
-				*/
+				
 			TreeMap<String, String> sortingMap = new TreeMap<String, String>();
+			*/
 			for (int baseProp = 0; baseProp < numBaseProps; baseProp++) {
 				significance[goal][baseProp][0] /= sum;
 				significance[goal][baseProp][1] /= sum;
@@ -77,7 +78,7 @@ public class GoalHeuristic implements Heuristic {
 			if (timeout == 0)
 			  Log.println('x', "Goal proximity " + goalProximity + " = " + Arrays.toString(goalSignificance));
 			int ret = (int) Math.round(goalProximity);
-			if (ret >= 100) ret = 99;
+			if (ret >= BooleanPropNet.GOAL_SCALE_FACTOR * 100) ret = BooleanPropNet.GOAL_SCALE_FACTOR * 100 - 1;
 			if (ret <= 0) ret = 1;
 			return ret;
 		}
