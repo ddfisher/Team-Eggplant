@@ -7,8 +7,8 @@ import java.util.List;
 import player.gamer.statemachine.StateMachineGamer;
 import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
-import player.gamer.statemachine.eggplant.heuristic.GoalHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
+import player.gamer.statemachine.eggplant.heuristic.LatchHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
@@ -174,11 +174,13 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 
 		try {
-			if (machine instanceof BooleanPropNetStateMachine && rootDepth > 1) {
-				MachineState previousState = getPreviousState();
+			if (machine instanceof BooleanPropNetStateMachine) {
+				/*MachineState previousState = getPreviousState();
 				if (previousState != null) {
 					((BooleanPropNetStateMachine) machine).updateSatisfiedLatches(previousState, getLastMoves());
 				}
+				*/
+				((BooleanPropNetStateMachine) machine).updateSatisfiedLatches(state);
 			}
 			
 			iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
@@ -216,7 +218,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		if (machine instanceof BooleanPropNetStateMachine) {
 			BooleanPropNetStateMachine bpnsm = (BooleanPropNetStateMachine) machine;
 			int roleIndex = bpnsm.getRoleIndices().get(role);
-			return new GoalHeuristic((BooleanPropNetStateMachine)machine, roleIndex);
+			//return new GoalHeuristic(bpnsm, roleIndex);
+			return new LatchHeuristic(bpnsm, roleIndex);
 		}
 		else {
 			return new NullHeuristic((int) avgGoal);
@@ -271,6 +274,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 							findGoalBounds(machine, role);
 							alpha = minGoal - 1;
 							beta = maxGoal + 1;
+							depth = 1;
 						}
 					}
 

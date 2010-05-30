@@ -6,7 +6,7 @@ import java.io.PrintStream;
 
 public class Log {
 	// Set this string only in Log, to avoid messy code
-	private static final String outFlags = "itmqyxl";
+	private static final String outFlags = "itmqyxlu";
 	private static final String logFlags = "itmqyxlda";
 	
 
@@ -28,6 +28,8 @@ public class Log {
 	 *   r = Rearrangment of ordering in boolean propnet
 	 *   s = Filtering in boolean propnet debug
 	 *   t = Filtering
+	 *   u = Temp debugging
+	 *   v = Propagation precomputation
 	 *   x = Goal heuristic
 	 *   y = Threaded computation of prop nets
 	 *   z = Additional code generation info
