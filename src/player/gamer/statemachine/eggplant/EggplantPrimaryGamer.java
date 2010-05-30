@@ -248,7 +248,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		Log.println('i', "Turn " + rootDepth + ", starting search at " + depth
 				+ " with best = " + bestWorkingMove + "; end book size = "
 				+ endBook.book.size());
-		boolean hasLost = false;
+		boolean hasLost = false, hasWon = false;
 		int alreadySearched, alreadyPVSearched;
 		alreadySearched = alreadyPVSearched = 0;
 		long searchStartTime = System.currentTimeMillis();
@@ -301,10 +301,13 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				}
 				
 				principalMovesCache = currentCache;
-				depth++;
+			
 				if (move.value == maxGoal) {
+					hasWon = true;
 					break;
 				}
+				
+				depth++;
 			}
 			// Try to make opponents' life hard / force them to respond
 			// Iterative blunder approach: give opponent more and more ways to
@@ -313,15 +316,15 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				Log.println('i', "Trying desperate measures...");
 				if (principalMovesCache.containsKey(state))
 					bestWorkingMove = principalMovesCache.get(state).valuedMove;
-				throw new TimeUpException();
-			} else if (bestWorkingMove.value == maxGoal && !preemptiveSearch) {
+			} else if (hasWon) {
 				Log.println('i', "Found a win at depth " + (rootDepth + depth)
 						+ ". Move towards win: " + bestWorkingMove);
+				Log.println('i', "Cache (size " + principalMovesCache.size() + "): " + principalMovesCache);
 				if (depth == 1) {
 					printTimeLog();
 				}
-				throw new TimeUpException();
 			}
+			throw new TimeUpException();
 		} catch (TimeUpException ex) {
 			if (preemptiveSearch) {
 				bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(
@@ -340,7 +343,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			nextStartDepth = depth - 2;
 			if (nextStartDepth < 1)
 				nextStartDepth = 1;
-			if (hasLost || bestWorkingMove.value == maxGoal)
+			if (hasLost || hasWon)
 				nextStartDepth = 1;
 		} catch (RuntimeException e) {
 			e.printStackTrace();
@@ -427,7 +430,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			// stop
 			Log.println('a', "Heuristic; stopping expanding at depth " + depth);
 			return new ValuedMove(heuristic.eval(machine, state, role, alpha,
-					beta, actualDepth, rootDepth, endTime), null, rootDepth + depth,
+					beta, actualDepth, rootDepth, endTime), null, rootDepth + actualDepth,
 					false);
 		}
 

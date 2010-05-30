@@ -33,8 +33,8 @@ public class BooleanMachineState extends MachineState {
 	}
 	
 	public String toString() {
-		//return getContents().toString();
-		return Arrays.toString(this.baseprops);
+		return getContents().toString();
+		//return Arrays.toString(this.baseprops);
 	}
 	
 	public boolean[] getBooleanContents() {
