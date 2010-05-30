@@ -104,7 +104,7 @@ public final class BooleanPropNet extends PropNet {
 	/** A reference to the single, unique, TerminalProposition. */
 	private final int terminalIndex;
 	
-	public static final int GOAL_SCALE_FACTOR = 1000;
+	public static final int GOAL_SCALE_FACTOR = 1;
 
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
@@ -326,6 +326,87 @@ public final class BooleanPropNet extends PropNet {
 			}
 			if (hasFiltered)
 				components = new HashSet<Component>(filteredComponents);
+			
+			// Collapse base propositions if possible
+			for (Component component : components) {
+				if (component instanceof Proposition) {
+					Proposition prop = (Proposition) component;
+					if (prop.getInputs().size() == 1 && prop.getSingleInput() instanceof Transition) { // is a base prop
+						if (prop.getOutputs().size() == 1 && prop.getSingleOutput() instanceof Or) {
+							Component or = prop.getSingleOutput();
+							boolean collapsable = true;
+							for (Component orInput : or.getInputs()) {
+								if (!(orInput.getOutputs().size() == 1 && orInput.getInputs().size() == 1 && orInput.getSingleInput() instanceof Transition)) {
+									collapsable = false;
+									break;
+								}
+							}
+							if (collapsable) {
+								Proposition chosenBaseProp = prop;
+								Set<Component> orInputs = new HashSet<Component>(or.getInputs());
+								for (Component baseProp : orInputs) {
+									if (baseProp == chosenBaseProp) {
+										continue;
+									}
+									// Remove baseProp -> or connection
+									baseProp.getOutputs().remove(or);
+									or.getInputs().remove(baseProp);
+									
+									Component transition = baseProp.getSingleInput();
+									Proposition aboveTransitionProp = (Proposition) transition.getSingleInput();
+									
+									aboveTransitionProp.getOutputs().remove(transition);
+									transition.getInputs().remove(aboveTransitionProp);
+									
+									aboveTransitionProp.addOutput(or);
+									or.addInput(aboveTransitionProp);
+									
+									filteredComponents.remove(transition);
+									filteredComponents.remove(baseProp);
+									
+									numFiltered++;
+								}
+								Proposition newBaseProp = (Proposition) or.getSingleOutput();
+								Component transition = chosenBaseProp.getSingleInput();
+								Proposition aboveTransitionProp = (Proposition) transition.getSingleInput();
+								
+								aboveTransitionProp.getOutputs().remove(transition);
+								transition.getInputs().remove(aboveTransitionProp);
+								
+								aboveTransitionProp.addOutput(or);
+								or.addInput(aboveTransitionProp);
+								
+								chosenBaseProp.getOutputs().remove(or);
+								or.getInputs().remove(chosenBaseProp);
+								
+								or.getOutputs().remove(newBaseProp);
+								newBaseProp.getInputs().remove(or);
+								
+								transition.getOutputs().remove(chosenBaseProp);
+								chosenBaseProp.getInputs().remove(transition);
+								
+								assert chosenBaseProp.getInputs().size() == 0;
+								assert chosenBaseProp.getOutputs().size() == 0;
+								assert transition.getInputs().size() == 0;
+								assert transition.getOutputs().size() == 0;
+								assert or.getOutputs().size() == 0;
+								assert newBaseProp.getInputs().size() == 0;
+								
+								// Rewire!
+								newBaseProp.addInput(transition);
+								transition.addOutput(newBaseProp);
+								
+								transition.addInput(chosenBaseProp);
+								chosenBaseProp.addOutput(transition);
+								
+								chosenBaseProp.addInput(or);
+								or.addOutput(chosenBaseProp);
+								hasFiltered = true;
+							}
+						}
+					}
+				}
+			}
 		} while (hasFiltered);
 		
 		// Update all components field 
@@ -382,7 +463,7 @@ public final class BooleanPropNet extends PropNet {
 		}
 		propIndex = new Proposition[1 + allPropositions.size()]; // 1 for init, which is special case
 
-		Log.println('t', "Filtered " + numFiltered + " props; now " + ( 1 + allPropositions.size() ) + " remaining");
+		Log.println('t', "Filtered " + numFiltered + " / " + (1 + allPropositions.size() + numFiltered) + " props = " + ( 100.0 * numFiltered / (1 + allPropositions.size() + numFiltered) )  + "%; now " + ( 1 + allPropositions.size() ) + " remaining");
 		// Setup init
 		int index = 0;
 		propIndex[index] = initProposition;
