@@ -53,7 +53,7 @@ public class OperatorFactory {
 			addMonteCarloInit(operatorClass);
 			
 			Operator operator = (Operator) operatorClass.toClass().newInstance();
-			operator.initMonteCarlo(legalPropMap, legalInputMap);
+			operator.initMonteCarlo(legalPropMap, legalInputMap, null, null);
 			return operator;
 		} catch (IllegalAccessException ex) {
 			ex.printStackTrace();
@@ -107,25 +107,23 @@ public class OperatorFactory {
 	private static void addMonteCarlo(CtClass operatorClass, int numRoles, int numLegals, int inputStart, int numInputs, int terminalIndex)
 			throws CannotCompileException {
 		StringBuilder body = new StringBuilder();
-		body.append("public boolean " + MONTE_CARLO + "(boolean[] props, int maxDepth) {\n");
-		body.append("int depth = 0;\n");
-		body.append("while (depth < maxDepth) {\n");
-			body.append("depth++;\n");
+		body.append("public int " + MONTE_CARLO + "(boolean[] props) {\n");
+		body.append("while(true) {\n");
 			body.append("java.util.Arrays.fill(props, " + inputStart + ", " + (inputStart + numInputs) + ", false);\n");
 			body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
 				body.append("int[] order = new int[" + numLegals + "];\n");
 				body.append("for (int index = 0; index < " + numLegals + "; index++) {\n");
 					body.append("order[index] = index;\n");
 				body.append("}\n");
-				body.append("for (int index = " + numLegals + "; index > 0; index--) {\n");
-					body.append("int swapIndex = rand.nextInt(index);\n");
+				body.append("for (int index = " + numLegals + "-1; index >= 0; index--) {\n");
+					body.append("int swapIndex = rand.nextInt(index+1);\n");
 					body.append("int temp = order[swapIndex];\n");
 					body.append("order[swapIndex] = order[index];\n");
 					body.append("order[index] = temp;\n");
 				body.append("}\n");
 				
-				body.append("for (int index = 0; index < " + numLegals + "; index++) {\n");
-					body.append("int index = order[index];\n");
+				body.append("for (int i = 0; i < " + numLegals + "; i++) {\n");
+					body.append("int index = order[i];\n");
 					body.append("int inputIndex = legalInputMap[ legalPropMap[role][index] ];\n");
 					body.append("props[inputIndex] = true;\n");
 					body.append("propagateLegalOnly(props, role, index);\n");
@@ -137,10 +135,9 @@ public class OperatorFactory {
 
 			body.append("propagateInternal(props);\n");
 			body.append("if (props[" + terminalIndex + "])\n");
-				body.append("return true;\n");
+				body.append("return 1;\n");
 			body.append("transition(props);\n");
 		body.append("}\n");
-		body.append("return false;\n");
 		body.append("}\n");
 		Log.println('c', body.toString());
 		operatorClass.addMethod(CtNewMethod.make(body.toString(), operatorClass));
@@ -345,7 +342,7 @@ public class OperatorFactory {
 	
 	private static void addMonteCarloInit(CtClass operatorClass) throws CannotCompileException{
 		StringBuilder body = new StringBuilder();
-		body.append("public void " + MONTE_CARLO_INIT + "(int[][] legalPropMap, int[] legalInputMap) {\n");
+		body.append("public void " + MONTE_CARLO_INIT + "(int[][] legalPropMap, int[] legalInputMap, int[] goalProps, int[] goalValues) {\n");
 		body.append("this.legalPropMap = legalPropMap;\n");
 		body.append("this.legalInputMap = legalInputMap;\n");
 		body.append("this.rand = new java.util.Random();\n");

@@ -17,6 +17,6 @@ public abstract class Operator {
 	public abstract void propagateTerminalOnly(boolean[] props);
 	public abstract void propagateLegalOnly(boolean[] props, int role, int legalIndex);
 	public abstract void propagateGoalOnly(boolean[] props, int role);
-	public abstract boolean monteCarlo(boolean[] props, int maxDepth);
-	public abstract void initMonteCarlo(int[][] legalPropMap, int[] legalInputMap);
+	public abstract int monteCarlo(boolean[] props);
+	public abstract void initMonteCarlo(int[][] legalPropMap, int[] legalInputMap, int[] goalProps, int[] goalValues);
 }
