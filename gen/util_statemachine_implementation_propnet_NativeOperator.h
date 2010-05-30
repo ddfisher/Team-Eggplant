@@ -71,6 +71,14 @@ JNIEXPORT jint JNICALL Java_util_statemachine_implementation_propnet_NativeOpera
 JNIEXPORT void JNICALL Java_util_statemachine_implementation_propnet_NativeOperator_initMonteCarlo
   (JNIEnv *, jobject, jobjectArray, jintArray, jintArray, jintArray);
 
+/*
+ * Class:     util_statemachine_implementation_propnet_NativeOperator
+ * Method:    multiMonte
+ * Signature: ([ZI)J
+ */
+JNIEXPORT jlong JNICALL Java_util_statemachine_implementation_propnet_NativeOperator_multiMonte
+  (JNIEnv *, jobject, jbooleanArray, jint);
+
 #ifdef __cplusplus
 }
 #endif

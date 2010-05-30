@@ -114,7 +114,22 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private Set<Proposition> relevantPropositions;
 	
 	private Operator operator;
+	private Role mainRole;
+	
+	public BooleanPropNetStateMachine() {
+		super();
+	}
+	
+	public BooleanPropNetStateMachine(GdlProposition roleGDL) {
+		super();
+		mainRole = getRoleFromProp(roleGDL);
+	}
 
+	public BooleanPropNetStateMachine(Role role) {
+		super();
+		mainRole = role;
+	}
+	
 	/**
 	 * Initializes the PropNetStateMachine. You should compute the topological
 	 * ordering here. Additionally you can compute the initial state here, if
@@ -583,7 +598,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 //		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
 //				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
-				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, null);
+				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
 //		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
 	}
 	
@@ -828,22 +843,30 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 	}
 	
-	public void multiMonte(MachineState state, Role role){
-		int sum = 0;
-		for (int i = 0; i < 10000; i++) {
-			MachineState newState = monteCarlo(state, 0);
-			if (newState != null) {
-				try {
-					sum += getGoal(newState, role);
-				} catch (GoalDefinitionException e) {
+	public long multiMonte(MachineState state, int probes){
+//		long start = System.currentTimeMillis();
+		long sum = 0;
+		if (operator instanceof NativeOperator) {
+			System.out.println("Native!");
+			sum = ((NativeOperator)operator).multiMonte(initBasePropositionsFromState(state), probes);
+		} else {
+			for (int i = 0; i < probes; i++) {
+				MachineState newState = monteCarlo(state, 0);
+				if (newState != null) {
+					try {
+						sum += getGoal(newState, mainRole);
+					} catch (GoalDefinitionException e) {
+						i--;
+					}
+				} else {
 					i--;
 				}
-			} else {
-				i--;
 			}
 		}
-		
-		System.out.println("Monte Carlo Results: " + sum/10000.0);
+//		long end = System.currentTimeMillis();
+//		System.out.println("Monte Carlo Results: " + sum/(double)probes + "\tin " + (end-start) + " ms at " + 
+//				(end-start)/(double)probes + " ms per probe");
+		return sum;
 	}
 	
 	
@@ -902,7 +925,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		Log.println('g', "Starting factoring with " + this.toString());
 		
-		BooleanPropNetStateMachine referenceMachine = new BooleanPropNetStateMachine();
+		BooleanPropNetStateMachine referenceMachine = new BooleanPropNetStateMachine(mainRole);
 		referenceMachine.initialize(description);
 				
 		Map<Proposition, List<Proposition>> lowestLevel = new HashMap<Proposition, List<Proposition>>();
@@ -1145,7 +1168,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		// Generate the new statemachines
 		BooleanPropNetStateMachine[] minions = new BooleanPropNetStateMachine[factors.size()];
 		for (int i = 0; i < factors.size(); i++) {
-			minions[i] = new BooleanPropNetStateMachine();
+			minions[i] = new BooleanPropNetStateMachine(mainRole);
 			minions[i].initialize(factors.get(i).components, rolesList);
 			minions[i].pnet.renderToFile(PNET_FOLDER + File.separator + "factor" + i + ".dot");			
 			Log.println('f', "Factor " + i + " : " + minions[i].toString());

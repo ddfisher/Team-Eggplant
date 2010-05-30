@@ -35,24 +35,9 @@ public class MonteCarloHeuristic implements Heuristic {
 	public int eval(StateMachine machine, MachineState state, Role role, int alpha, int beta, int depth, int absDepth, long timeout) 
 	throws TimeUpException {
 		if (machine instanceof BooleanPropNetStateMachine) {
-			int sum = 0;
-			int successfulTrials = 0;
-			for (int i = 0; i < numTrials; i++) {
-				BooleanPropNetStateMachine bool = (BooleanPropNetStateMachine)machine;
-				MachineState result = bool.monteCarlo(state, maxDepth);
-				if (result != null) {
-					try {
-						sum += bool.getGoal(result, role);
-						successfulTrials++;
-					} catch (GoalDefinitionException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-						continue;
-					}
-				}
-			}
+			long sum = ((BooleanPropNetStateMachine)machine).multiMonte(state, numTrials);
 			goalSum += sum;
-			goalObservations += successfulTrials;
+			goalObservations += numTrials;
 			int avg = (int) (goalSum / goalObservations);
 			return avg;
 		}

@@ -558,7 +558,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	
 	public void generateBooleanPropNetStateMachine() {
 		Log.println('y', "Threadedit  BPNSM compute started " + System.currentTimeMillis());
-		CachedBooleanPropNetStateMachine bpnet = new CachedBooleanPropNetStateMachine();
+		CachedBooleanPropNetStateMachine bpnet = new CachedBooleanPropNetStateMachine(getRoleName());
 		bpnet.initialize(getMatch().getDescription());
 		Log.println('y', "Threaded BPNSM compute ended " + System.currentTimeMillis());
 		synchronized (updateStateMachineLock) {

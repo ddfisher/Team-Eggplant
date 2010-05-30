@@ -37,6 +37,7 @@ public class NativeOperatorFactory {
 	private static final String LEGAL = "propagateLegalOnly";
 	private static final String GOAL = "propagateGoalOnly";
 	private static final String MONTE_CARLO = "monteCarlo";
+	private static final String MULTI_MONTE = "multiMonte";
 
 	private static int constantProps = 0;
 	private static int internalProps = 0;
@@ -56,6 +57,7 @@ public class NativeOperatorFactory {
 		addGoalPropagate(source, goalOrderings, propMap);
 		
 		addMonteCarlo(source, legalPropMap.length, legalPropMap[0].length, inputPropStart, inputPropLength, terminalIndex);
+		addMultiMonte(source, propMap.size(), goals.length);
 
 		try {
 			FileWriter writer = new FileWriter(path);
@@ -78,7 +80,16 @@ public class NativeOperatorFactory {
 			}
 			
 			NativeOperator no = new NativeOperator(System.getProperty("user.dir") + File.separator + libPath);
-			no.initMonteCarlo(legalPropMap, legalInputMap, null, null);
+			
+			
+			int[] goalProps = new int[goals.length];
+			int[] goalValues = new int[goals.length];
+			for (int i = 0; i < goals.length; i++) {
+				goalProps[i] = goals[i][0];
+				goalValues[i] = goals[i][1];
+			}
+			
+			no.initMonteCarlo(legalPropMap, legalInputMap, goalProps, goalValues);
 			Log.println('m', "Monte Carlo Initialized!");
 			return no;
 		} catch (IOException e) {
@@ -105,8 +116,8 @@ public class NativeOperatorFactory {
 		source.append("jint **legalPropMap;\n");
 		source.append("jint *legalInputMap;\n");
 		source.append("jint *numInputs;\n");
-		source.append("jint *goalProp;\n");
-		source.append("jint *goalValue;\n");
+		source.append("jint *goalProps;\n");
+		source.append("jint *goalValues;\n");
 	}
 
 	private static void addTransition(StringBuilder source, List<Proposition> transitionOrdering, Map<Proposition, Integer> propMap) {
@@ -345,6 +356,41 @@ public class NativeOperatorFactory {
 		}
 	}
 	
+	private static void addMultiMonte(StringBuilder source, int numProps, int numGoals) {
+		StringBuilder method = new StringBuilder();
+		method.append("jlong multiMonte(jboolean *props, jint probes) {\n");
+		method.append("jlong sum = 0;\n");
+		method.append("for (int i = 0; i < probes; i++) {\n");
+		method.append("jboolean tempProps[" + numProps + "];\n");
+		method.append("memcpy(tempProps, props, sizeof(jboolean) * " + numProps + ");\n");
+		method.append(""+ MONTE_CARLO + "(tempProps);\n");
+		method.append("for (int g = 0; g < " + numGoals + "; g++) {\n");
+		
+//		method.append("printf(\"%d\\n\", tempProps[goalProps[g]]);\n");
+		
+		method.append("if (tempProps[goalProps[g]]) {\n");
+		method.append("sum+=goalValues[g];\n");
+		method.append("break;\n");
+		method.append("}\n");
+		method.append("}\n");
+//		method.append("printf(\"-------------------------%ld\\n\", sum);\n");
+		method.append("}\n");
+		method.append("return sum;\n");
+		method.append("}\n");
+
+		source.append(method);
+		
+		StringBuilder wrapperMethod = new StringBuilder();
+		wrapperMethod.append("JNIEXPORT jlong JNICALL " + PREFIX + MULTI_MONTE + "(JNIEnv *env, jobject obj, jbooleanArray javaArray, jint probes) {\n");
+		wrapperMethod.append("jboolean *props = (*env)->GetBooleanArrayElements(env, javaArray, NULL);\n");
+		wrapperMethod.append("jlong result = " + MULTI_MONTE + "(props, probes);\n");
+		wrapperMethod.append("(*env)->ReleaseBooleanArrayElements(env, javaArray, props, JNI_ABORT);\n");
+		wrapperMethod.append("return result;\n");
+		wrapperMethod.append("}\n");
+
+		source.append(wrapperMethod);
+	}
+	
 	private static void addMonteCarlo(StringBuilder source, int numRoles, int numLegals, int inputStart, int numInputs, int terminalIndex) {
 		StringBuilder body = new StringBuilder();
 		body.append("int input[" + numRoles + "];\n");
@@ -427,17 +473,21 @@ public class NativeOperatorFactory {
 //			body.append("(*env)->DeleteLocalRef(env, oneDim);\n");
 		body.append("}\n");
 		
-//		body.append("int numGoals = (*env)->GetArrayLength(env, javaGoalProps);\n");
-//		
-//		body.append("jint *tempGoalProps = (*env)->GetIntArrayElements(env, javaGoalProps, NULL);\n");
-//		body.append("goalProps = malloc(sizeof(jint) * numGoals);\n");
-//		body.append("memcpy(numGoals, tempGoalProps, numGoals * sizeof(jint));\n");
-//		body.append("(*env)->ReleaseIntArrayElements(env, javaGoalProps, tempGoalProps, JNI_ABORT);\n");
-//		
-//		body.append("jint *tempGoalValues = (*env)->GetIntArrayElements(env, javaGoalValues, NULL);\n");
-//		body.append("goalValues = malloc(sizeof(jint) * numGoals);\n");
-//		body.append("memcpy(numGoals, tempGoalValues, numGoals * sizeof(jint));\n");
-//		body.append("(*env)->ReleaseIntArrayElements(env, javaGoalValues, tempGoalValues, JNI_ABORT);\n");
+		body.append("int numGoals = (*env)->GetArrayLength(env, javaGoalProps);\n");
+		
+		body.append("jint *tempGoalProps = (*env)->GetIntArrayElements(env, javaGoalProps, NULL);\n");
+		body.append("goalProps = malloc(sizeof(jint) * numGoals);\n");
+		body.append("memcpy(goalProps, tempGoalProps, numGoals * sizeof(jint));\n");
+		body.append("(*env)->ReleaseIntArrayElements(env, javaGoalProps, tempGoalProps, JNI_ABORT);\n");
+		
+//		body.append("for (int i = 0; i < numGoals; i++) printf(\"Goal Prop: %d\\n\", goalProps[i]);\n"); //TODO: remove
+		
+		body.append("jint *tempGoalValues = (*env)->GetIntArrayElements(env, javaGoalValues, NULL);\n");
+		body.append("goalValues = malloc(sizeof(jint) * numGoals);\n");
+		body.append("memcpy(goalValues, tempGoalValues, numGoals * sizeof(jint));\n");
+		body.append("(*env)->ReleaseIntArrayElements(env, javaGoalValues, tempGoalValues, JNI_ABORT);\n");
+		
+//		body.append("for (int i = 0; i < numGoals; i++) printf(\"Goal Value: %d\\n\", goalValues[i]);\n"); //TODO: remove
 		
 		body.append("}\n");
 		

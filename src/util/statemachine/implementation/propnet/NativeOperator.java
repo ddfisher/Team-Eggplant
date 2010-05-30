@@ -30,4 +30,6 @@ public class NativeOperator extends Operator {
 	
 	@Override
 	public native void initMonteCarlo(int[][] legalPropMap, int[] legalInputMap, int[] goalProps, int[] goalValues);
+	
+	public native long multiMonte(boolean[] props, int probes);
 }
