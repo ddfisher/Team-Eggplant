@@ -122,6 +122,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	
 	public BooleanPropNetStateMachine() {
 		super();
+		mainRole = null;
 	}
 	
 	public BooleanPropNetStateMachine(GdlProposition roleGDL) {
@@ -195,6 +196,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				count++;
 			}
 		}
+		
+		if (mainRole == null)
+			mainRole = roleIndex[0];
+		
 		Log.println('i', "" + count + " constants ");
 		initOperator();
 		
