@@ -407,6 +407,106 @@ public final class BooleanPropNet extends PropNet {
 					}
 				}
 			}
+			
+			if (hasFiltered)
+				components = new HashSet<Component>(filteredComponents);
+			
+			// Constant propagation
+			for (Component component : components) {
+				if (component instanceof Constant) {
+					boolean constantValue = component.getValue();
+					Proposition constantProp = (Proposition) component.getSingleOutput();
+					Set<Component> toSever = new HashSet<Component>();
+					Set<Component> toTrue = new HashSet<Component>();
+					Set<Component> toFalse = new HashSet<Component>();
+					for (Component output : constantProp.getOutputs()) {
+						if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1) {
+							if (constantValue) {
+								toTrue.add(output);
+							}
+							else {
+								toFalse.add(output);
+							}
+						}
+						else if (output instanceof And) {
+							if (constantValue) {
+								toSever.add(output);
+							}
+							else {
+								toFalse.add(output);
+							}
+						}
+						else if (output instanceof Or) {
+							if (constantValue) {
+								toTrue.add(output);
+							}
+							else {
+								toSever.add(output);
+							}
+						}
+						else if (output instanceof Not) {
+							if (constantValue) {
+								toFalse.add(output);
+							}
+							else {
+								toTrue.add(output);
+							}
+						}
+					}
+					
+					for (Component connectorSevered : toSever) {
+						connectorSevered.getInputs().remove(constantProp);
+						constantProp.getOutputs().remove(connectorSevered);
+						hasFiltered = true;
+					}
+					for (Component connectorTrued : toTrue) {
+						Proposition propTrued = (Proposition) connectorTrued.getSingleOutput();
+						
+						propTrued.getInputs().remove(connectorTrued);
+						connectorTrued.getOutputs().remove(propTrued);
+						
+						Component trueComponent = new Constant(true);
+						trueComponent.addOutput(propTrued);
+						propTrued.addInput(trueComponent);
+						
+						filteredComponents.add(trueComponent);
+						
+						connectorTrued.getInputs().remove(constantProp);
+						constantProp.getOutputs().remove(connectorTrued);
+						
+						numFiltered += removeIslands(connectorTrued, filteredComponents);
+						hasFiltered = true;
+					}
+					for (Component connectorFalsed : toFalse) {
+						Proposition propFalsed = (Proposition) connectorFalsed.getSingleOutput();
+						
+						propFalsed.getInputs().remove(connectorFalsed);
+						connectorFalsed.getOutputs().remove(propFalsed);
+						
+						Component falseComponent = new Constant(false);
+						falseComponent.addOutput(propFalsed);
+						propFalsed.addInput(falseComponent);
+						
+						filteredComponents.add(falseComponent);
+						
+						connectorFalsed.getInputs().remove(constantProp);
+						constantProp.getOutputs().remove(connectorFalsed);
+						
+						numFiltered += removeIslands(connectorFalsed, filteredComponents);
+						hasFiltered = true;
+					}					
+					
+					if (!isSpecialNode(constantProp) && constantProp.getOutputs().size() == 0) {
+						filteredComponents.remove(constantProp);
+						filteredComponents.remove(component);
+						numFiltered++;
+						hasFiltered = true;
+					}
+				}
+			}
+
+			if (hasFiltered)
+				components = new HashSet<Component>(filteredComponents);
 		} while (hasFiltered);
 		
 		// Update all components field 
@@ -665,5 +765,19 @@ public final class BooleanPropNet extends PropNet {
 		}
 		return false;
 	}
-
+	
+	private int removeIslands(Component connector, Set<Component> filteredComponents) {
+		assert connector.getOutputs().size() == 0;
+		int count = 0;
+		for (Component prop : connector.getInputs()) {
+			prop.getOutputs().remove(connector);
+			if (!isSpecialNode((Proposition)prop) && prop.getOutputs().size() == 0) { // continue processing
+				filteredComponents.remove(prop);
+				count += removeIslands(prop.getSingleInput(), filteredComponents); 
+			}
+		}
+		count++;
+		filteredComponents.remove(connector);
+		return count;
+	}
 }
