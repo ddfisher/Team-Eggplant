@@ -1,6 +1,9 @@
 package util.propnet.architecture;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -16,6 +19,7 @@ import util.gdl.grammar.GdlProposition;
 import util.gdl.grammar.GdlRelation;
 import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.components.And;
+import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.architecture.components.Transition;
@@ -99,6 +103,7 @@ public final class BooleanPropNet extends PropNet {
 	/** A reference to the single, unique, TerminalProposition. */
 	private final int terminalIndex;
 	
+	public static final int GOAL_SCALE_FACTOR = 1000;
 
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
@@ -126,8 +131,152 @@ public final class BooleanPropNet extends PropNet {
 		Set<Component> filteredComponents = new HashSet<Component>(components);
 
 		boolean hasFiltered;
+		
 		do {
-			hasFiltered = false;
+			hasFiltered = false; 
+			for (Component component : components) {
+				if (component instanceof Proposition) {
+					Proposition prop = (Proposition) component;
+					Set<Component> outputs = prop.getOutputs();
+					List<Component> nots = new ArrayList<Component>();
+					List<Component> ands = new ArrayList<Component>();
+					List<Component> ors = new ArrayList<Component>();
+					
+					for (Component output : outputs) {
+						if (output instanceof Not) {
+							nots.add(output);
+						}
+						else if (output instanceof And) {
+							ands.add(output);
+						}
+						else if (output instanceof Or) {
+							ors.add(output);
+						}
+					}
+					if (nots.size() >= 2) {
+						// Combine all Nots
+						Component chosenNot = nots.get(0);
+						Proposition chosenNotProp = (Proposition) chosenNot.getSingleOutput();
+						for (int i = 1; i < nots.size(); i++) {
+							Component discardNot = nots.get(i);
+							Proposition discardNotProp = (Proposition) discardNot.getSingleOutput();
+							
+							// Make sure we don't remove a special node
+							if (isSpecialNode(discardNotProp)) {
+								continue;
+							}
+							
+							// Remove top connection
+							outputs.remove(discardNot);
+							discardNot.getInputs().remove(prop);
+							
+							// Shift bottom connection
+							for (Component discardNotPropOutput : discardNotProp.getOutputs()) {
+								discardNotPropOutput.getInputs().remove(discardNotProp);
+								chosenNotProp.addOutput(discardNotPropOutput);
+								discardNotPropOutput.addInput(chosenNotProp);
+							}
+							discardNotProp.getOutputs().clear();
+							
+							filteredComponents.remove(discardNot);
+							filteredComponents.remove(discardNotProp);
+							numFiltered++;
+							hasFiltered = true;
+						}
+					}
+					if (ands.size() > 2) {
+						for (int i = 0; i < ands.size(); i++) {
+							Set<Component> sameInputAnds = new HashSet<Component>();
+							for (int j = i + 1; j < ands.size(); j++) {
+								if (ands.get(i).getInputs().equals(ands.get(j).getInputs())) {
+									sameInputAnds.add(ands.get(j));
+								}
+							}
+							if (sameInputAnds.size() == 0) {
+								continue;
+							}
+							
+							Component chosenAnd = ands.get(i);
+							Proposition chosenAndProp = (Proposition) chosenAnd.getSingleOutput();
+							
+							for (Component discardAnd : sameInputAnds) {
+
+								Proposition discardAndProp = (Proposition) discardAnd.getSingleOutput();
+								
+								if (isSpecialNode(discardAndProp)) {
+									continue; 
+								}
+								
+								// Remove top connections
+								for (Component discardAndInput : discardAnd.getInputs()) {
+									discardAndInput.getOutputs().remove(discardAnd);
+								}
+								discardAnd.getInputs().clear();
+								
+								// Shift bottom connection
+								for (Component discardAndPropOutput : discardAndProp.getOutputs()) {
+									discardAndPropOutput.getInputs().remove(discardAndProp);
+									chosenAndProp.addOutput(discardAndPropOutput);
+									discardAndPropOutput.addInput(chosenAndProp);
+								}
+								discardAndProp.getOutputs().clear();
+								
+								filteredComponents.remove(discardAnd);
+								filteredComponents.remove(discardAndProp);
+								numFiltered++;
+								hasFiltered = true;
+							}
+								
+						}
+					}
+					if (ors.size() > 2) {
+						for (int i = 0; i < ors.size(); i++) {
+							Set<Component> sameInputOrs = new HashSet<Component>();
+							for (int j = i + 1; j < ors.size(); j++) {
+								if (ors.get(i).getInputs().equals(ors.get(j).getInputs())) {
+									sameInputOrs.add(ors.get(j));
+								}
+							}
+							if (sameInputOrs.size() == 0) {
+								continue;
+							}
+							
+							Component chosenOr = ors.get(i);
+							Proposition chosenOrProp = (Proposition) chosenOr.getSingleOutput();
+							
+							for (Component discardOr : sameInputOrs) {
+
+								Proposition discardOrProp = (Proposition) discardOr.getSingleOutput();
+								
+								if (isSpecialNode(discardOrProp)) {
+									continue; 
+								}
+								
+								// Remove top connections
+								for (Component discardOrInput : discardOr.getInputs()) {
+									discardOrInput.getOutputs().remove(discardOr);
+								}
+								discardOr.getInputs().clear();
+								
+								// Shift bottom connection
+								for (Component discardOrPropOutput : discardOrProp.getOutputs()) {
+									discardOrPropOutput.getInputs().remove(discardOrProp);
+									chosenOrProp.addOutput(discardOrPropOutput);
+									discardOrPropOutput.addInput(chosenOrProp);
+								}
+								discardOrProp.getOutputs().clear();
+								
+								filteredComponents.remove(discardOr);
+								filteredComponents.remove(discardOrProp);
+								numFiltered++;
+								hasFiltered = true;
+							}
+						}
+					}
+				}
+			}
+			components = new HashSet<Component>(filteredComponents);
+		
 	loop:	for (Component component : components) {
 				if ((component instanceof Or || component instanceof And) &&
 						component.getInputs().size() == 1 && component.getOutputs().size() == 1) { 
@@ -136,17 +285,8 @@ public final class BooleanPropNet extends PropNet {
 					
 					// Make sure below is not a special node
 	
-					if (below.getName() instanceof GdlConstant) {
-						String constantName = ((GdlConstant) below.getName()).getValue();
-						if (constantName.equals("INIT") || constantName.equals("terminal")) {
-							continue loop;
-						}
-					}
-					else if (below.getName() instanceof GdlFunction) {
-						String functionName = ((GdlFunction) below.getName()).getName().getValue();
-						if (functionName.equals("does") || functionName.equals("legal") || functionName.equals("goal")) {
-							continue loop;
-						}
+					if (isSpecialNode(below)) {
+						continue loop;
 					}
 					
 					// Make sure below does not lead to a transition (only internal nodes can propagate)
@@ -183,7 +323,6 @@ public final class BooleanPropNet extends PropNet {
 			if (hasFiltered)
 				components = new HashSet<Component>(filteredComponents);
 		} while (hasFiltered);
-		
 		
 		// Update all components field 
 		this.components = filteredComponents;
@@ -239,7 +378,7 @@ public final class BooleanPropNet extends PropNet {
 		}
 		propIndex = new Proposition[1 + allPropositions.size()]; // 1 for init, which is special case
 
-		Log.println('t', "Filtered " + numFiltered + " props; now " + allPropositions.size() + " remaining");
+		Log.println('t', "Filtered " + numFiltered + " props; now " + ( 1 + allPropositions.size() ) + " remaining");
 		// Setup init
 		int index = 0;
 		propIndex[index] = initProposition;
@@ -303,11 +442,15 @@ public final class BooleanPropNet extends PropNet {
 			Set<Proposition> goalProps = tempGoalPropositions.get(role);
 			int[][] goalPropsArray = new int[goalProps.size()][2];
 			index = 0;
-			for (Proposition goalProp : goalProps) {
+			List<Proposition> sortedGoalProps = new ArrayList<Proposition>(goalProps);
+			Collections.sort(sortedGoalProps, new Comparator<Proposition>() {
+				public int compare(Proposition a, Proposition b) {
+					return getGoalValue(a) - getGoalValue(b);
+				}
+			});
+			for (Proposition goalProp : sortedGoalProps) {
 				goalPropsArray[index][0] = propMap.get(goalProp);
-				GdlRelation relation = (GdlRelation) goalProp.getName().toSentence();
-				GdlConstant constant = (GdlConstant) relation.get(1);
-				goalPropsArray[index][1] = Integer.parseInt(constant.toString());
+				goalPropsArray[index][1] = getGoalValue(goalProp);
 				index++;
 			}
 			goalPropMap.put(role, goalPropsArray);
@@ -327,6 +470,12 @@ public final class BooleanPropNet extends PropNet {
 				}
 			}
 		}
+	}
+	
+	private int getGoalValue(Proposition goalProp) {
+		GdlRelation relation = (GdlRelation) goalProp.getName().toSentence();
+		GdlConstant constant = (GdlConstant) relation.get(1);
+		return GOAL_SCALE_FACTOR * Integer.parseInt(constant.toString());
 	}
 
 	/**
@@ -413,6 +562,23 @@ public final class BooleanPropNet extends PropNet {
 			propositions.remove(currComponent);
 		}
 		components.remove(currComponent);
+	}
+	
+	private boolean isSpecialNode(Proposition prop) {
+		// Make sure we don't remove a special node
+		if (prop.getName() instanceof GdlConstant) {
+			String constantName = ((GdlConstant) prop.getName()).getValue();
+			if (constantName.equals("INIT") || constantName.equals("terminal")) {
+				return true;
+			}
+		}
+		else if (prop.getName() instanceof GdlFunction) {
+			String functionName = ((GdlFunction) prop.getName()).getName().getValue();
+			if (functionName.equals("does") || functionName.equals("legal") || functionName.equals("goal")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 }

@@ -2,7 +2,7 @@ package player.gamer.statemachine.eggplant.misc;
 
 public class Log {
   // Set this string only in Log, to avoid messy code
-  private static final String flags = "ifhtmqly";
+  private static final String flags = "itmqyxl";
   
   /*
    * Flag codes:
@@ -11,7 +11,6 @@ public class Log {
    *   c = Code generation
    *   d = Non-uniform IDS
    *   e = Endgame book
-   *   f = findFarthestLoss (desperate measures) 
    *   g = Factoring debug
    *   h = Factoring
    *   i = iterative deepening
@@ -23,6 +22,7 @@ public class Log {
    *   r = Rearrangment of ordering in boolean propnet
    *   s = Filtering in boolean propnet debug
    *   t = Filtering
+   *   x = Goal heuristic
    *   y = Threaded computation of prop nets
    *   z = Additional code generation info
    */

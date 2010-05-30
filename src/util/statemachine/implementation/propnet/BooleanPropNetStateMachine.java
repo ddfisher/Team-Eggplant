@@ -9,7 +9,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.TreeMap;
 
 import player.gamer.statemachine.eggplant.misc.Log;
 import util.gdl.grammar.Gdl;
@@ -20,6 +22,7 @@ import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.components.And;
+import util.propnet.architecture.components.Constant;
 import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
@@ -104,8 +107,34 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	
 	private Move[] moveIndex;
 	
+	/** Latch mechanism */
+	private int[][][] sameTurnEffectsAr;
+	private int[][][] nextTurnEffectsAr;
+	private ArrayList<TreeMap<Integer, int[]>> sameTurnEffects;
+	private ArrayList<TreeMap<Integer, int[]>> nextTurnEffects;
+	private List<Integer> trueLatches;
+	private List<Integer> falseLatches;
+	private Set<Proposition> satisfiedLatches;
+	private Set<Proposition> relevantPropositions;
+	
 	private Operator operator;
+	private Role mainRole;
+	
+	public BooleanPropNetStateMachine() {
+		super();
+		mainRole = null;
+	}
+	
+	public BooleanPropNetStateMachine(GdlProposition roleGDL) {
+		super();
+		mainRole = getRoleFromProp(roleGDL);
+	}
 
+	public BooleanPropNetStateMachine(Role role) {
+		super();
+		mainRole = role;
+	}
+	
 	/**
 	 * Initializes the PropNetStateMachine. You should compute the topological
 	 * ordering here. Additionally you can compute the initial state here, if
@@ -161,6 +190,17 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		defaultOrdering = getOrdering(null);
 
+		int count = 0;
+		for (Component comp : pnet.getComponents()) {
+			if (comp instanceof Constant) {
+				count++;
+			}
+		}
+		
+		if (mainRole == null)
+			mainRole = roleIndex[0];
+		
+		Log.println('i', "" + count + " constants ");
 		initOperator();
 		
 		calculatePropEffects();
@@ -307,6 +347,68 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		return null;
 	}
+	
+	public void updateSatisfiedLatches(MachineState previousState, List<Move> lastMoves) {
+		if (satisfiedLatches.size() == trueLatches.size() + falseLatches.size())
+			return;
+		try {
+			// Set up the base propositions
+			boolean[] props = initBasePropositionsFromState(previousState);
+
+			// Set up the input propositions
+			List<GdlTerm> doeses = toDoes(lastMoves);
+			
+			// All input props start as false
+
+			for (GdlTerm does : doeses) {
+				Log.println('l', "Marking move with " + does);
+				props[inputPropMap.get(does)] = true;
+			}
+
+			Log.println('c', "Before propagate: " + Arrays.toString(props));
+			operator.propagate(props);
+			Log.println('c', "After propagate: " + Arrays.toString(props));
+			Log.println('l', "Using for update "+ new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex).getContents());
+			for (int latch : trueLatches) {
+				if (props[latch]) {
+					if (satisfiedLatches.add(propIndex[latch])) {
+						for (int otherProp : sameTurnEffects.get(latch).keySet()) {
+							relevantPropositions.remove(propIndex[otherProp]);
+						}
+						for (int otherProp : nextTurnEffects.get(latch).keySet()) {
+							relevantPropositions.remove(propIndex[otherProp]);
+						}
+						/*
+						for (int otherProp = 0; otherProp < numProps; otherProp++) {
+							if (sameTurnEffects[latch][otherProp][1] != 0 || nextTurnEffects[latch][otherProp][1] != 0) {
+								if (relevantPropositions.remove(propIndex[otherProp])) {
+									Log.println('l', "Removed " + propIndex[otherProp]);
+								}
+							}
+						}*/
+					}
+				}
+			}
+			for (int latch : falseLatches) {
+				if (!props[latch]) {
+					satisfiedLatches.add(propIndex[latch]);
+					if (satisfiedLatches.add(propIndex[latch])) {
+						for (int otherProp : sameTurnEffects.get(latch).keySet()) {
+							relevantPropositions.remove(propIndex[otherProp]);
+						}
+						for (int otherProp : nextTurnEffects.get(latch).keySet()) {
+							relevantPropositions.remove(propIndex[otherProp]);
+						}
+					}
+				}
+			}
+			Log.println('l', satisfiedLatches.size() + " satified latches: " + satisfiedLatches);
+			Log.println('l', relevantPropositions.size() + " relevant props");
+
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
 
 	private boolean[] initBasePropositionsFromState(MachineState state) {
 		if (state instanceof BooleanMachineState) {
@@ -405,6 +507,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	@Override
 	public List<Role> getRoles() {
 		return rolesList;
+	}
+	
+	public int[][][] getGoalPropMap() {
+		return goalPropMap;
 	}
 
 	/* Helper methods */
@@ -510,33 +616,634 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			Log.println('r', "Role " + role + " goal ordering : " + goalOrderings.get(role).size());
 		}
 		
-		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
-				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
-//		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
-				//goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
+//		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
+//				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
+		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
+				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
 //		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
 	}
 	
-	
-
-	private boolean[] generatePropArray(int start, int end) {
-		boolean[] props = new boolean[numProps];
-		for (int i = start; i < end; i++) {
-			props[i] = propIndex[i].getValue();
+	// The heuristic does not have access to most of the prop net info, so we pass in
+	// arrays of length 1 in the first dimension and use it as a pointer / reference
+	public void populateGoalHeuristicArrays(int role, float[][][][] significanceRef, int[][] goalValuesRef) {
+		int numGoals = goalPropMap[role].length;
+		goalValuesRef[0] = new int[numGoals];
+		significanceRef[0] = new float[numGoals][][];
+		for (int goal = 0; goal < numGoals; goal++) {
+			// Log.println('x', "Sigs for role " + role + " and goal " + propIndex[goalPropMap[role][goal][0]]);
+			significanceRef[0][goal] = calculateGoalHeuristic(goalPropMap[role][goal][0]);
+			goalValuesRef[0][goal] = goalPropMap[role][goal][1];
+			/*
+				for (int i = basePropStart; i < inputPropStart; i++) {
+					Log.println('x', propIndex[i] + " = " + Arrays.toString(significanceRef[0][goal][i-basePropStart]));
+				}
+			*/
 		}
+	}
+	
+	private float[][] calculateGoalHeuristic(int goalNum) {
+		float[][] significance = new float[numProps][2];
+		significance[goalNum][0] = 1;
+		PriorityQueue<Integer> queue = new PriorityQueue<Integer>();
+		queue.add(-goalNum); // reverse of natural ordering desired
+		float trueSignificance, falseSignificance;
+		int maxPropNum = numProps;
+		while (!queue.isEmpty()) {
+			int propNum = -queue.poll();
+			if (propNum == maxPropNum) {
+				continue;
+			}
+			
+			maxPropNum = propNum;
+			Proposition prop = propIndex[propNum];
+			if (prop.getInputs().size() != 1) {
+				continue;
+			}
+			Component connector = prop.getSingleInput();
+			int initialInputSize = connector.getInputs().size();
+			Set<Component> inputs = new HashSet<Component>(connector.getInputs());
+			inputs.retainAll(relevantPropositions);
+			if (inputs.size() != initialInputSize);
+			//inputs.removeAll(satisfiedLatches);
+			//Log.println('x', "Processing " + prop + " " + significance[propNum][0] + "," + significance[propNum][1] + " with connector " + connector + " to " + inputs);
+			if (connector instanceof And) {
+				trueSignificance = significance[propNum][0] / inputs.size();
+				falseSignificance = significance[propNum][1]; // * initialInputSize / inputs.size();
+			}
+			else if (connector instanceof Or) {
+				trueSignificance = significance[propNum][0]; // * initialInputSize / inputs.size();
+				falseSignificance = significance[propNum][1] / inputs.size();
+			}
+			else if (connector instanceof Not) {
+				trueSignificance = significance[propNum][1];
+				falseSignificance = significance[propNum][0];
+			}
+			else {
+				continue;
+			}
+			for(Component input : inputs) {
+				Integer prevPropNum = propMap.get(input);
+				if (prevPropNum != null) {
+					significance[prevPropNum][0] += trueSignificance;
+					significance[prevPropNum][1] += falseSignificance;
+					queue.add(-prevPropNum);
+				}
+			}
+		}
+		return Arrays.copyOfRange(significance, basePropStart, inputPropStart);
+	}
+	
+	private void calculatePropEffects() {
+		long start = System.currentTimeMillis();
+		Log.println('l', "Begin latch calculations");
+		//sameTurnEffects = new int[numProps][numProps][2];
+		//nextTurnEffects = new int[numProps][numProps][2];
+		sameTurnEffects = new ArrayList<TreeMap<Integer, int[]>>();
+		nextTurnEffects = new ArrayList<TreeMap<Integer, int[]>>();
+		for (int propNum = 0; propNum < numProps; propNum++) {
+			sameTurnEffects.add(new TreeMap<Integer, int[]>());
+			nextTurnEffects.add(new TreeMap<Integer, int[]>());
+		}
+		
+		int[] sameTurnAr, sameTurnAr2, nextTurnAr;
+		for (int propNum = numProps - 1; propNum >= 0; propNum--) {
+			if (propNum >= inputPropStart && propNum < internalPropStart) {
+				for (int nextPropNum = inputPropStart; nextPropNum < internalPropStart; nextPropNum++) {
+					//sameTurnEffects[propNum][nextPropNum][1] = -1;
+					sameTurnAr = sameTurnEffects.get(propNum).get(nextPropNum);
+					if (sameTurnAr == null) {
+						sameTurnAr = new int[2];
+						sameTurnEffects.get(propNum).put(nextPropNum, sameTurnAr);
+					}
+					sameTurnAr[1] = -1;
+				}
+			}
+			//sameTurnEffects[propNum][propNum][0] = -1;
+			//sameTurnEffects[propNum][propNum][1] = 1;
+			sameTurnAr = sameTurnEffects.get(propNum).get(propNum);
+			if (sameTurnAr == null) {
+				sameTurnAr = new int[2];
+				sameTurnEffects.get(propNum).put(propNum, sameTurnAr);
+			}
+			sameTurnAr[0] = -1;
+			sameTurnAr[1] = 1;
+			Proposition prop = propIndex[propNum];
+			for (Component output : prop.getOutputs()) {
+				{
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					Log.println('b', "Reached " + output + " " + nextProp + " " + nextPropNum);
+				}
+				if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					//sameTurnEffects[propNum][nextPropNum][0] = -1;
+					//sameTurnEffects[propNum][nextPropNum][1] = 1;
+					
+					
+					sameTurnAr = sameTurnEffects.get(propNum).get(nextPropNum);
+					if (sameTurnAr == null) {
+						sameTurnAr = new int[2];
+						sameTurnEffects.get(propNum).put(nextPropNum, sameTurnAr);
+					}
+					sameTurnAr[0] = -1;
+					sameTurnAr[1] = 1;
+					TreeMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
+					for (Integer i : map.keySet()) {
+						sameTurnAr2 = map.get(i);
+						for (int tf = 0; tf < 2; tf++) {
+							if (sameTurnAr2[tf] != 0) {
+								//sameTurnEffects[propNum][i][tf] = sameTurnAr2[tf];
+								sameTurnAr = sameTurnEffects.get(propNum).get(i);
+								if (sameTurnAr == null) {
+									sameTurnAr = new int[2];
+									sameTurnEffects.get(propNum).put(i, sameTurnAr);
+								}
+								sameTurnAr[tf] = sameTurnAr2[tf];
+							}
+						}
+					}
+					map = nextTurnEffects.get(nextPropNum);
+					for (Integer i : map.keySet()) {
+						nextTurnAr = map.get(i);
+						for (int tf = 0; tf < 2; tf++) {
+							if (nextTurnAr[tf] != 0) {
+								//nextTurnEffects[propNum][i][tf] = nextTurnAr[tf];
+								sameTurnAr = nextTurnEffects.get(propNum).get(i);
+								if (sameTurnAr == null) {
+									sameTurnAr = new int[2];
+									nextTurnEffects.get(propNum).put(i, sameTurnAr);
+								}
+								sameTurnAr[tf] = nextTurnAr[tf];
+							}
+						}
+					} 
+				}
+				else if (output instanceof And) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					//sameTurnEffects[propNum][nextPropNum][0] = -1;
+					
+					sameTurnAr = sameTurnEffects.get(propNum).get(nextPropNum);
+					if (sameTurnAr == null) {
+						sameTurnAr = new int[2];
+						sameTurnEffects.get(propNum).put(nextPropNum, sameTurnAr);
+					}
+					sameTurnAr[0] = -1;
+					TreeMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
+					for (Integer i : map.keySet()) {
+						sameTurnAr2 = map.get(i);
+						if (sameTurnAr2[0] != 0) {
+							//sameTurnEffects[propNum][i][0] = sameTurnAr2[0];
+							sameTurnAr = sameTurnEffects.get(propNum).get(i);
+							if (sameTurnAr == null) {
+								sameTurnAr = new int[2];
+								sameTurnEffects.get(propNum).put(i, sameTurnAr);
+							}
+							sameTurnAr[0] = sameTurnAr2[0];
+						}
+					}
+					map = nextTurnEffects.get(nextPropNum); 
+					for (Integer i : map.keySet()) {
+						nextTurnAr = map.get(i);
+						if (nextTurnAr[0] != 0) {
+							//nextTurnEffects[propNum][i][0] = nextTurnAr[0];
+							sameTurnAr = nextTurnEffects.get(propNum).get(i);
+							if (sameTurnAr == null) {
+								sameTurnAr = new int[2];
+								nextTurnEffects.get(propNum).put(i, sameTurnAr);
+							}
+							sameTurnAr[0] = nextTurnAr[0];
+						}
+					}
+				}
+				else if (output instanceof Or) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					//sameTurnEffects[propNum][nextPropNum][1] = 1;
+					
+					
+					sameTurnAr = sameTurnEffects.get(propNum).get(nextPropNum);
+					if (sameTurnAr == null) {
+						sameTurnAr = new int[2];
+						sameTurnEffects.get(propNum).put(nextPropNum, sameTurnAr);
+					}
+					sameTurnAr[1] = 1;
+					TreeMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
+					for (Integer i : map.keySet()) {
+						sameTurnAr2 = map.get(i);
+						if (sameTurnAr2[1] != 0) {
+							//sameTurnEffects[propNum][i][1] = sameTurnAr2[1];
+							sameTurnAr = sameTurnEffects.get(propNum).get(i);
+							if (sameTurnAr == null) {
+								sameTurnAr = new int[2];
+								sameTurnEffects.get(propNum).put(i, sameTurnAr);
+							}
+							sameTurnAr[1] = sameTurnAr2[1];
+						}
+					}
 
-		return props;
+					map = nextTurnEffects.get(nextPropNum); 
+					for (Integer i : map.keySet()) {
+						nextTurnAr = map.get(i);
+						if (nextTurnAr[1] != 0) {
+							//nextTurnEffects[propNum][i][1] = nextTurnAr[1];
+							sameTurnAr = nextTurnEffects.get(propNum).get(i);
+							if (sameTurnAr == null) {
+								sameTurnAr = new int[2];
+								nextTurnEffects.get(propNum).put(i, sameTurnAr);
+							}
+							sameTurnAr[1] = nextTurnAr[1];
+						}
+					}
+				}
+				else if (output instanceof Not) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					//sameTurnEffects[propNum][nextPropNum][0] = 1;
+					//sameTurnEffects[propNum][nextPropNum][1] = -1;
+					
+					sameTurnAr = sameTurnEffects.get(propNum).get(nextPropNum);
+					if (sameTurnAr == null) {
+						sameTurnAr = new int[2];
+						sameTurnEffects.get(propNum).put(nextPropNum, sameTurnAr);
+					}
+					sameTurnAr[0] = 1;
+					sameTurnAr[1] = -1;
+					TreeMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
+					for (Integer i : map.keySet()) {
+						sameTurnAr2 = map.get(i);
+						for (int tf = 0; tf < 2; tf++) {
+							if (sameTurnAr2[tf] != 0) {
+								//sameTurnEffects[propNum][i][1-tf] = sameTurnAr2[tf];
+								sameTurnAr = sameTurnEffects.get(propNum).get(i);
+								if (sameTurnAr == null) {
+									sameTurnAr = new int[2];
+									sameTurnEffects.get(propNum).put(i, sameTurnAr);
+								}
+								sameTurnAr[1-tf] = sameTurnAr2[tf];
+							}
+						}
+					}
+
+					map = nextTurnEffects.get(nextPropNum); 
+					for (Integer i : map.keySet()) {
+						nextTurnAr = map.get(i);
+						for (int tf = 0; tf < 2; tf++) {
+							if (nextTurnAr[tf] != 0) {
+								//nextTurnEffects[propNum][i][1-tf] = nextTurnAr[tf];
+								sameTurnAr = nextTurnEffects.get(propNum).get(i);
+								if (sameTurnAr == null) {
+									sameTurnAr = new int[2];
+									nextTurnEffects.get(propNum).put(i, sameTurnAr);
+								}
+								sameTurnAr[1-tf] = nextTurnAr[tf];
+							}
+						}
+					}
+				}
+				else if (output instanceof Transition) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					//nextTurnEffects[propNum][nextPropNum][0] = -1;
+					//nextTurnEffects[propNum][nextPropNum][1] = 1;
+					
+					nextTurnAr = nextTurnEffects.get(propNum).get(nextPropNum);
+					if (nextTurnAr == null) {
+						nextTurnAr = new int[2];
+						nextTurnEffects.get(propNum).put(nextPropNum, nextTurnAr);
+					}
+					nextTurnAr[0] = -1;
+					nextTurnAr[1] = 1;
+					Log.println('v', "From " + propNum + " to " + nextPropNum);
+				}
+			}			
+		}
+		
+		// Compute nextTurnEffects
+		for (int index = 0; index < numProps; index++) {
+			List<Integer> queue = new LinkedList<Integer>();
+			boolean[] visited = new boolean[numProps];
+			queue.addAll(nextTurnEffects.get(index).keySet());
+			
+			while (!queue.isEmpty()) {
+				
+				int propNum = queue.remove(0);
+				visited[propNum] = true;
+				Log.println('v', "At index " + index + " " + queue + " " + propIndex[index] + " " + propIndex[index].getOutputs() + " processing " + propIndex[propNum]);
+			
+				for (int tf = 0; tf < 2; tf++) {
+					if (nextTurnEffects.get(index).get(propNum)[tf] != 0) {
+						int effectOnPropNum = (nextTurnEffects.get(index).get(propNum)[tf] == 1) ? 1 : 0;
+						TreeMap<Integer, int[]> map = sameTurnEffects.get(propNum);
+						for (Integer nextPropNum : map.keySet()) {
+							int value = map.get(nextPropNum)[effectOnPropNum];
+							if (value != 0) {
+								//nextTurnEffects[index][nextPropNum][tf] = value;
+								nextTurnAr = nextTurnEffects.get(index).get(nextPropNum);
+								if (nextTurnAr == null) {
+									nextTurnAr = new int[2];
+									nextTurnEffects.get(index).put(nextPropNum, nextTurnAr);
+								}
+								nextTurnAr[tf] = value;
+
+								if (!visited[nextPropNum]) {
+									queue.add(nextPropNum);
+									visited[nextPropNum] = true;
+								}
+								
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		
+		trueLatches = new ArrayList<Integer>();
+		falseLatches = new ArrayList<Integer>();
+		satisfiedLatches = new HashSet<Proposition>();
+		relevantPropositions = new HashSet<Proposition>(this.propMap.keySet());
+		for (int index = 0; index < numProps; index++) {
+			TreeMap<Integer, int[]> nextMap = nextTurnEffects.get(index);
+			if (nextMap.containsKey(index)) {
+				int[] ar = nextMap.get(index);
+				if (ar[0] == -1) {
+					falseLatches.add(index);
+				}
+				if (ar[1] == 1) {
+					trueLatches.add(index);
+				}
+			}
+		}
+		long end = System.currentTimeMillis();
+		Log.println('l', trueLatches.size() + " true latches and " + falseLatches.size() + " false latches found in " + (end - start) + " ms");
+	}
+/*
+	private void testPropEffects() {
+		long start1 = System.currentTimeMillis();
+		calculatePropEffects3();
+		System.gc();
+		long start2 = System.currentTimeMillis();
+		Log.println('l', "Generated in " + (start2 - start1) + " ms");
+		
+		calculatePropEffects2();
+		int[][][] same2 = sameTurnEffectsAr;
+		int[][][] next2 = nextTurnEffectsAr;
+		same2 = null;
+		next2 = null;
+		System.gc();
+		long start3 = System.currentTimeMillis();
+		System.err.println(start3 - start2);
+		calculatePropEffects();
+		int[][][] same3 = sameTurnEffectsAr;
+		int[][][] next3 = nextTurnEffectsAr;
+		same3 = null;
+		next3 = null;
+		System.gc();
+		long end = System.currentTimeMillis();
+		System.err.println(end - start3);
+		
+		
+		for (int i = 0; i < same1.length; i++) {
+			for (int j = 0; j < same1[i].length; j++) {
+				for (int k = 0; k < same1[i][j].length; k++) {
+					if (j < i && j >= internalPropStart && (same1[i][j][k] != 0 || same2[i][j][k] != 0)) {
+						System.err.printf("Should not occur same[%d:%s][%d:%s][%d]: %d, %d\n", i, propIndex[i].toString(), j, propIndex[j].toString(), k, same1[i][j][k], same2[i][j][k]);
+					}
+					if (same1[i][j][k] != same2[i][j][k]) {
+						System.err.printf("Discrepancy same[%d:%s][%d:%s][%d]: %d, %d\n", i, propIndex[i].toString(), j, propIndex[j].toString(), k, same1[i][j][k], same2[i][j][k]);
+					}
+					if (same1[i][j][k] != same3[i][j][k]) {
+						System.err.printf("Discrepancy same[%d:%s][%d:%s][%d]: %d, %d\n", i, propIndex[i].toString(), j, propIndex[j].toString(), k, same1[i][j][k], same3[i][j][k]);
+					}
+					if (next1[i][j][k] != next2[i][j][k]) {
+						System.err.printf("Discrepancy next[%d:%s][%d:%s][%d]: %d, %d\n", i, propIndex[i].toString(), j, propIndex[j].toString(), k, next1[i][j][k], next2[i][j][k]);
+					}
+					if (next1[i][j][k] != next3[i][j][k]) {
+						System.err.printf("Discrepancy next[%d:%s][%d:%s][%d]: %d, %d\n", i, propIndex[i].toString(), j, propIndex[j].toString(), k, next1[i][j][k], next3[i][j][k]);
+					}
+				}
+			}
+		}
+		
+	}
+	
+	
+	private void calculatePropEffects2() {
+		Log.println('l', "Begin latch calculations 2");
+		sameTurnEffectsAr = new int[numProps][numProps][2];
+		nextTurnEffectsAr = new int[numProps][numProps][2];
+		for (int propNum = numProps - 1; propNum >= 0; propNum--) {
+			if (propNum >= inputPropStart && propNum < internalPropStart) {
+				for (int nextPropNum = inputPropStart; nextPropNum < internalPropStart; nextPropNum++) {
+					sameTurnEffectsAr[propNum][nextPropNum][1] = -1;
+					
+				}
+			}
+			sameTurnEffectsAr[propNum][propNum][0] = -1;
+			sameTurnEffectsAr[propNum][propNum][1] = 1;
+			Proposition prop = propIndex[propNum];
+			for (Component output : prop.getOutputs()) {
+				{
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					Log.println('b', "Reached " + output + " " + nextProp + " " + nextPropNum);
+				}
+				if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					sameTurnEffectsAr[propNum][nextPropNum][0] = -1;
+					sameTurnEffectsAr[propNum][nextPropNum][1] = 1;
+					
+					for (int i = nextPropNum; i < numProps; i++) {
+						for (int tf = 0; tf < 2; tf++) {
+							if (sameTurnEffectsAr[nextPropNum][i][tf] != 0) {
+								sameTurnEffectsAr[propNum][i][tf] = sameTurnEffectsAr[nextPropNum][i][tf];
+							}
+							if (nextTurnEffectsAr[nextPropNum][i][tf] != 0) {
+								nextTurnEffectsAr[propNum][i][tf] = nextTurnEffectsAr[nextPropNum][i][tf];
+							}
+						}
+					}
+					for (int i = 0; i < nextPropNum; i++) {
+						for (int tf = 0; tf < 2; tf++) {
+							if (nextTurnEffectsAr[nextPropNum][i][tf] != 0) {
+								nextTurnEffectsAr[propNum][i][tf] = nextTurnEffectsAr[nextPropNum][i][tf];
+							}
+						}
+					}
+					
+				}
+				else if (output instanceof And) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					sameTurnEffectsAr[propNum][nextPropNum][0] = -1;
+					
+					for (int i = nextPropNum; i < numProps; i++) {
+						if (sameTurnEffectsAr[nextPropNum][i][0] != 0) {
+							sameTurnEffectsAr[propNum][i][0] = sameTurnEffectsAr[nextPropNum][i][0];
+						}
+						if (nextTurnEffectsAr[nextPropNum][i][0] != 0) {
+							nextTurnEffectsAr[propNum][i][0] = nextTurnEffectsAr[nextPropNum][i][0];
+						}
+					}
+					for (int i = 0; i < nextPropNum; i++) {
+						if (nextTurnEffectsAr[nextPropNum][i][0] != 0) {
+							nextTurnEffectsAr[propNum][i][0] = nextTurnEffectsAr[nextPropNum][i][0];
+						}
+					}
+				}
+				else if (output instanceof Or) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					sameTurnEffectsAr[propNum][nextPropNum][1] = 1;
+					
+					for (int i = nextPropNum; i < numProps; i++) {
+						if (sameTurnEffectsAr[nextPropNum][i][1] != 0) {
+							sameTurnEffectsAr[propNum][i][1] = sameTurnEffectsAr[nextPropNum][i][1];
+						}
+						if (nextTurnEffectsAr[nextPropNum][i][1] != 0) {
+							nextTurnEffectsAr[propNum][i][1] = nextTurnEffectsAr[nextPropNum][i][1];
+						}
+					}
+					for (int i = 0; i < nextPropNum; i++) {
+						if (nextTurnEffectsAr[nextPropNum][i][1] != 0) {
+							nextTurnEffectsAr[propNum][i][1] = nextTurnEffectsAr[nextPropNum][i][1];
+						}
+					}
+				}
+				else if (output instanceof Not) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					sameTurnEffectsAr[propNum][nextPropNum][0] = 1;
+					sameTurnEffectsAr[propNum][nextPropNum][1] = -1;
+					
+					for (int i = nextPropNum; i < numProps; i++) {
+						for (int tf = 0; tf < 2; tf++) {
+							if (sameTurnEffectsAr[nextPropNum][i][tf] != 0) {
+								sameTurnEffectsAr[propNum][i][1-tf] = sameTurnEffectsAr[nextPropNum][i][tf];
+							}
+							if (nextTurnEffectsAr[nextPropNum][i][tf] != 0) {
+								nextTurnEffectsAr[propNum][i][1-tf] = nextTurnEffectsAr[nextPropNum][i][tf];
+							}
+						}
+					}
+					for (int i = 0; i < nextPropNum; i++) {
+						for (int tf = 0; tf < 2; tf++) {
+							if (nextTurnEffectsAr[nextPropNum][i][tf] != 0) {
+								nextTurnEffectsAr[propNum][i][1-tf] = nextTurnEffectsAr[nextPropNum][i][tf];
+							}
+						}
+					}
+					
+				}
+				else if (output instanceof Transition) {
+					Proposition nextProp = (Proposition) output.getSingleOutput();
+					int nextPropNum = propMap.get(nextProp);
+					nextTurnEffectsAr[propNum][nextPropNum][0] = -1;
+					nextTurnEffectsAr[propNum][nextPropNum][1] = 1;
+					Log.println('v', "From " + propNum + " to " + nextPropNum);
+				}
+			}			
+		}
+		
+		// Compute nextTurnEffects on sameTurnEffects on next turn props
+	
+		
+		
+		// Compute nextTurnEffects
+		for (int index = 0; index < numProps; index++) {
+			List<Integer> queue = new LinkedList<Integer>();
+			boolean[] visited = new boolean[numProps];
+			for (int propNum = 0; propNum < numProps; propNum++) {
+				if (nextTurnEffectsAr[index][propNum][0] != 0 || nextTurnEffectsAr[index][propNum][1] != 0) {
+					queue.add(propNum);
+				}
+			}
+			
+			while (!queue.isEmpty()) {
+				
+				int propNum = queue.remove(0);
+				if (visited[propNum]) {
+					continue;
+				}
+				Log.println('v', "At index " + index + " " + queue + " " + propIndex[index] + " " + propIndex[index].getOutputs() + " processing " + propIndex[propNum]);
+				visited[propNum] = true;
+			
+				for (int tf = 0; tf < 2; tf++) {
+					if (nextTurnEffectsAr[index][propNum][tf] != 0) {
+						int effectOnPropNum = (nextTurnEffectsAr[index][propNum][tf] == 1) ? 1 : 0; 
+						for (int nextPropNum = 0; nextPropNum < numProps; nextPropNum++) {
+							if(sameTurnEffectsAr[propNum][nextPropNum][effectOnPropNum] != 0) {
+								nextTurnEffectsAr[index][nextPropNum][tf] = sameTurnEffectsAr[propNum][nextPropNum][effectOnPropNum];
+								queue.add(nextPropNum);
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		trueLatches = new ArrayList<Integer>();
+		falseLatches = new ArrayList<Integer>();
+		satisfiedLatches = new HashSet<Proposition>();
+		relevantPropositions = new HashSet<Proposition>(this.propMap.keySet());
+		
+		for (int index = 0; index < numProps; index++) {
+			int countSameTurn = 0;
+			int countNextTurn = 0;
+			StringBuilder outputSame = new StringBuilder();
+			StringBuilder outputNext = new StringBuilder();
+			for (int propNum = 0; propNum < numProps; propNum++) {
+				if (sameTurnEffectsAr[index][propNum][0] != 0) {
+					countSameTurn++;
+					outputSame.append("F[" + propNum + "]=" + ( sameTurnEffectsAr[index][propNum][0] == 1 ? "T" : "F" ) + ";");
+				}
+				if (sameTurnEffectsAr[index][propNum][1] != 0) {
+					countSameTurn++;
+					outputSame.append("T[" + propNum + "]=" + ( sameTurnEffectsAr[index][propNum][1] == 1 ? "T" : "F" ) + ";");
+				}
+				if (propNum != index && sameTurnEffectsAr[index][propNum][0] != 0 && sameTurnEffectsAr[index][propNum][1] != 0) {
+					outputSame.append("=[" + propNum + "]!;");
+				}
+				if (nextTurnEffectsAr[index][propNum][0] != 0) {
+					countNextTurn++;
+					if (propNum == index && nextTurnEffectsAr[index][propNum][0] == -1) {
+						falseLatches.add(propNum);
+					}
+					outputNext.append("F[" + propNum + "]=" + ( nextTurnEffectsAr[index][propNum][0] == 1 ? "T" : "F" ) + ";");
+				}
+				if (nextTurnEffectsAr[index][propNum][1] != 0) {
+					countNextTurn++;
+					if (propNum == index && nextTurnEffectsAr[index][propNum][1] == 1) {
+						trueLatches.add(propNum);
+					}
+					outputNext.append("T[" + propNum + "]=" + ( nextTurnEffectsAr[index][propNum][1] == 1 ? "T" : "F" ) + ";");
+				}
+			}
+			Log.println('b', "Count for index " + index + " = " + countSameTurn + " same turn / " + countNextTurn + " next turn ; (" + propIndex[index].getName() + "): " + outputSame.toString() + "//" + outputNext.toString());
+		}
+		Log.println('l', trueLatches.size() + " true latches and " + falseLatches.size() + " false latches found");
+		
 	}
 
 	private void calculatePropEffects() {
-		int[][][] sameTurnEffects = new int[numProps][numProps][2];
-		int[][][] nextTurnEffects = new int[numProps][numProps][2];
+		Log.println('l', "Begin latch calculations");
+		sameTurnEffectsAr = new int[numProps][numProps][2];
+		nextTurnEffectsAr = new int[numProps][numProps][2];
+		
 		for (int index = 0; index < numProps; index++) {
 			List<Integer> queue = new LinkedList<Integer>();
 			boolean[] visited = new boolean[numProps];
 			queue.add(index);
-			sameTurnEffects[index][index][0] = -1;
-			sameTurnEffects[index][index][1] = 1;
+			if (index >= inputPropStart && index < internalPropStart) {
+				for (int propNum = inputPropStart; propNum < internalPropStart; propNum++) {
+					sameTurnEffectsAr[index][propNum][1] = -1;
+				}
+			}
+			sameTurnEffectsAr[index][index][0] = -1;
+			sameTurnEffectsAr[index][index][1] = 1;
 			while (!queue.isEmpty()) {
 				int propNum = queue.remove(0);
 				Proposition prop = propIndex[propNum];
@@ -551,53 +1258,53 @@ public class BooleanPropNetStateMachine extends StateMachine {
 						int nextPropNum = propMap.get(nextProp);
 						Log.println('b', "Reached " + output + " " + nextProp + " " + nextPropNum);
 					}
-					if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1 && (sameTurnEffects[index][propNum][0] != 0 || sameTurnEffects[index][propNum][1] != 0)) { // some single And / Or cannot be filtered due to special nodes
+					if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1 && (sameTurnEffectsAr[index][propNum][0] != 0 || sameTurnEffectsAr[index][propNum][1] != 0)) { // some single And / Or cannot be filtered due to special nodes
 						Proposition nextProp = (Proposition) output.getSingleOutput();
 						int nextPropNum = propMap.get(nextProp);
 						for (int tf = 0; tf < 2; tf++) {
-							if (sameTurnEffects[index][propNum][tf] != 0) {
-								sameTurnEffects[index][nextPropNum][tf] = sameTurnEffects[index][propNum][tf];
+							if (sameTurnEffectsAr[index][propNum][tf] != 0) {
+								sameTurnEffectsAr[index][nextPropNum][tf] = sameTurnEffectsAr[index][propNum][tf];
 							}
 						}
 						queue.add(nextPropNum);
 					}
 					
-					if (output instanceof And && (sameTurnEffects[index][propNum][0] == -1 || sameTurnEffects[index][propNum][1] == -1)) {
+					if (output instanceof And && (sameTurnEffectsAr[index][propNum][0] == -1 || sameTurnEffectsAr[index][propNum][1] == -1)) {
 						Proposition nextProp = (Proposition) output.getSingleOutput();
 						int nextPropNum = propMap.get(nextProp);
 						for (int tf = 0; tf < 2; tf++) {
-							if (sameTurnEffects[index][propNum][tf] == -1) {
-								sameTurnEffects[index][nextPropNum][tf] = -1;
+							if (sameTurnEffectsAr[index][propNum][tf] == -1) {
+								sameTurnEffectsAr[index][nextPropNum][tf] = -1;
 							}
 						}
 						queue.add(nextPropNum);
 					}
-					else if (output instanceof Or && (sameTurnEffects[index][propNum][0] == 1 || sameTurnEffects[index][propNum][1] == 1)) {
+					else if (output instanceof Or && (sameTurnEffectsAr[index][propNum][0] == 1 || sameTurnEffectsAr[index][propNum][1] == 1)) {
 						Proposition nextProp = (Proposition) output.getSingleOutput();
 						int nextPropNum = propMap.get(nextProp);
 						for (int tf = 0; tf < 2; tf++) {
-							if (sameTurnEffects[index][propNum][tf] == 1) {
-								sameTurnEffects[index][nextPropNum][tf] = 1;
+							if (sameTurnEffectsAr[index][propNum][tf] == 1) {
+								sameTurnEffectsAr[index][nextPropNum][tf] = 1;
 							}
 						}
 						queue.add(nextPropNum);
 					}
-					else if (output instanceof Not && (sameTurnEffects[index][propNum][0] != 0 || sameTurnEffects[index][propNum][1] != 0)) {
+					else if (output instanceof Not && (sameTurnEffectsAr[index][propNum][0] != 0 || sameTurnEffectsAr[index][propNum][1] != 0)) {
 						Proposition nextProp = (Proposition) output.getSingleOutput();
 						int nextPropNum = propMap.get(nextProp);
 						for (int tf = 0; tf < 2; tf++) {
-							if (sameTurnEffects[index][propNum][tf] != 0) {
-								sameTurnEffects[index][nextPropNum][tf] = -sameTurnEffects[index][propNum][tf];
+							if (sameTurnEffectsAr[index][propNum][tf] != 0) {
+								sameTurnEffectsAr[index][nextPropNum][tf] = -sameTurnEffectsAr[index][propNum][tf];
 							}
 						}					
 						queue.add(nextPropNum);
 					}
-					else if (output instanceof Transition && (sameTurnEffects[index][propNum][0] != 0 || sameTurnEffects[index][propNum][1] != 0)) {
+					else if (output instanceof Transition && (sameTurnEffectsAr[index][propNum][0] != 0 || sameTurnEffectsAr[index][propNum][1] != 0)) {
 						Proposition nextProp = (Proposition) output.getSingleOutput();
 						int nextPropNum = propMap.get(nextProp);
 						for (int tf = 0; tf < 2; tf++) {
-							if (sameTurnEffects[index][propNum][tf] != 0) {
-								nextTurnEffects[index][nextPropNum][tf] = sameTurnEffects[index][propNum][tf];
+							if (sameTurnEffectsAr[index][propNum][tf] != 0) {
+								nextTurnEffectsAr[index][nextPropNum][tf] = sameTurnEffectsAr[index][propNum][tf];
 							}
 						}
 					}
@@ -609,7 +1316,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			List<Integer> queue = new LinkedList<Integer>();
 			boolean[] visited = new boolean[numProps];
 			for (int propNum = 0; propNum < numProps; propNum++) {
-				if (nextTurnEffects[index][propNum][0] != 0 || nextTurnEffects[index][propNum][1] != 0) {
+				if (nextTurnEffectsAr[index][propNum][0] != 0 || nextTurnEffectsAr[index][propNum][1] != 0) {
 					queue.add(propNum);
 				}
 			}
@@ -622,11 +1329,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				visited[propNum] = true;
 			
 				for (int tf = 0; tf < 2; tf++) {
-					if (nextTurnEffects[index][propNum][tf] != 0) {
-						int effectOnPropNum = (nextTurnEffects[index][propNum][tf] == 1) ? 1 : 0; 
+					if (nextTurnEffectsAr[index][propNum][tf] != 0) {
+						int effectOnPropNum = (nextTurnEffectsAr[index][propNum][tf] == 1) ? 1 : 0; 
 						for (int nextPropNum = 0; nextPropNum < numProps; nextPropNum++) {
-							if(sameTurnEffects[propNum][nextPropNum][effectOnPropNum] != 0) {
-								nextTurnEffects[index][nextPropNum][tf] = sameTurnEffects[propNum][nextPropNum][effectOnPropNum];
+							if(sameTurnEffectsAr[propNum][nextPropNum][effectOnPropNum] != 0) {
+								nextTurnEffectsAr[index][nextPropNum][tf] = sameTurnEffectsAr[propNum][nextPropNum][effectOnPropNum];
 								queue.add(nextPropNum);
 							}
 						}
@@ -635,82 +1342,80 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			}
 		}
 		
-		ArrayList<Integer> latches = new ArrayList<Integer>();
+		trueLatches = new ArrayList<Integer>();
+		falseLatches = new ArrayList<Integer>();
+		satisfiedLatches = new HashSet<Proposition>();
+		relevantPropositions = new HashSet<Proposition>(this.propMap.keySet());
+		
 		for (int index = 0; index < numProps; index++) {
 			int countSameTurn = 0;
 			int countNextTurn = 0;
 			StringBuilder outputSame = new StringBuilder();
 			StringBuilder outputNext = new StringBuilder();
 			for (int propNum = 0; propNum < numProps; propNum++) {
-				if (sameTurnEffects[index][propNum][0] != 0) {
+				if (sameTurnEffectsAr[index][propNum][0] != 0) {
 					countSameTurn++;
-					outputSame.append("F[" + propNum + "]=" + ( sameTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
+					outputSame.append("F[" + propNum + "]=" + ( sameTurnEffectsAr[index][propNum][0] == 1 ? "T" : "F" ) + ";");
 				}
-				if (sameTurnEffects[index][propNum][1] != 0) {
+				if (sameTurnEffectsAr[index][propNum][1] != 0) {
 					countSameTurn++;
-					outputSame.append("T[" + propNum + "]=" + ( sameTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
+					outputSame.append("T[" + propNum + "]=" + ( sameTurnEffectsAr[index][propNum][1] == 1 ? "T" : "F" ) + ";");
 				}
-				if (propNum != index && sameTurnEffects[index][propNum][0] != 0 && sameTurnEffects[index][propNum][1] != 0) {
+				if (propNum != index && sameTurnEffectsAr[index][propNum][0] != 0 && sameTurnEffectsAr[index][propNum][1] != 0) {
 					outputSame.append("=[" + propNum + "]!;");
 				}
-				if (nextTurnEffects[index][propNum][0] != 0) {
+				if (nextTurnEffectsAr[index][propNum][0] != 0) {
 					countNextTurn++;
-					outputNext.append("F[" + propNum + "]=" + ( nextTurnEffects[index][propNum][0] == 1 ? "T" : "F" ) + ";");
-				}
-				if (nextTurnEffects[index][propNum][1] != 0) {
-					countNextTurn++;
-					if (propNum == index && nextTurnEffects[index][propNum][1] == 1) {
-						latches.add(propNum);
+					if (propNum == index && nextTurnEffectsAr[index][propNum][0] == -1) {
+						falseLatches.add(propNum);
 					}
-					outputNext.append("T[" + propNum + "]=" + ( nextTurnEffects[index][propNum][1] == 1 ? "T" : "F" ) + ";");
+					outputNext.append("F[" + propNum + "]=" + ( nextTurnEffectsAr[index][propNum][0] == 1 ? "T" : "F" ) + ";");
+				}
+				if (nextTurnEffectsAr[index][propNum][1] != 0) {
+					countNextTurn++;
+					if (propNum == index && nextTurnEffectsAr[index][propNum][1] == 1) {
+						trueLatches.add(propNum);
+					}
+					outputNext.append("T[" + propNum + "]=" + ( nextTurnEffectsAr[index][propNum][1] == 1 ? "T" : "F" ) + ";");
 				}
 			}
 			Log.println('b', "Count for index " + index + " = " + countSameTurn + " same turn / " + countNextTurn + " next turn ; (" + propIndex[index].getName() + "): " + outputSame.toString() + "//" + outputNext.toString());
-			
 		}
-		Log.println('l', latches.size() + " latches found: " + latches);
-		/*
-		for (Proposition prop : tempTerminalOrdering) {
-			int index = propMap.get(prop);
-			int count = 0;
-			Log.print('r', "Count for index " + index + " (" + propIndex[index].getName() + "): " );
-			for (int j = 0; j < numProps; j++) {
-				if (sameTurnEffects[index][j][0] != 0) {
-					Log.print('r', "F[" + j + "]=" + ( sameTurnEffects[index][j][0] == 1 ? "T" : "F" ) + ";");
-				}
-				if (sameTurnEffects[index][j][1] != 0) {
-					Log.print('r', "T[" + j + "]=" + ( sameTurnEffects[index][j][1] == 1 ? "T" : "F" ) + ";");
+		Log.println('l', trueLatches.size() + " true latches and " + falseLatches.size() + " false latches found");
+		
+	}
+	*/
+	
+	public long multiMonte(MachineState state, int probes){
+//		long start = System.currentTimeMillis();
+		long sum = 0;
+		if (operator instanceof NativeOperator) {
+			sum = ((NativeOperator)operator).multiMonte(initBasePropositionsFromState(state), probes);
+		} else {
+			for (int i = 0; i < probes; i++) {
+				MachineState newState = monteCarlo(state, 0);
+				if (newState != null) {
+					try {
+						sum += getGoal(newState, mainRole);
+					} catch (GoalDefinitionException e) {
+						i--;
+					}
+				} else {
+					i--;
 				}
 			}
-			Log.println('r', "");
 		}
-		*/
-		
+//		long end = System.currentTimeMillis();
+//		System.out.println("Monte Carlo Results: " + sum/(double)probes + "\tin " + (end-start) + " ms at " + 
+//				(end-start)/(double)probes + " ms per probe");
+		return sum;
 	}
-	
-	public void speedTest() {
-		BooleanMachineState state = getInitialState();
-		
-		long start = System.currentTimeMillis();
-		for (long i = 0; i < 1000; i++) {
-            //MachineState newState = 
-            	monteCarlo(state, Integer.MAX_VALUE);
-//            System.out.println("Terminal? " + isTerminal(newState));
-		}
-		long end = System.currentTimeMillis();
-		System.out.println((end-start) + " ms");
-	}
-	
-	
+
 	
 	public BooleanMachineState monteCarlo(MachineState state, int maxDepth) {
 		boolean[] props = initBasePropositionsFromState(state);
-		if (operator.monteCarlo(props, maxDepth)) { // if successfully reached within maxDepth
-			return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
-		}
-		else {
-			return null;
-		}
+		operator.monteCarlo(props);
+		return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
 		/*
 		if (operator instanceof NativeOperator) {
 			boolean[] props = initBasePropositionsFromState(state);
@@ -761,7 +1466,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		Log.println('g', "Starting factoring with " + this.toString());
 		
-		BooleanPropNetStateMachine referenceMachine = new BooleanPropNetStateMachine();
+		BooleanPropNetStateMachine referenceMachine = new BooleanPropNetStateMachine(mainRole);
 		referenceMachine.initialize(description);
 				
 		Map<Proposition, List<Proposition>> lowestLevel = new HashMap<Proposition, List<Proposition>>();
@@ -1004,7 +1709,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		// Generate the new statemachines
 		BooleanPropNetStateMachine[] minions = new BooleanPropNetStateMachine[factors.size()];
 		for (int i = 0; i < factors.size(); i++) {
-			minions[i] = new BooleanPropNetStateMachine();
+			minions[i] = new BooleanPropNetStateMachine(mainRole);
 			minions[i].initialize(factors.get(i).components, rolesList);
 			minions[i].pnet.renderToFile(PNET_FOLDER + File.separator + "factor" + i + ".dot");			
 			Log.println('f', "Factor " + i + " : " + minions[i].toString());

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import util.cache.TtlCache;
+import util.gdl.grammar.GdlProposition;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -34,10 +35,12 @@ public final class CachedBooleanPropNetStateMachine extends BooleanPropNetStateM
 
 	private final TtlCache<MachineState, Entry> ttlCache;
 
-	public CachedBooleanPropNetStateMachine()
+	public CachedBooleanPropNetStateMachine(GdlProposition roleGDL)
 	{
+		super(roleGDL);
 		ttlCache = new TtlCache<MachineState, Entry>(1);
 	}
+	
 
 	private Entry getEntry(MachineState state)
 	{

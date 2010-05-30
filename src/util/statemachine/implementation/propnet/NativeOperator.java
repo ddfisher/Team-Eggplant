@@ -26,8 +26,10 @@ public class NativeOperator extends Operator {
 	public native void propagateGoalOnly(boolean[] props, int role);
 	
 	@Override
-	public native boolean monteCarlo(boolean[] props, int maxDepth);
+	public native int monteCarlo(boolean[] props);
 	
 	@Override
-	public native void initMonteCarlo(int[][] legalPropMap, int[] legalInputMap);
+	public native void initMonteCarlo(int[][] legalPropMap, int[] legalInputMap, int[] goalProps, int[] goalValues);
+	
+	public native long multiMonte(boolean[] props, int probes);
 }

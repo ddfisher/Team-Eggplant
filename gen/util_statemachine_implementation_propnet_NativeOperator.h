@@ -42,10 +42,10 @@ JNIEXPORT void JNICALL Java_util_statemachine_implementation_propnet_NativeOpera
 /*
  * Class:     util_statemachine_implementation_propnet_NativeOperator
  * Method:    propagateLegalOnly
- * Signature: ([ZI)V
+ * Signature: ([ZII)V
  */
 JNIEXPORT void JNICALL Java_util_statemachine_implementation_propnet_NativeOperator_propagateLegalOnly
-  (JNIEnv *, jobject, jbooleanArray, jint);
+  (JNIEnv *, jobject, jbooleanArray, jint, jint);
 
 /*
  * Class:     util_statemachine_implementation_propnet_NativeOperator
@@ -58,18 +58,26 @@ JNIEXPORT void JNICALL Java_util_statemachine_implementation_propnet_NativeOpera
 /*
  * Class:     util_statemachine_implementation_propnet_NativeOperator
  * Method:    monteCarlo
- * Signature: ([Z)V
+ * Signature: ([Z)I
  */
-JNIEXPORT void JNICALL Java_util_statemachine_implementation_propnet_NativeOperator_monteCarlo
+JNIEXPORT jint JNICALL Java_util_statemachine_implementation_propnet_NativeOperator_monteCarlo
   (JNIEnv *, jobject, jbooleanArray);
 
 /*
  * Class:     util_statemachine_implementation_propnet_NativeOperator
  * Method:    initMonteCarlo
- * Signature: ([[I[I)V
+ * Signature: ([[I[I[I[I)V
  */
 JNIEXPORT void JNICALL Java_util_statemachine_implementation_propnet_NativeOperator_initMonteCarlo
-  (JNIEnv *, jobject, jobjectArray, jintArray);
+  (JNIEnv *, jobject, jobjectArray, jintArray, jintArray, jintArray);
+
+/*
+ * Class:     util_statemachine_implementation_propnet_NativeOperator
+ * Method:    multiMonte
+ * Signature: ([ZI)J
+ */
+JNIEXPORT jlong JNICALL Java_util_statemachine_implementation_propnet_NativeOperator_multiMonte
+  (JNIEnv *, jobject, jbooleanArray, jint);
 
 #ifdef __cplusplus
 }
