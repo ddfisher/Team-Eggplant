@@ -5,9 +5,13 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javassist.CannotCompileException;
+import javassist.CtClass;
 
 import player.gamer.statemachine.eggplant.misc.Log;
 import util.propnet.architecture.Component;
@@ -34,13 +38,12 @@ public class NativeOperatorFactory {
 	private static final String GOAL = "propagateGoalOnly";
 	private static final String MONTE_CARLO = "monteCarlo";
 
-	private static int classCount = 0;
 	private static int constantProps = 0;
 	private static int internalProps = 0;
 
 	public static Operator buildOperator(Map<Proposition, Integer> propMap, List<Proposition> transitionOrdering, List<Proposition> internalOrdering,
-			List<Proposition> terminalOrdering, List<List<Proposition>> legalOrderings, List<List<Proposition>> goalOrderings,
-			int[][] legalPropMap, int[] legalInputMap, int inputPropStart, int inputPropLength, int terminalIndex) {
+			List<Proposition> terminalOrdering, List<List<List<Proposition>>> legalOrderings, List<List<Proposition>> goalOrderings,
+			int[][] legalPropMap, int[] legalInputMap, int inputPropStart, int inputPropLength, int terminalIndex, int[][] goals) {
 		StringBuilder source = new StringBuilder();
 		
 		addPrefix(source);
@@ -60,7 +63,7 @@ public class NativeOperatorFactory {
 			writer.close();
 			
 			Runtime rt = Runtime.getRuntime();
-			Process p = rt.exec("gcc -shared -fPIC -std=c99 -I/usr/lib/jvm/java-6-sun/include -I/usr/lib/jvm/java-6-sun/include/linux " +
+			Process p = rt.exec("gcc -shared -O2 -fPIC -std=c99 -I/usr/lib/jvm/java-6-sun/include -I/usr/lib/jvm/java-6-sun/include/linux " +
 					fileName + ".c -o lib" + fileName + ".so", null, new File(GEN_DIR));
 			if (p.waitFor() == 0) {
 				Log.println('m', "Compilation successful!");
@@ -75,7 +78,7 @@ public class NativeOperatorFactory {
 			}
 			
 			NativeOperator no = new NativeOperator(System.getProperty("user.dir") + File.separator + libPath);
-			no.initMonteCarlo(legalPropMap, legalInputMap);
+			no.initMonteCarlo(legalPropMap, legalInputMap, null, null);
 			Log.println('m', "Monte Carlo Initialized!");
 			return no;
 		} catch (IOException e) {
@@ -102,18 +105,20 @@ public class NativeOperatorFactory {
 		source.append("jint **legalPropMap;\n");
 		source.append("jint *legalInputMap;\n");
 		source.append("jint *numInputs;\n");
+		source.append("jint *goalProp;\n");
+		source.append("jint *goalValue;\n");
 	}
 
 	private static void addTransition(StringBuilder source, List<Proposition> transitionOrdering, Map<Proposition, Integer> propMap) {
 		StringBuilder body = generateTransitionMethodBody(transitionOrdering, propMap);
 		addMethod(source, body, TRANSITION);
-		addWrapper(source, TRANSITION, false);
+		addWrapper(source, TRANSITION, false, false);
 	}
 
 	private static void addInternalPropagate(StringBuilder source, List<Proposition> internalOrdering, Map<Proposition, Integer> propMap) {
 		StringBuilder body = generateInternalMethodBody(internalOrdering, propMap);
 		addMethod(source, body, INTERNAL);
-		addWrapper(source, INTERNAL, false);
+		addWrapper(source, INTERNAL, false, false);
 	}
 
 	private static void addPropagate(StringBuilder source) {
@@ -121,39 +126,45 @@ public class NativeOperatorFactory {
 		body.append(INTERNAL + "(props);\n");
 		body.append(TRANSITION + "(props);\n");
 		addMethod(source, body, PROPAGATE);
-		addWrapper(source, PROPAGATE, false);
+		addWrapper(source, PROPAGATE, false, false);
 	}
 
 	private static void addTerminalPropagate(StringBuilder source, List<Proposition> terminalOrdering, Map<Proposition, Integer> propMap) {
 		StringBuilder body = generateInternalMethodBody(terminalOrdering, propMap);
 		addMethod(source, body, TERMINAL);
-		addWrapper(source, TERMINAL, false);
+		addWrapper(source, TERMINAL, false, false);
 	}
 
-	private static void addLegalPropagate(StringBuilder source, List<List<Proposition>> legalOrderings, Map<Proposition, Integer> propMap) {
-		addRoleDependentHelpers(legalOrderings, propMap, source, LEGAL);
-		StringBuilder body = generateRoleDependentBody(LEGAL, legalOrderings.size());
-		addRoleDependentMethod(source, body, LEGAL);
-		addWrapper(source, LEGAL, true);
+	private static void addLegalPropagate(StringBuilder source, List<List<List<Proposition>>> legalOrderings, Map<Proposition, Integer> propMap) {
+		addRoleAuxDependentHelpers(legalOrderings, propMap, source, LEGAL);
+		
+		List<Integer> auxSizes = new ArrayList<Integer>();
+		for (int i = 0; i < legalOrderings.size(); i++) {
+			auxSizes.add(legalOrderings.get(i).size());
+		}
+		StringBuilder body = generateRoleAuxDependentBody(LEGAL, auxSizes);
+		addRoleAuxDependentMethod(source, body, LEGAL);
+		
+		addWrapper(source, LEGAL, true, true);
 	}
 
 	private static void addGoalPropagate(StringBuilder source, List<List<Proposition>> goalOrderings, Map<Proposition, Integer> propMap) {
 		addRoleDependentHelpers(goalOrderings, propMap, source, GOAL);
 		StringBuilder body = generateRoleDependentBody(GOAL, goalOrderings.size());
 		addRoleDependentMethod(source, body, GOAL);
-		addWrapper(source, GOAL, true);
+		addWrapper(source, GOAL, true, false);
 	}
 	
-	private static void addWrapper(StringBuilder source, String methodName, boolean indexNeeded) {
+	private static void addWrapper(StringBuilder source, String methodName, boolean indexNeeded, boolean auxNeeded) {
 		StringBuilder method = new StringBuilder();
 		method.append("JNIEXPORT void JNICALL " + PREFIX + methodName + "(JNIEnv *env, jobject obj, jbooleanArray javaArray" +
-				(indexNeeded ? ", jint roleIndex" : "") +
+				(indexNeeded ? ", jint roleIndex" : "") + (auxNeeded ? ", jint auxIndex" : "") +
 				") {\n");
 //		method.append("jboolean copy = 0;\n");
 //		method.append("jboolean *props = (*env)->GetPrimitiveArrayCritical(env, javaArray, &copy);\n");
 		method.append("jboolean *props = (*env)->GetBooleanArrayElements(env, javaArray, NULL);\n");
 //		method.append("printf(\"copy: %d\\n\", copy);");
-		method.append(methodName + "(props" + (indexNeeded ? ", roleIndex" : "") + ");\n");
+		method.append(methodName + "(props" + (indexNeeded ? ", roleIndex" : "") + (auxNeeded ? ", auxIndex" : "") + ");\n");
 		method.append("(*env)->ReleaseBooleanArrayElements(env, javaArray, props, 0);\n");
 //		method.append("(*env)->ReleasePrimitiveArrayCritical(env, javaArray, props, 0);\n");
 		method.append("}\n");
@@ -173,6 +184,15 @@ public class NativeOperatorFactory {
 	private static void addRoleDependentMethod(StringBuilder source, StringBuilder body, String methodName) {
 		StringBuilder method = new StringBuilder();
 		method.append("void " + methodName + "(jboolean *props, jint roleIndex) {\n");
+		method.append(body);
+		method.append("}\n");
+		// System.out.println(method);
+		source.append(method);
+	}
+	
+	private static void addRoleAuxDependentMethod(StringBuilder source, StringBuilder body, String methodName) {
+		StringBuilder method = new StringBuilder();
+		method.append("void " + methodName + "(jboolean *props, jint roleIndex, jint auxIndex) {\n");
 		method.append(body);
 		method.append("}\n");
 		// System.out.println(method);
@@ -206,12 +226,40 @@ public class NativeOperatorFactory {
 		body.append("}\n");
 		return body;
 	}
+	
+	private static StringBuilder generateRoleAuxDependentBody(String name, List<Integer> auxSizes) {
+		StringBuilder body = new StringBuilder();
+		body.append("switch (roleIndex) {\n");
+		for (int roleIndex = 0; roleIndex < auxSizes.size(); roleIndex++) {
+			body.append("case " + roleIndex + ":\n");
+				body.append("switch (auxIndex) {\n");
+				for (int auxData = 0; auxData < auxSizes.get(roleIndex); auxData++) {
+					body.append("case " + auxData + ":\n");
+					body.append(name + "Role" + roleIndex + "Aux" + auxData + "(props);\n");
+					body.append("break;\n");
+				}
+				body.append("}\n");
+			body.append("break;\n");
+		}
+		body.append("}\n");
+		return body;
+	}
 
 	private static void addRoleDependentHelpers(List<List<Proposition>> orderings, Map<Proposition, Integer> propMap, StringBuilder source,
 			String name) {
 		for (int roleIndex = 0; roleIndex < orderings.size(); roleIndex++) {
 			StringBuilder body = generateInternalMethodBody(orderings.get(roleIndex), propMap);
 			addMethod(source, body, name + "Role" + roleIndex);
+		}
+	}
+	
+	private static void addRoleAuxDependentHelpers(List<List<List<Proposition>>> orderings, Map<Proposition, Integer> propMap, 
+			StringBuilder source, String name) {
+		for (int roleIndex = 0; roleIndex < orderings.size(); roleIndex++) {
+			for (int auxData = 0; auxData < orderings.get(roleIndex).size(); auxData++) {
+				StringBuilder body = generateInternalMethodBody(orderings.get(roleIndex).get(auxData), propMap);
+				addMethod(source, body, name + "Role" + roleIndex + "Aux" + auxData);
+			}
 		}
 	}
 
@@ -300,31 +348,54 @@ public class NativeOperatorFactory {
 	private static void addMonteCarlo(StringBuilder source, int numRoles, int numLegals, int inputStart, int numInputs, int terminalIndex) {
 		StringBuilder body = new StringBuilder();
 		body.append("int input[" + numRoles + "];\n");
+		body.append("jint depth = 0;\n");
 		body.append("while (true) {\n");
-			body.append("bool legal = false;\n");
-			body.append("while (!legal) {\n");
-				body.append("memset(props+" + inputStart + ", false, sizeof(jboolean)*" + numInputs + ");\n");
-				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
-					body.append("int index = rand() % numInputs[role];\n");
-					body.append("int inputIndex = legalInputMap[ legalPropMap[role][index] ];\n");
-					body.append("props[inputIndex] = true;\n");
-					body.append("input[role] = inputIndex;\n");
-				body.append("}\n");
-				body.append("propagateInternal(props);\n");
-			
-				body.append("if (props[" + terminalIndex + "])\n");
-					body.append("return;\n");
-				
-				body.append("legal = true;\n");
-				body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
-					body.append("legal = legal && props[ legalInputMap[ input[role] ] ];\n");
-				body.append("}\n");
-			body.append("}\n");
-		body.append("transition(props);\n");
+
+		body.append("memset(props+" + inputStart + ", false, sizeof(jboolean)*" + numInputs + ");\n");
+		body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
+		body.append("int order[" + numLegals + "];\n");
+		body.append("for (int index = 0; index < " + numLegals + "; index++) {\n");
+		body.append("order[index] = index;\n");
 		body.append("}\n");
+		body.append("for (int index = " + numLegals + "; index > 0; index--) {\n");
+		body.append("int swapIndex = rand() % index;\n");
+		body.append("int temp = order[swapIndex];\n");
+		body.append("order[swapIndex] = order[index-1];\n");
+		body.append("order[index-1] = temp;\n");
+		body.append("}\n");
+		body.append("for (int i = 0; i < " + numLegals + "; i++) {\n");
+		body.append("int index = order[i];\n");
+		body.append("int inputIndex = legalInputMap[ legalPropMap[role][index] ];\n");
+		body.append("props[inputIndex] = true;\n");
+		body.append("propagateLegalOnly(props, role, index);\n");
+		body.append("if (props[ legalInputMap[ inputIndex ] ])\n");
+		body.append("break;\n");
+		body.append("props[inputIndex] = false;\n");
+		body.append("}\n");
+		body.append("}\n");
+		body.append("propagateInternal(props);\n");
+		body.append("if (props[" + terminalIndex + "]) return depth;\n");
+		body.append("transition(props);\n");
+		body.append("depth++;\n");
 		
-		addMethod(source, body, MONTE_CARLO);
-		addWrapper(source, MONTE_CARLO, false);
+		
+		body.append("}\n");
+
+		StringBuilder method = new StringBuilder();
+		method.append("jint " + MONTE_CARLO + "(jboolean *props) {\n");
+		method.append(body);
+		method.append("}\n");
+		source.append(method);
+		
+		StringBuilder wrapperMethod = new StringBuilder();
+		wrapperMethod.append("JNIEXPORT jint JNICALL " + PREFIX + MONTE_CARLO + "(JNIEnv *env, jobject obj, jbooleanArray javaArray) {\n");
+		wrapperMethod.append("jboolean *props = (*env)->GetBooleanArrayElements(env, javaArray, NULL);\n");
+		wrapperMethod.append("jint result = " + MONTE_CARLO + "(props);\n");
+		wrapperMethod.append("(*env)->ReleaseBooleanArrayElements(env, javaArray, props, 0);\n");
+		wrapperMethod.append("return result;\n");
+		wrapperMethod.append("}\n");
+
+		source.append(wrapperMethod);
 		
 		addMonteCarloInit(source);
 	}
@@ -332,7 +403,7 @@ public class NativeOperatorFactory {
 	private static void addMonteCarloInit(StringBuilder source) {
 		StringBuilder body = new StringBuilder();
 		body.append("JNIEXPORT void JNICALL " + PREFIX + "initMonteCarlo(JNIEnv *env, jobject obj, jobjectArray javaLegalPropMap," +
-				"jbooleanArray javaLegalInputMap) {\n");
+				"jbooleanArray javaLegalInputMap, jintArray javaGoalProps, jintArray javaGoalValues) {\n");
 //		body.append("printf(\"Monte Carlo Init!\\n\");\n");
 		body.append("jint *tempLegalInputMap = (*env)->GetIntArrayElements(env, javaLegalInputMap, NULL);\n");
 		body.append("int inputLen = (*env)->GetArrayLength(env, javaLegalInputMap);\n");
@@ -355,6 +426,18 @@ public class NativeOperatorFactory {
 			body.append("(*env)->ReleaseIntArrayElements(env, oneDim, element, JNI_ABORT);\n");
 //			body.append("(*env)->DeleteLocalRef(env, oneDim);\n");
 		body.append("}\n");
+		
+//		body.append("int numGoals = (*env)->GetArrayLength(env, javaGoalProps);\n");
+//		
+//		body.append("jint *tempGoalProps = (*env)->GetIntArrayElements(env, javaGoalProps, NULL);\n");
+//		body.append("goalProps = malloc(sizeof(jint) * numGoals);\n");
+//		body.append("memcpy(numGoals, tempGoalProps, numGoals * sizeof(jint));\n");
+//		body.append("(*env)->ReleaseIntArrayElements(env, javaGoalProps, tempGoalProps, JNI_ABORT);\n");
+//		
+//		body.append("jint *tempGoalValues = (*env)->GetIntArrayElements(env, javaGoalValues, NULL);\n");
+//		body.append("goalValues = malloc(sizeof(jint) * numGoals);\n");
+//		body.append("memcpy(numGoals, tempGoalValues, numGoals * sizeof(jint));\n");
+//		body.append("(*env)->ReleaseIntArrayElements(env, javaGoalValues, tempGoalValues, JNI_ABORT);\n");
 		
 		body.append("}\n");
 		

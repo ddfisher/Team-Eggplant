@@ -596,10 +596,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			Log.println('r', "Role " + role + " goal ordering : " + goalOrderings.get(role).size());
 		}
 		
-		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
-				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
-//		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
-				//goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
+//		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
+//				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
+		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
+				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, null);
 //		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
 	}
 	
@@ -1366,28 +1366,29 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 	*/
 	
-	public void speedTest() {
-		BooleanMachineState state = getInitialState();
-		
-		long start = System.currentTimeMillis();
-		for (long i = 0; i < 1000; i++) {
-            //MachineState newState = 
-            	monteCarlo(state, Integer.MAX_VALUE);
-//            System.out.println("Terminal? " + isTerminal(newState));
+	public void multiMonte(MachineState state, Role role){
+		int sum = 0;
+		for (int i = 0; i < 10000; i++) {
+			MachineState newState = monteCarlo(state, 0);
+			if (newState != null) {
+				try {
+					sum += getGoal(newState, role);
+				} catch (GoalDefinitionException e) {
+					i--;
+				}
+			} else {
+				i--;
+			}
 		}
-		long end = System.currentTimeMillis();
-		System.out.println((end-start) + " ms");
+		
+		System.out.println("Monte Carlo Results: " + sum/10000.0);
 	}
 
 	
 	public BooleanMachineState monteCarlo(MachineState state, int maxDepth) {
 		boolean[] props = initBasePropositionsFromState(state);
-		if (operator.monteCarlo(props, maxDepth)) { // if successfully reached within maxDepth
-			return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
-		}
-		else {
-			return null;
-		}
+		operator.monteCarlo(props);
+		return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
 		/*
 		if (operator instanceof NativeOperator) {
 			boolean[] props = initBasePropositionsFromState(state);
