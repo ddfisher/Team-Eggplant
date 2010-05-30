@@ -64,6 +64,8 @@ public class NativeOperatorFactory {
 			writer.write(source.toString());
 			writer.close();
 			
+			Log.println('y', "Beginining Compilation");
+			
 			Runtime rt = Runtime.getRuntime();
 			Process p = rt.exec("gcc -shared -O2 -fPIC -std=c99 -I/usr/lib/jvm/java-6-sun/include -I/usr/lib/jvm/java-6-sun/include/linux " +
 					fileName + ".c -o lib" + fileName + ".so", null, new File(GEN_DIR));

@@ -201,6 +201,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			mainRole = roleIndex[0];
 		
 		Log.println('i', "" + count + " constants ");
+		Log.println('y', "Beginning Initialization of Operator...");
 		initOperator();
 		
 		calculatePropEffects();
