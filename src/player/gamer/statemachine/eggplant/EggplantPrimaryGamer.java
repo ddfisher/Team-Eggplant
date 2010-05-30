@@ -437,6 +437,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		if (!expansionEvaluator.eval(machine, state, role, alpha, beta,
 				actualDepth)) {
 			pvStatesSearched++;
+			// Clear cache for pv search
+			cache = null;
 		}
 		if (depth > actualDepth) {
 			System.err.println("ERROR: " + depth + " " + actualDepth + " "
@@ -497,10 +499,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 					Log.println('d', "NUIDS : At offset " + pvDepthOffset
 							+ "; " + state.getContents());
 					bestMove = memoizedAlphaBeta(machine, nextState, role,
-							alpha, newBeta, actualDepth + 1, pvDepthOffset
-									- principalMoveSignificance
-									* PRINCIPAL_MOVE_DEPTH_FACTOR, cache,
-							principalMovesCache, endTime, debug);
+								alpha, newBeta, actualDepth + 1, pvDepthOffset
+										- principalMoveSignificance
+										* PRINCIPAL_MOVE_DEPTH_FACTOR, cache,
+								principalMovesCache, endTime, debug);
 				} else {
 					bestMove = memoizedAlphaBeta(machine, nextState, role,
 							alpha, newBeta, actualDepth + 1, pvDepthOffset,
