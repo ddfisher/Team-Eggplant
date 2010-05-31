@@ -12,10 +12,9 @@ import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
 public class StateMachineFactory {
 	/** All possible priorities. Lower is preferred */ 
 	
-	public static final int CACHED_BPNSM_NATIVE = 70;
-	public static final int CACHED_BPNSM_JAVASSIST = 80;
-	public static final int CACHED_PROVER = 90;
-	public static final int PROVER = 100;
+	public static final int CACHED_BPNSM_NATIVE = 0;
+	public static final int CACHED_BPNSM_JAVASSIST = 10;
+	public static final int CACHED_PROVER = 20;
 	
 	private static class PrioritizedStateMachine implements Comparable<PrioritizedStateMachine>{
 		private final int priority;
@@ -36,7 +35,6 @@ public class StateMachineFactory {
 	public static void reset() {
 		pq.clear();
 		pq.add(new PrioritizedStateMachine(CACHED_PROVER, new CachedProverStateMachine()));
-		pq.add(new PrioritizedStateMachine(PROVER, new ProverStateMachine()));
 	}
 	
 	public static void pushMachine(int priority, StateMachine machine) {
