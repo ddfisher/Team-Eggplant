@@ -194,10 +194,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		if (mainRole == null)
 			mainRole = roleIndex[0];
+
+		calculatePropEffects();
 		
 		initOperator();
 		
-		calculatePropEffects();
 	}
 
 	/**
@@ -624,12 +625,14 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		javassistOperator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
 				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 		setOperator(true);
+		Log.println('u', "Javassist done!");
 		
 		StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_JAVASSIST, this);
 		
 		nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
 				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
 		setOperator(false);
+		Log.println('u', "Native done!");
 		StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
 	}
 	
@@ -1511,7 +1514,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		for (int[][] roleGoals : goalPropMap) {
 			numGoals += roleGoals.length;
 		}
-		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (numProps - internalPropStart) + " internal, " + numGoals + " goals, terminal = " + terminalIndex; 
+		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (numProps - internalPropStart) + " internal, " + numGoals + " goals, terminal = " + terminalIndex + " using " + (operator == nativeOperator ? "native" : "javassist"); 
 	}
 	
 	/** Factoring logic */

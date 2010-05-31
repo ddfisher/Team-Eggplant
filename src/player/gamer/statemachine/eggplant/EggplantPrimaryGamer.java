@@ -137,9 +137,20 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		Log.println('y', "Beginning metagame evaluation with machine " + machine);
 		while (true) {
 			try {
-				iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
-						true, timeout - GRACE_PERIOD);
-				break;
+				try {
+					iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
+							true, timeout - GRACE_PERIOD);
+					break;
+				} catch (Exception ex) {
+					if (ex instanceof UpdateMachineException) {
+						throw (UpdateMachineException)ex;
+					}
+					else {
+						ex.printStackTrace();
+						StateMachineFactory.popMachine();
+						throw new UpdateMachineException(false);
+					}
+				}
 			} catch(UpdateMachineException ex) {
 				synchronized (updateStateMachineLock) {
 					updateStateMachine = false;
@@ -204,7 +215,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 										- GRACE_PERIOD);
 					} catch (Exception ex) {
 						if (ex instanceof UpdateMachineException) {
-							throw ex;
+							throw (UpdateMachineException)ex;
 						}
 						else {
 							ex.printStackTrace();
@@ -628,6 +639,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	@Override
 	public StateMachine getInitialStateMachine() {
 		StateMachineFactory.reset();
+		StateMachineFactory.setDelegate(this);
 		return StateMachineFactory.getCurrentMachine();
 	}
 

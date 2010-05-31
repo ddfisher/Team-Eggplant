@@ -2,6 +2,8 @@ package player.gamer.statemachine.eggplant.misc;
 
 import java.util.concurrent.PriorityBlockingQueue;
 
+import player.gamer.Gamer;
+import player.gamer.statemachine.eggplant.EggplantPrimaryGamer;
 import util.statemachine.StateMachine;
 import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 import util.statemachine.implementation.prover.ProverStateMachine;
@@ -27,7 +29,8 @@ public class StateMachineFactory {
 		}
 	}
 	
-	private static PriorityBlockingQueue<PrioritizedStateMachine> pq = new PriorityBlockingQueue<PrioritizedStateMachine>();	
+	private static PriorityBlockingQueue<PrioritizedStateMachine> pq = new PriorityBlockingQueue<PrioritizedStateMachine>();
+	private static EggplantPrimaryGamer delegate;
 
 	/** Reset MUST be called between games! */
 	public static void reset() {
@@ -39,6 +42,7 @@ public class StateMachineFactory {
 	public static void pushMachine(int priority, StateMachine machine) {
 		try {
 			pq.add(new PrioritizedStateMachine(priority, machine));
+			delegate.signalUpdateMachine();
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -65,4 +69,7 @@ public class StateMachineFactory {
 		}
 	}
 	
+	public static void setDelegate(EggplantPrimaryGamer gamer) {
+		delegate = gamer;
+	}
 }
