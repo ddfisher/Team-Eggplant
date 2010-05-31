@@ -8,12 +8,12 @@ import util.gdl.grammar.GdlSentence;
 import util.propnet.architecture.components.Proposition;
 
 public class BooleanMachineState extends MachineState {
-	private boolean[] baseprops;
+	private boolean[] baseProps;
 	private Proposition[] booleanOrdering;
 	private Set<GdlSentence> contents;
 
 	public BooleanMachineState(boolean[] baseProps, Proposition[] booleanOrdering) {
-		this.baseprops = baseProps;
+		this.baseProps = baseProps;
 		this.booleanOrdering = booleanOrdering;
 		this.contents = null;
 	}
@@ -23,8 +23,8 @@ public class BooleanMachineState extends MachineState {
 		// TODO Auto-generated method stub
 		if (this.contents == null) {
 			this.contents = new HashSet<GdlSentence>();
-			for (int i = 0; i < baseprops.length; i++) {
-				if (baseprops[i]) {
+			for (int i = 0; i < baseProps.length; i++) {
+				if (baseProps[i]) {
 					this.contents.add(booleanOrdering[i+1].getName().toSentence());
 				}
 			}
@@ -33,17 +33,17 @@ public class BooleanMachineState extends MachineState {
 	}
 	
 	public String toString() {
-		//return getContents().toString();
-		return Arrays.toString(this.baseprops);
+		return getContents().toString();
+		//return Arrays.toString(this.baseprops);
 	}
 	
 	public boolean[] getBooleanContents() {
-		return baseprops;
+		return baseProps;
 	}
 	
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(baseprops);
+		return Arrays.hashCode(baseProps);
 	}
 	
 	@Override
@@ -51,7 +51,7 @@ public class BooleanMachineState extends MachineState {
         if (o != null) {
         	if (o instanceof BooleanMachineState) {
         		BooleanMachineState state = (BooleanMachineState) o;
-                return Arrays.equals(baseprops, state.baseprops);
+                return Arrays.equals(baseProps, state.baseProps);
         	}
         	else if (o instanceof MachineState) {
         		MachineState state = (MachineState) o;

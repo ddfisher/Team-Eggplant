@@ -34,14 +34,23 @@ public final class CachedBooleanPropNetStateMachine extends BooleanPropNetStateM
 	}
 
 	private final TtlCache<MachineState, Entry> ttlCache;
+	
+	public CachedBooleanPropNetStateMachine() {
+		super();
+		ttlCache = new TtlCache<MachineState, Entry>(1);
+	}
 
 	public CachedBooleanPropNetStateMachine(GdlProposition roleGDL)
 	{
 		super(roleGDL);
 		ttlCache = new TtlCache<MachineState, Entry>(1);
 	}
-	
 
+	public CachedBooleanPropNetStateMachine(Role role) {
+		super(role);
+		ttlCache = new TtlCache<MachineState, Entry>(1);
+	}
+	
 	private Entry getEntry(MachineState state)
 	{
 		if (!ttlCache.containsKey(state))

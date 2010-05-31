@@ -108,8 +108,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private Move[] moveIndex;
 	
 	/** Latch mechanism */
-	private int[][][] sameTurnEffectsAr;
-	private int[][][] nextTurnEffectsAr;
 	private ArrayList<TreeMap<Integer, int[]>> sameTurnEffects;
 	private ArrayList<TreeMap<Integer, int[]>> nextTurnEffects;
 	private List<Integer> trueLatches;
@@ -189,18 +187,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		
 		defaultOrdering = getOrdering(null);
-
-		int count = 0;
-		for (Component comp : pnet.getComponents()) {
-			if (comp instanceof Constant) {
-				count++;
-			}
-		}
 		
 		if (mainRole == null)
 			mainRole = roleIndex[0];
 		
-		Log.println('i', "" + count + " constants ");
 		initOperator();
 		
 		calculatePropEffects();
@@ -348,27 +338,15 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		return null;
 	}
 	
-	public void updateSatisfiedLatches(MachineState previousState, List<Move> lastMoves) {
+	public void updateSatisfiedLatches(MachineState state) {
 		if (satisfiedLatches.size() == trueLatches.size() + falseLatches.size())
 			return;
 		try {
 			// Set up the base propositions
-			boolean[] props = initBasePropositionsFromState(previousState);
+			boolean[] props = initBasePropositionsFromState(state);
+		
+			operator.propagateInternal(props);
 
-			// Set up the input propositions
-			List<GdlTerm> doeses = toDoes(lastMoves);
-			
-			// All input props start as false
-
-			for (GdlTerm does : doeses) {
-				Log.println('l', "Marking move with " + does);
-				props[inputPropMap.get(does)] = true;
-			}
-
-			Log.println('c', "Before propagate: " + Arrays.toString(props));
-			operator.propagate(props);
-			Log.println('c', "After propagate: " + Arrays.toString(props));
-			Log.println('l', "Using for update "+ new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex).getContents());
 			for (int latch : trueLatches) {
 				if (props[latch]) {
 					if (satisfiedLatches.add(propIndex[latch])) {
@@ -511,6 +489,27 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	
 	public int[][][] getGoalPropMap() {
 		return goalPropMap;
+	}
+	
+	public Map<Integer, int[]> getLatchesOn(int propNum) {
+		Map<Integer, int[]> affectingLatches = new HashMap<Integer, int[]>(); 
+		for (int latch : trueLatches) {
+			if (sameTurnEffects.get(latch).containsKey(propNum)) {
+				affectingLatches.put(latch, sameTurnEffects.get(latch).get(propNum));
+			}
+			if (nextTurnEffects.get(latch).containsKey(propNum)) {
+				affectingLatches.put(latch, nextTurnEffects.get(latch).get(propNum));
+			}
+		}
+		return affectingLatches;
+	}
+	
+	public int getBasePropStart() {
+		return basePropStart;
+	}
+	
+	public int getInputPropStart() {
+		return inputPropStart;
 	}
 
 	/* Helper methods */
@@ -705,6 +704,13 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			nextTurnEffects.add(new TreeMap<Integer, int[]>());
 		}
 		
+		Set<Integer> goalNums = new HashSet<Integer>();
+		for (int role = 0; role < goalPropMap.length; role++) {
+			for (int goal = 0; goal < goalPropMap[role].length; goal++) {
+				goalNums.add(goalPropMap[role][goal][0]);
+			}
+		}
+		
 		int[] sameTurnAr, sameTurnAr2, nextTurnAr;
 		for (int propNum = numProps - 1; propNum >= 0; propNum--) {
 			if (propNum >= inputPropStart && propNum < internalPropStart) {
@@ -716,6 +722,26 @@ public class BooleanPropNetStateMachine extends StateMachine {
 						sameTurnEffects.get(propNum).put(nextPropNum, sameTurnAr);
 					}
 					sameTurnAr[1] = -1;
+				}
+			}
+			if (goalNums.contains(propNum)) {
+	loop:		for (int role = 0; role < goalPropMap.length; role++) {
+					for (int goal = 0; goal < goalPropMap[role].length; goal++) {
+						if (propNum == goalPropMap[role][goal][0]) {
+							for (int otherGoal = 0; otherGoal < goalPropMap[role].length; otherGoal++) {
+								if (otherGoal == goal) {
+									continue;
+								}
+								sameTurnAr = sameTurnEffects.get(propNum).get(goalPropMap[role][otherGoal][0]);
+								if (sameTurnAr == null) {
+									sameTurnAr = new int[2];
+									sameTurnEffects.get(propNum).put(goalPropMap[role][otherGoal][0], sameTurnAr);
+								}
+								sameTurnAr[1] = -1;
+							}
+							break loop;
+						}
+					}
 				}
 			}
 			//sameTurnEffects[propNum][propNum][0] = -1;
@@ -964,20 +990,24 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		falseLatches = new ArrayList<Integer>();
 		satisfiedLatches = new HashSet<Proposition>();
 		relevantPropositions = new HashSet<Proposition>(this.propMap.keySet());
+		StringBuilder latches = new StringBuilder(); //TODO remove
 		for (int index = 0; index < numProps; index++) {
 			TreeMap<Integer, int[]> nextMap = nextTurnEffects.get(index);
 			if (nextMap.containsKey(index)) {
 				int[] ar = nextMap.get(index);
 				if (ar[0] == -1) {
 					falseLatches.add(index);
+					latches.append("F" + propIndex[index].toString() + ",");
 				}
 				if (ar[1] == 1) {
 					trueLatches.add(index);
+					latches.append("T" + propIndex[index].toString() + ",");
 				}
 			}
 		}
 		long end = System.currentTimeMillis();
-		Log.println('l', trueLatches.size() + " true latches and " + falseLatches.size() + " false latches found in " + (end - start) + " ms");
+		Log.println('l', trueLatches.size() + " true latches and " + falseLatches.size() + " false latches found in " + (end - start) + " ms: " + latches);
+		
 	}
 /*
 	private void testPropEffects() {
