@@ -38,7 +38,7 @@ public class Log {
 	// Initialize flags for more efficiency 
 	private static final boolean[] logFlagSet = new boolean[256];
 	private static final boolean[] outFlagSet = new boolean[256];
-	private static final String logFileName = "/mnt/share/log.txt";
+	private static final String logFileName = "log.txt";
 
 	private static PrintStream log;
 
