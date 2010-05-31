@@ -17,6 +17,8 @@ public class GoalHeuristic implements Heuristic {
 	private final int[] goalValues;
 	private final int numGoals;
 	private final int numBaseProps;	
+	private final int maxGoal;
+	private final int minGoal;
 	
 	public GoalHeuristic(BooleanPropNetStateMachine machine, int role) {
 		float[][][][] significanceRef = new float[1][][][];
@@ -27,9 +29,17 @@ public class GoalHeuristic implements Heuristic {
 		this.numGoals = this.goalValues.length;
 		this.numBaseProps = this.significance[0].length;
 		
+		int minGoal = goalValues[0];
+		int maxGoal = goalValues[0];
 		// Normalize
 		for (int goal = 0; goal < numGoals; goal++) {
 			float sum = 0;
+			if (goalValues[goal] > maxGoal) {
+				maxGoal = goalValues[goal];
+			}
+			else if (goalValues[goal] < minGoal) {
+				minGoal = goalValues[goal];
+			}
 			for (int baseProp = 0; baseProp < numBaseProps; baseProp++) {
 				sum += Math.max(significance[goal][baseProp][0], significance[goal][baseProp][1]); 
 			}
@@ -54,6 +64,8 @@ public class GoalHeuristic implements Heuristic {
 				Log.println('x', "");
 			*/			
 		}
+		this.maxGoal = maxGoal;
+		this.minGoal = minGoal;
 	}
 	
 	@Override
@@ -78,12 +90,12 @@ public class GoalHeuristic implements Heuristic {
 			if (timeout == 0)
 			  Log.println('x', "Goal proximity " + goalProximity + " = " + Arrays.toString(goalSignificance));
 			int ret = (int) Math.round(goalProximity);
-			if (ret >= BooleanPropNet.GOAL_SCALE_FACTOR * 100) ret = BooleanPropNet.GOAL_SCALE_FACTOR * 100 - 1;
-			if (ret <= 0) ret = 1;
+			if (ret >= maxGoal) ret = maxGoal - 1;
+			if (ret <= minGoal) ret = minGoal + 1;
 			return ret;
 		}
 		else {
-			return 0;
+			return BooleanPropNet.GOAL_SCALE_FACTOR * 50;
 		}
 	}
 	@Override
