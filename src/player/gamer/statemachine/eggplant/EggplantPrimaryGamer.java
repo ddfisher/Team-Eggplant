@@ -7,9 +7,8 @@ import java.util.List;
 import player.gamer.statemachine.StateMachineGamer;
 import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
+import player.gamer.statemachine.eggplant.heuristic.GoalHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
-import player.gamer.statemachine.eggplant.heuristic.LogisticClassifier;
-import player.gamer.statemachine.eggplant.heuristic.LatchHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
@@ -219,8 +218,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		if (machine instanceof BooleanPropNetStateMachine) {
 			BooleanPropNetStateMachine bpnsm = (BooleanPropNetStateMachine) machine;
 			int roleIndex = bpnsm.getRoleIndices().get(role);
-			//return new GoalHeuristic(bpnsm, roleIndex);
-			return new LatchHeuristic(bpnsm, roleIndex);
+			return new GoalHeuristic(bpnsm, roleIndex);
+//			return new LatchHeuristic(bpnsm, roleIndex);
 		}
 		else {
 			return new NullHeuristic((int) avgGoal);
@@ -252,7 +251,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		Log.println('i', "Turn " + rootDepth + ", starting search at " + depth
 				+ " with best = " + bestWorkingMove + "; end book size = "
 				+ endBook.book.size());
-		boolean hasLost = false, hasWon = bestWorkingMove.value == maxGoal;
+		boolean hasLost = false, hasWon = bestWorkingMove.value == maxGoal;  //FIXME: is this correct?
 		int alreadySearched, alreadyPVSearched;
 		alreadySearched = alreadyPVSearched = 0;
 		long searchStartTime = System.currentTimeMillis();
@@ -326,7 +325,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			} else if (hasWon) {
 				Log.println('i', "Found a win at depth " + (rootDepth + depth)
 						+ ". Move towards win: " + bestWorkingMove);
-				Log.println('i', "Cache (size " + principalMovesCache.size() + "): " + principalMovesCache);
+//				Log.println('i', "Cache (size " + principalMovesCache.size() + "): " + principalMovesCache);
 				if (depth == 1) {
 					printTimeLog();
 				}
@@ -413,7 +412,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 		int depth = (int) (actualDepth + pvDepthOffset);
 
-		ValuedMove endLookup = endBook.endgameValue(state);
+		ValuedMove endLookup = endBook.endgameValue(state, alpha, beta);
 		if (endLookup != null) {
 			Log.println('a', "At depth " + depth + "; searched "
 					+ statesSearched + "; found in EndgameBook");

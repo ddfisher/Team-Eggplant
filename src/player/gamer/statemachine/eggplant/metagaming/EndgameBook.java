@@ -89,9 +89,13 @@ public class EndgameBook {
     return trail[index];
   }
 
-  public ValuedMove endgameValue(MachineState state) {
+  public ValuedMove endgameValue(MachineState state, int alpha, int beta) {
     CacheValue value = book.get(state);
-    return (value != null) ? value.valuedMove : null;
+    if (value != null && alpha >= value.alpha && beta <= value.beta) {
+    		return value.valuedMove;
+    } else {
+    	return null;
+    }
   }
 
   private ValuedMove cachingAlphaBeta(StateMachine machine, MachineState state, Role role, int alpha, int beta,

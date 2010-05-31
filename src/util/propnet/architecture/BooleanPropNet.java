@@ -104,7 +104,7 @@ public final class BooleanPropNet extends PropNet {
 	/** A reference to the single, unique, TerminalProposition. */
 	private final int terminalIndex;
 	
-	public static final int GOAL_SCALE_FACTOR = 1;
+	public static final int GOAL_SCALE_FACTOR = 1000;
 
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
