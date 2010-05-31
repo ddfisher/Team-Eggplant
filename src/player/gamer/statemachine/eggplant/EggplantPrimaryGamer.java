@@ -391,8 +391,6 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				nextStartDepth = 1;
 			if (hasLost)
 				nextStartDepth = 1;
-		} catch (RuntimeException e) {
-			e.printStackTrace();
 		}
 	}
 
