@@ -14,7 +14,9 @@ import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
 import player.gamer.statemachine.eggplant.misc.Log;
+import player.gamer.statemachine.eggplant.misc.StateMachineFactory;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
+import player.gamer.statemachine.eggplant.misc.UpdateMachineException;
 import player.gamer.statemachine.eggplant.misc.ValuedMove;
 import player.gamer.statemachine.eggplant.ui.EggplantConfigPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantDetailPanel;
@@ -28,7 +30,6 @@ import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
 import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 import util.statemachine.implementation.propnet.cache.CachedBooleanPropNetStateMachine;
-import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
 import apps.player.config.ConfigPanel;
 import apps.player.detail.DetailPanel;
 
@@ -54,12 +55,12 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected double avgGoal;
 	protected int heuristicUpdateCounter;
 	protected HashMap<MachineState, CacheValue> principalMovesCache;
-	protected StateMachine updateStateMachine;
+	protected boolean updateStateMachine;
 	protected Object updateStateMachineLock;
 	
 	private final boolean KEEP_TIME = true;
 	private final long GRACE_PERIOD = 200;
-	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.0f;
+	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.1f;
 	private final float DEPTH_INITIAL_OFFSET = 0.5f;
 	private int heuristicUpdateInterval = 0;
 	private List<String> timeLog = new ArrayList<String>();
@@ -79,8 +80,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			throws TransitionDefinitionException, MoveDefinitionException,
 			GoalDefinitionException {
 		Log.println('i', "Starting metagame");
-		
-		updateStateMachine = null;
+		updateStateMachine = false;
 		updateStateMachineLock = new Object();
 		Log.println('y', "Before thread init");
 		(new Thread() {
@@ -133,8 +133,35 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 		Log.println('y', "Beginning metagame evaluation with machine " + machine);
-		iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
-				true, timeout - GRACE_PERIOD);
+		while (true) {
+			try {
+				try {
+					iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
+							true, timeout - GRACE_PERIOD);
+					break;
+				} catch (Exception ex) {
+					if (ex instanceof UpdateMachineException) {
+						throw (UpdateMachineException)ex;
+					}
+					else {
+						ex.printStackTrace();
+						StateMachineFactory.popMachine();
+						throw new UpdateMachineException(false);
+					}
+				}
+			} catch(UpdateMachineException ex) {
+				synchronized (updateStateMachineLock) {
+					updateStateMachine = false;
+				}
+				StateMachine newMachine = StateMachineFactory.getCurrentMachine();
+				Log.println('y', "Switching to " + newMachine);
+				switchStateMachine(newMachine);
+				machine = getStateMachine();
+				state = getCurrentState();
+				role = getRole();
+				findGoalBounds(machine, role);
+			}
+		}
 		if (KEEP_TIME) {
 			en = System.currentTimeMillis();
 			timeLog.add("Metagaming took " + (en - st) + " ms");
@@ -169,23 +196,46 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 		StateMachine machine = getStateMachine();
 		MachineState state = getCurrentState();
-		Log.println('i', "State on turn " + rootDepth + " : " + state.getContents());
 		Role role = getRole();
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 
 		try {
-			if (machine instanceof BooleanPropNetStateMachine) {
-				/*MachineState previousState = getPreviousState();
-				if (previousState != null) {
-					((BooleanPropNetStateMachine) machine).updateSatisfiedLatches(previousState, getLastMoves());
+			while (true) {
+				try {
+					if (machine instanceof BooleanPropNetStateMachine) {
+						((BooleanPropNetStateMachine) machine).updateSatisfiedLatches(state);
+					}
+
+					Log.println('i', "State on turn " + rootDepth + " : " + state.getContents());
+					try {
+						iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
+								machine.getLegalMoves(state, role).size() == 1, timeout
+										- GRACE_PERIOD);
+					} catch (Exception ex) {
+						if (ex instanceof UpdateMachineException) {
+							throw (UpdateMachineException)ex;
+						}
+						else {
+							ex.printStackTrace();
+							StateMachineFactory.popMachine();
+							throw new UpdateMachineException(false);
+						}
+					}
+					break;
+				} catch (UpdateMachineException ex) {
+					synchronized (updateStateMachineLock) {
+						updateStateMachine = false;
+						StateMachine newMachine = StateMachineFactory.getCurrentMachine();
+						Log.println('y', "Switching to " + newMachine);
+						switchStateMachine(newMachine);
+						machine = getStateMachine();
+						state = getCurrentState();
+						role = getRole();
+						findGoalBounds(machine, role);
+					}
 				}
-				*/
-				((BooleanPropNetStateMachine) machine).updateSatisfiedLatches(state);
 			}
 			
-			iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
-					machine.getLegalMoves(state, role).size() == 1, timeout
-							- GRACE_PERIOD);
 			rootDepth++;
 
 			long stop = System.currentTimeMillis();
@@ -229,7 +279,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 
 	protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, boolean preemptiveSearch, 
-			long endTime) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+			long endTime) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException, UpdateMachineException {
 		int depth;
 		/*
 		 * int bd = openingBook.bookDepth(); if (rootDepth < bd) { ValuedMove vm
@@ -260,20 +310,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				Log.println('x', "Current state evaluates " + heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth, 0));
 				while (depth <= maxSearchDepth) {
 					// Check for update to statemachine
-					synchronized (updateStateMachineLock) {
-						if (updateStateMachine != null) {
-							Log.println('y', "Switching to " + updateStateMachine);
-							switchStateMachine(updateStateMachine);
-							machine = getStateMachine();
-							state = getCurrentState();
-							role = getRole();
-							updateStateMachine = null;
-							heuristic = getHeuristic(machine, role);
-							findGoalBounds(machine, role);
-							alpha = minGoal - 1;
-							beta = maxGoal + 1;
-							depth = 1;
-						}
+					if (updateStateMachine) {
+						throw new UpdateMachineException(true);
 					}
 
 					heuristicUpdateCounter = heuristicUpdateInterval = rootDepth + depth;
@@ -544,8 +582,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		CachedBooleanPropNetStateMachine bpnet = new CachedBooleanPropNetStateMachine(getRoleName());
 		bpnet.initialize(getMatch().getDescription());
 		Log.println('y', "Threaded BPNSM compute ended " + System.currentTimeMillis());
+	}
+	
+	public void signalUpdateMachine() {
 		synchronized (updateStateMachineLock) {
-			updateStateMachine = bpnet;
+			updateStateMachine = true;
 		}
 	}
 
@@ -568,7 +609,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 
 	@Override
 	public StateMachine getInitialStateMachine() {
-		return new CachedProverStateMachine();
+		StateMachineFactory.reset();
+		StateMachineFactory.setDelegate(this);
+		return StateMachineFactory.getCurrentMachine();
 	}
 
 	@Override

@@ -12,6 +12,8 @@ public class LogisticClassifier {
 	private final int MAX_ITER = 100;
 	private final double EPSILON = .0000000001; // 1e-10
 	private final boolean VERBOSE = true;
+	private final double NORM_CONSTRAINT = 1000;
+	private final double STOP_TAU = .000001; // 1e-6
 	
 	private double sigmoid(double x) {
 		return (1.0 / (1.0 + Math.exp(-x)));
@@ -39,12 +41,20 @@ public class LogisticClassifier {
 		return total;
 	}
 	
+	// first is a column vector, second is plain-vanilla array
+	private double dotProduct(double[][] a, double[] b) {
+		if (a.length != b.length) return 0;
+		double total = 0;
+		for (int i = 0; i < a.length; i++) total += a[i][0] * b[i];
+		return total;
+	}
+	
 	public double[] learnCoefficients(double[][] desMat, int[] targets, double[] weights) {
 		int m = desMat.length, n = desMat[0].length + 1;
 		double[][] in = new double[m][n];
 		for (int i = 0; i < m; i++) in[i][0] = 1.0;
 		for (int i = 0; i < m; i++) for (int j = 1; j < n; j++) in[i][j] = desMat[i][j-1];
-		return learnCoefficientsWithOffset(in, targets, weights);
+		return learnCoefficientsWithOffsetRidged(in, targets, weights);
 	}
 	
 	public double[] learnCoefficients(double[][] desMat, int[] targets) {
@@ -53,7 +63,56 @@ public class LogisticClassifier {
 		return learnCoefficients(desMat, targets, weights);
 	}
 	
-	private double[] learnCoefficientsWithOffset(double[][] desMat, int[] targets, double[] w) {
+	// See: Efficient L1 Regularized Logistic Regression by Lee, Lee, Abbeel and Ng
+	/*
+	private double[] learnCoefficientsWithOffsetL1(double[][] desMat, int[] targets, double[] w) {
+		int m = desMat.length, n = desMat[0].length;
+		// coefficients vector
+		Matrix mat = new Matrix(desMat);
+		Matrix trans = mat.transpose();
+		Matrix theta = new Matrix(n, 1);
+		double[][] tharr = theta.getArray();
+		for (int i = 0; i < n; i++) tharr[i][0] = 0;
+		Matrix newTheta = new Matrix(n, 1);
+		Matrix lambda = new Matrix(m, m);
+		double[][] larr = lambda.getArray();
+		for (int i = 0; i < m; i++) for (int j = 0; j < m; j++) larr[i][j] = 0;
+		Matrix z = new Matrix(m, 1);
+		double[][] zarr = z.getArray();
+		// learning cycles
+		try {
+			for (int i = 0; i < MAX_ITER; i++) {
+				for (int j = 0; j < m; j++) {
+					double dp = dotProduct(tharr, desMat[j]);
+					double sig = sigmoid(dp);
+					larr[j][j] = sig * (1 - sig);
+					zarr[j][0] = dp + (1 - sigmoid(targets[i] * dp)) * targets[i] / larr[j][j];
+				}
+				Matrix xLambda = mat.times(lambda);
+				Matrix gamma = (xLambda.times(trans)).inverse().times(xLambda).times(z); // TODO: use LARS for the regularized version
+				double t = .5; // TODO: compute t with backwards line search
+				// don't overwrite theta with timesEquals
+				newTheta = theta.times(1 - t).plusEquals(gamma.timesEquals(t));
+				if (absSumMatrix(newTheta.minus(theta)) < m * EPSILON) {
+					savedCoefficients = newTheta.getColumnPackedCopy();
+					converged = true;
+					if (VERBOSE) System.out.println("Converged.");
+					return savedCoefficients;
+				}
+			}
+			if (VERBOSE) System.out.println("Failed to converge.");
+			savedCoefficients = theta.getColumnPackedCopy();
+			converged = false;
+			return savedCoefficients;
+		} catch (RuntimeException e) {
+			e.printStackTrace();
+			converged = false;
+			savedCoefficients = null;
+			return theta.getColumnPackedCopy();
+		}
+	}*/
+	
+	private double[] learnCoefficientsWithOffsetRidged(double[][] desMat, int[] targets, double[] w) {
 		int m = desMat.length, n = desMat[0].length;
 		Matrix coeff = new Matrix(n, 1);
 		for (int i = 0; i < n; i++) coeff.set(i, 0, 0.0);

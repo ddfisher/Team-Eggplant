@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import player.gamer.statemachine.eggplant.misc.Log;
+import player.gamer.statemachine.eggplant.misc.StateMachineFactory;
 import util.gdl.grammar.Gdl;
 import util.gdl.grammar.GdlProposition;
 import util.gdl.grammar.GdlRelation;
@@ -115,7 +116,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private Set<Proposition> satisfiedLatches;
 	private Set<Proposition> relevantPropositions;
 	
+	private Operator nativeOperator;
+	private Operator javassistOperator;
 	private Operator operator;
+	private Object operatorLock;
 	private Role mainRole;
 	
 	public BooleanPropNetStateMachine() {
@@ -190,10 +194,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		if (mainRole == null)
 			mainRole = roleIndex[0];
+
+		calculatePropEffects();
 		
 		initOperator();
 		
-		calculatePropEffects();
 	}
 
 	/**
@@ -615,11 +620,33 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			Log.println('r', "Role " + role + " goal ordering : " + goalOrderings.get(role).size());
 		}
 		
-//		operator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
-//				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
-		operator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
+		operatorLock = new Object();
+		
+		javassistOperator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
+				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
+		setOperator(true);
+		Log.println('u', "Javassist done!");
+		
+		StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_JAVASSIST, this);
+		
+		nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
 				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
-//		operator = new CheckedOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings);
+		setOperator(false);
+		Log.println('u', "Native done!");
+		StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
+	}
+	
+	public void setOperator(boolean toJavassist) {
+		synchronized(operatorLock) {
+			if (toJavassist) {
+				if (javassistOperator != null)
+					operator = javassistOperator;
+			}
+			else {
+				if (nativeOperator != null)
+					operator = nativeOperator;
+			}
+		}
 	}
 	
 	// The heuristic does not have access to most of the prop net info, so we pass in
@@ -1487,7 +1514,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		for (int[][] roleGoals : goalPropMap) {
 			numGoals += roleGoals.length;
 		}
-		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (numProps - internalPropStart) + " internal, " + numGoals + " goals, terminal = " + terminalIndex; 
+		return "BPNSM with " + (basePropStart - initIndex) + " init, " + (inputPropStart - basePropStart) + " base, " + (internalPropStart - inputPropStart) + " input, " + (numProps - internalPropStart) + " internal, " + numGoals + " goals, terminal = " + terminalIndex + " using " + (operator == nativeOperator ? "native" : "javassist"); 
 	}
 	
 	/** Factoring logic */
