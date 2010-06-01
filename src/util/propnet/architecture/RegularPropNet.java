@@ -61,7 +61,7 @@ import util.statemachine.implementation.propnet.PropNetRole;
  * @author Sam Schreiber
  */
 @SuppressWarnings("serial")
-public final class RegularPropNet extends PropNet {
+public final class RegularPropNet {
 	/** References to every Proposition in the PropNet. */
 	private final Set<Proposition> propositions;
 	/** References to every BaseProposition in the PropNet, indexed by name. */

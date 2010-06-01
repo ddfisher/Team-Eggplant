@@ -69,7 +69,7 @@ import util.statemachine.implementation.propnet.PropNetRole;
  * @author Sam Schreiber
  */
 @SuppressWarnings("serial")
-public final class BooleanPropNet extends PropNet {
+public final class BooleanPropNet {
 	/** References to every Proposition in the PropNet. */
 	private final Proposition[] propIndex;
 	/** References to every Proposition in the PropNet. */
