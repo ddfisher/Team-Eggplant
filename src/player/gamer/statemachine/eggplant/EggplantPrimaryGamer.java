@@ -131,7 +131,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		endBook = new EndgameBook(numPlayers);
 		// endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start +
 		// (timeout - start) / 2);
-		heuristic = new PropNetAnalyticsHeuristic(new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
+		heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
 
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 		Log.println('y', "Beginning metagame evaluation with machine " + machine);
@@ -164,7 +164,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				state = getCurrentState();
 				role = getRole();
 				findGoalBounds(machine, role);
-				heuristic = new PropNetAnalyticsHeuristic(new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
+				heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
 			}
 		}
 		if (KEEP_TIME) {
@@ -239,7 +239,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 						state = getCurrentState();
 						role = getRole();
 						findGoalBounds(machine, role);
-						heuristic = new PropNetAnalyticsHeuristic(new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
+						heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
 					}
 				}
 			}

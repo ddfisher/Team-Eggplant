@@ -2,6 +2,7 @@ package player.gamer.statemachine.eggplant.heuristic;
 
 import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
+import util.propnet.architecture.BooleanPropNet;
 import util.statemachine.BooleanMachineState;
 import util.statemachine.MachineState;
 import util.statemachine.Role;
@@ -16,13 +17,19 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 	private GoalHeuristic rootStateGoalHeuristic;
 	private int currStateLatchEval;
 	private int currStateGoalEval;
+	private int minGoal;
+	private int maxGoal;
 	
-	public PropNetAnalyticsHeuristic(Heuristic[] heuristics, double[] weights) {
+	public PropNetAnalyticsHeuristic(int minGoal, int maxGoal, Heuristic[] heuristics, double[] weights) {
 		super(heuristics, weights);
+		this.minGoal = minGoal;
+		this.maxGoal = maxGoal;
 	}
 
-	public PropNetAnalyticsHeuristic(int numPlayers) {
+	public PropNetAnalyticsHeuristic(int minGoal, int maxGoal, int numPlayers) {
 		super(numPlayers);
+		this.minGoal = minGoal;
+		this.maxGoal = maxGoal;
 	}
 	
 	@Override
@@ -57,8 +64,14 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 			baselineCount++;
 		}
 		//Log.println('u', latchEval + " " + goalEval + " " + currStateGoalEval + " " + rootStateGoalEval);
-		
-		return baselineSum / baselineCount;
+		int ret = baselineSum / baselineCount;
+		if (ret >= maxGoal) {
+			ret = maxGoal - 1;
+		}
+		else if (ret <= minGoal) {
+			ret = minGoal + 1;
+		}
+		return ret;
 	}
 
 	@Override
