@@ -774,7 +774,7 @@ public class RegularPropNetStateMachine extends StateMachine {
 	@Override
 	public void initialize(List<Gdl> desc) {
 		description = desc;
-		pnet = (RegularPropNet) CachedPropNetFactory.create(description);
+		pnet = new RegularPropNet(CachedPropNetFactory.create(description));
 		roles = computeRoles(description);
 		initializeFromPropNet(pnet);
 

@@ -29,6 +29,7 @@ import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.architecture.components.Transition;
 import util.propnet.factory.CachedPropNetFactory;
+import util.propnet.factory.PropNetFactory;
 import util.statemachine.BooleanMachineState;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
@@ -147,16 +148,16 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	@Override
 	public void initialize(List<Gdl> description) {
 		this.description = description;
-		this.pnet = (BooleanPropNet) CachedPropNetFactory.create(description);
+		this.pnet = new BooleanPropNet(CachedPropNetFactory.create(description));
 		this.rolesList = computeRoles(description);
-		this.pnet.renderToFile(ORIGINAL_PNET_PATH);
+		// this.pnet.renderToFile(ORIGINAL_PNET_PATH);
 		initializeFromPropNet(this.pnet);
 		Log.println('q', this.toString());
 	}
 	
 	public void initialize(Set<Component> components, List<Role> roles) {
 		this.description = null;
-		this.pnet = new BooleanPropNet(roles, components);
+		this.pnet = new BooleanPropNet(components);
 		this.rolesList = roles;
 		initializeFromPropNet(this.pnet);
 	}

@@ -1,5 +1,8 @@
 package util.propnet.architecture;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -18,6 +21,7 @@ import util.gdl.grammar.GdlFunction;
 import util.gdl.grammar.GdlProposition;
 import util.gdl.grammar.GdlRelation;
 import util.gdl.grammar.GdlTerm;
+import util.logging.GamerLogger;
 import util.propnet.architecture.components.And;
 import util.propnet.architecture.components.Constant;
 import util.propnet.architecture.components.Not;
@@ -70,6 +74,9 @@ import util.statemachine.implementation.propnet.PropNetRole;
  */
 @SuppressWarnings("serial")
 public final class BooleanPropNet {
+	
+	/** References to every component in the PropNet. */
+	private Set<Component> components;
 	/** References to every Proposition in the PropNet. */
 	private final Proposition[] propIndex;
 	/** References to every Proposition in the PropNet. */
@@ -113,9 +120,12 @@ public final class BooleanPropNet {
 	 * @param components
 	 *            A list of Components.
 	 */
-	public BooleanPropNet(List<Role> roles, Set<Component> components) {
-		super(roles, components);
-
+	public BooleanPropNet(PropNet pnet) {
+		this(pnet.getComponents());
+	}
+	
+	public BooleanPropNet(Set<Component> components) {
+		this.components = components;
 		propMap = new HashMap<Proposition, Integer>();
 		basePropMap = new HashMap<GdlTerm, Integer>();
 		inputPropMap = new HashMap<GdlTerm, Integer>();
@@ -666,7 +676,9 @@ public final class BooleanPropNet {
 	/**
 	 * Getter methods
 	 */
-	
+	public Set<Component> getComponents() {
+		return components;
+	}
 	public Proposition[] getPropIndex() {
 		return propIndex;
 	}
@@ -734,6 +746,25 @@ public final class BooleanPropNet {
 		}
 		return order;
 	}
+	
+	/**
+     * Outputs the propnet in .dot format to a particular file.
+     * This can be viewed with tools like Graphviz and ZGRViewer.
+     * 
+     * @param filename the name of the file to output to
+     */
+    public void renderToFile(String filename) {
+        try {
+            File f = new File(filename);
+            FileOutputStream fos = new FileOutputStream(f);
+            OutputStreamWriter fout = new OutputStreamWriter(fos, "UTF-8");
+            fout.write(toString());
+            fout.close();
+            fos.close();
+        } catch(Exception e) {
+            GamerLogger.logStackTrace("StateMachine", e);
+        }
+    }
 
 	public static void topologicalSort(Component currComponent, List<Proposition> order,
 			Set<Proposition> propositions, Set<Component> components) {
