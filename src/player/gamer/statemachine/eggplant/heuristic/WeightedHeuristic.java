@@ -8,8 +8,8 @@ import util.statemachine.exceptions.MoveDefinitionException;
 
 public class WeightedHeuristic implements Heuristic{
 	
-	private Heuristic[] heuristics;
-	private double[] weights;
+	protected Heuristic[] heuristics;
+	protected double[] weights;
 
 	public WeightedHeuristic(Heuristic[] heuristics, double[] weights) {
 		super();
