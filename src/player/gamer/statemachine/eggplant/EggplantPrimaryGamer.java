@@ -89,11 +89,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				generateBooleanPropNetStateMachine();
 			}
 		}).start();
-		try {
-			Thread.sleep(3000);
-		}catch(Exception ex) {
-			
-		}
+		
 		Log.println('y', "After thread init");
 		// initialize cache, evaluators
 		long st, en;
@@ -223,7 +219,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 						iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
 								machine.getLegalMoves(state, role).size() == 1, timeout
 										- GRACE_PERIOD);
-					} catch (Exception ex) {
+					} catch (Throwable ex) {
 						if (ex instanceof UpdateMachineException) {
 							throw (UpdateMachineException)ex;
 						}
@@ -375,6 +371,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				nextStartDepth = 1;
 			if (hasLost)
 				nextStartDepth = 1;
+		} catch (UpdateMachineException ex) {
+			nextStartDepth = depth;
+			throw ex;
 		}
 	}
 
@@ -458,7 +457,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				actualDepth)) {
 			pvStatesSearched++;
 			// Clear cache for pv search
-			cache = null;
+			// cache = null;
 		}
 		if (perceivedDepth > actualDepth) {
 			System.err.println("ERROR: " + perceivedDepth + " " + actualDepth + " "

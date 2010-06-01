@@ -31,7 +31,14 @@ public final class PropNetFactory
 	public static PropNet create(List<Gdl> description)
 	{
         try {
-            List<GdlRule> flatDescription = new PropNetFlattener(description).flatten();
+        	PropNetAnnotatedFlattener annotated = new PropNetAnnotatedFlattener(description);
+        	List<GdlRule> flatDescription;
+        	if (annotated.noAnnotations()) {
+        		flatDescription = new PropNetFlattener(description).flatten();
+        	}
+        	else {
+        		flatDescription = annotated.flatten();
+        	}
             GamerLogger.log("StateMachine", "Converting...");
             return new PropNetConverter().convert(flatDescription);
         } catch(Exception e) {
