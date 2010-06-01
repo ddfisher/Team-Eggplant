@@ -48,12 +48,20 @@ public class GoalHeuristic implements Heuristic {
 				
 			TreeMap<String, String> sortingMap = new TreeMap<String, String>();
 			*/
-			for (int baseProp = 0; baseProp < numBaseProps; baseProp++) {
-				significance[goal][baseProp][0] /= sum;
-				significance[goal][baseProp][1] /= sum;
-				/*if (goal == numGoals - 1)
-					sortingMap.put(machine.propIndex[baseProp + 1].toString(), machine.propIndex[baseProp + 1] + " = (" + significance[goal][baseProp][0] + "," + significance[goal][baseProp][1] + "), originally " + "(" + significance[goal][baseProp][0] * sum + "," + significance[goal][baseProp][1] * sum + ")");
-					*/
+			if (sum > 0) {
+				for (int baseProp = 0; baseProp < numBaseProps; baseProp++) {
+					significance[goal][baseProp][0] /= sum;
+					significance[goal][baseProp][1] /= sum;
+					/*if (goal == numGoals - 1)
+						sortingMap.put(machine.propIndex[baseProp + 1].toString(), machine.propIndex[baseProp + 1] + " = (" + significance[goal][baseProp][0] + "," + significance[goal][baseProp][1] + "), originally " + "(" + significance[goal][baseProp][0] * sum + "," + significance[goal][baseProp][1] * sum + ")");
+						*/
+				}
+			}
+			else {
+				for (int baseProp = 0; baseProp < numBaseProps; baseProp++) {
+					significance[goal][baseProp][0] = 0;
+					significance[goal][baseProp][1] = 0;
+				}
 			}
 			/*
 			if (goal == numGoals - 1) {

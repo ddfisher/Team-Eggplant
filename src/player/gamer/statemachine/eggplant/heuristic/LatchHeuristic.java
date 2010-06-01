@@ -14,14 +14,14 @@ import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 
 public class LatchHeuristic implements Heuristic {
 
-	private final Map<Integer, Integer> preventingLatches;
-	private final Map<Integer, Integer> determiningLatches;
+	private final Map<Integer, int[]> preventingLatches;
+	private final Map<Integer, int[]> determiningLatches;
 	private final int[][] goals;
 	private final int goalSum;
 	
 	public LatchHeuristic(BooleanPropNetStateMachine machine, int role) {
-		preventingLatches = new HashMap<Integer, Integer>();
-		determiningLatches = new HashMap<Integer, Integer>();
+		preventingLatches = new HashMap<Integer, int[]>();
+		determiningLatches = new HashMap<Integer, int[]>();
 		int[][][] goalPropMap = machine.getGoalPropMap();
 		this.goals = goalPropMap[role];
 		int basePropStart = machine.getBasePropStart();
@@ -41,15 +41,62 @@ public class LatchHeuristic implements Heuristic {
 					continue;
 				
 				int[] latchEffects = affectingLatches.get(latch);
+				int[] ar;
 				for (int tf = 0; tf < 2; tf++) {
 					if (latchEffects[tf] == -1) { // This goal will never become true
-						preventingLatches.put(latch - basePropStart, goal);
+						ar = preventingLatches.get(latch - basePropStart);
+						if (ar == null) {
+							ar = new int[2];
+							preventingLatches.put(latch - basePropStart, ar);
+						}
+						ar[tf] = goal;
 					}
 					else if (latchEffects[tf] == 1) { // This goal will never become true
-						determiningLatches.put(latch - basePropStart, goal);
+						ar = determiningLatches.get(latch - basePropStart);
+						if (ar == null) {
+							ar = new int[2];
+							determiningLatches.put(latch - basePropStart, ar);
+						}
+						ar[tf] = goal;
 					}
 				}
 			}
+		}
+	}
+	
+	public int eval(BooleanPropNetStateMachine machine, BooleanMachineState state) {
+		boolean[] baseProps = state.getBooleanContents();
+		int[] ar;
+		for (int latch : determiningLatches.keySet()) {
+			ar = determiningLatches.get(latch);
+			if (baseProps[latch] && ar[1] != 0) {
+				return ~goals[ar[1]][1];
+			}
+			if (!baseProps[latch] && ar[0] != 0) {
+				return ~goals[ar[0]][1];
+			}
+		}
+		int sum = goalSum;
+		int count = goals.length;
+		boolean[] goalsPrevented = new boolean[goals.length];
+		for (int latch : preventingLatches.keySet()) {
+			ar = preventingLatches.get(latch);
+			if (baseProps[latch] && ar[1] != 0 && !goalsPrevented[ar[1]]) {
+				goalsPrevented[ar[1]] = true;
+				sum -= goals[ar[1]][1];
+				count--;
+			}
+			if (!baseProps[latch] && ar[0] != 0 && !goalsPrevented[ar[0]]) {
+				goalsPrevented[ar[0]] = true;
+				sum -= goals[ar[0]][1];
+				count--;
+			}
+		}
+		if (count == 1) { // Goal effectively determined
+			return ~sum;
+		}
+		else {
+			return sum / count;
 		}
 	}
 	
@@ -59,26 +106,33 @@ public class LatchHeuristic implements Heuristic {
 			throws MoveDefinitionException, TimeUpException {
 		if (machine instanceof BooleanPropNetStateMachine && state instanceof BooleanMachineState) {
 			boolean[] baseProps = ((BooleanMachineState) state).getBooleanContents();
+			int[] ar;
 			for (int latch : determiningLatches.keySet()) {
-				if (baseProps[latch]) {
-					return goals[determiningLatches.get(latch)][1];
+				ar = determiningLatches.get(latch);
+				if (baseProps[latch] && ar[1] != 0) {
+					return goals[ar[1]][1];
+				}
+				if (!baseProps[latch] && ar[0] != 0) {
+					return goals[ar[0]][1];
 				}
 			}
 			int sum = goalSum;
 			int count = goals.length;
 			boolean[] goalsPrevented = new boolean[goals.length];
 			for (int latch : preventingLatches.keySet()) {
-				if (baseProps[latch]) {
-					goalsPrevented[preventingLatches.get(latch)] = true;
+				ar = preventingLatches.get(latch);
+				if (baseProps[latch] && ar[1] != 0 && !goalsPrevented[ar[1]]) {
+					goalsPrevented[ar[1]] = true;
+					sum -= goals[ar[1]][1];
+					count--;
 				}
-			}
-			for (int goal = 0; goal < goalsPrevented.length; goal++) {
-				if (goalsPrevented[goal]) {
-					sum -= goals[goal][1];
+				if (!baseProps[latch] && ar[0] != 0 && !goalsPrevented[ar[0]]) {
+					goalsPrevented[ar[0]] = true;
+					sum -= goals[ar[0]][1];
 					count--;
 				}
 			}
-			return sum / count;  
+			return sum / count; 
 		}
 		else {
 			return BooleanPropNet.GOAL_SCALE_FACTOR * 50;

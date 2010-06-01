@@ -61,7 +61,10 @@ import util.statemachine.implementation.propnet.PropNetRole;
  * @author Sam Schreiber
  */
 @SuppressWarnings("serial")
-public final class RegularPropNet extends PropNet {
+public final class RegularPropNet {
+
+	/** References to every component in the PropNet. */
+	private final Set<Component> components;
 	/** References to every Proposition in the PropNet. */
 	private final Set<Proposition> propositions;
 	/** References to every BaseProposition in the PropNet, indexed by name. */
@@ -85,6 +88,9 @@ public final class RegularPropNet extends PropNet {
 
 	private final Map<Proposition, Proposition> legalInputMap;
 
+	/** A helper list of all of the roles. */
+	private final List<Role> roles;
+
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
 	 * those components.
@@ -92,8 +98,13 @@ public final class RegularPropNet extends PropNet {
 	 * @param components
 	 *            A list of Components.
 	 */
+	public RegularPropNet(PropNet pnet) {
+		this(pnet.getRoles(), pnet.getComponents());
+	}
+	
 	public RegularPropNet(List<Role> roles, Set<Component> components) {
-		super(roles, components);
+	    this.roles = roles;
+		this.components = components;
 		this.propositions = recordPropositions();
 		this.basePropositions = recordBasePropositions();
 		this.inputPropositions = recordInputPropositions();
@@ -343,4 +354,41 @@ public final class RegularPropNet extends PropNet {
 
 		return null;
 	}
+	/**
+	 * Returns a representation of the PropNet in .dot format.
+	 * 
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString()
+	{
+		StringBuilder sb = new StringBuilder();
+
+		sb.append("digraph propNet\n{\n");
+		for ( Component component : components )
+		{
+			sb.append("\t" + component.toString() + "\n");
+		}
+		sb.append("}");
+
+		return sb.toString();
+	}
+	/**
+     * Outputs the propnet in .dot format to a particular file.
+     * This can be viewed with tools like Graphviz and ZGRViewer.
+     * 
+     * @param filename the name of the file to output to
+     */
+    public void renderToFile(String filename) {
+        try {
+            File f = new File(filename);
+            FileOutputStream fos = new FileOutputStream(f);
+            OutputStreamWriter fout = new OutputStreamWriter(fos, "UTF-8");
+            fout.write(toString());
+            fout.close();
+            fos.close();
+        } catch(Exception e) {
+            GamerLogger.logStackTrace("StateMachine", e);
+        }
+    }
 }
