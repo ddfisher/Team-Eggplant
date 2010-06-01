@@ -47,8 +47,8 @@ public abstract class Gamer implements Subject
 	 * for the minimum length of time to leave between the stated timeout
 	 * and when you actually return from metaGame and selectMove. They are
 	 * stored here so they can be shared amongst all Gamers. */
-    public static final long PREFERRED_METAGAME_BUFFER = 3900;
-    public static final long PREFERRED_PLAY_BUFFER = 1900;    
+    public static final long PREFERRED_METAGAME_BUFFER = 100;
+    public static final long PREFERRED_PLAY_BUFFER = 100;    
 	
 	// ==== The Gaming Algorithms ====
 	public abstract void metaGame(long timeout) throws MetaGamingException;

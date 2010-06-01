@@ -344,6 +344,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 	
 	public void updateSatisfiedLatches(MachineState state) {
+//		Log.println('l', "Checking satisfied latches...");
 		if (satisfiedLatches.size() == trueLatches.size() + falseLatches.size())
 			return;
 		try {
@@ -385,7 +386,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					}
 				}
 			}
-			Log.println('l', satisfiedLatches.size() + " satified latches: " + satisfiedLatches);
+			Log.println('l', satisfiedLatches.size() + " satisfied latches: " + satisfiedLatches);
 			Log.println('l', relevantPropositions.size() + " relevant props");
 
 		} catch (Exception ex) {

@@ -21,6 +21,8 @@ import player.gamer.statemachine.eggplant.misc.ValuedMove;
 import player.gamer.statemachine.eggplant.ui.EggplantConfigPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantDetailPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantMoveSelectionEvent;
+import player.gamer.statemachine.reflex.event.ReflexMoveSelectionEvent;
+import player.proxy.WorkingResponseSelectedEvent;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -59,7 +61,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected Object updateStateMachineLock;
 	
 	private final boolean KEEP_TIME = true;
-	private final long GRACE_PERIOD = 200;
+	private final long GRACE_PERIOD = 300;
 	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.1f;
 	private final float DEPTH_INITIAL_OFFSET = 0.5f;
 	private int heuristicUpdateInterval = 0;
@@ -199,7 +201,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		Role role = getRole();
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 
-		try {
+		try { //TODO: do the try-catch clauses really need to be arranged in this manner?
 			while (true) {
 				try {
 					if (machine instanceof BooleanPropNetStateMachine) {
@@ -243,15 +245,16 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				timeLog.add("Selecting move at depth " + rootDepth + " took "
 						+ (stop - start) + " ms");
 			}
-			notifyObservers(new EggplantMoveSelectionEvent(
-					bestWorkingMove.move, bestWorkingMove.value, stop - start,
-					statesSearched, leafNodesSearched, cacheHits, cacheMisses));
+//			notifyObservers(new EggplantMoveSelectionEvent(
+//					bestWorkingMove.move, bestWorkingMove.value, stop - start,
+//					statesSearched, leafNodesSearched, cacheHits, cacheMisses));
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
 		if (bestWorkingMove.move != null)
 			return bestWorkingMove.move;
-		return new ValuedMove(-2, machine.getRandomMove(state, role)).move;
+		else
+			return new ValuedMove(-2, machine.getRandomMove(state, role)).move;
 	}
 
 	private Heuristic getHeuristic(StateMachine machine, Role role) {
@@ -291,6 +294,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		if (principalMovesCache.containsKey(state)) {
 			CacheValue cached = principalMovesCache.get(state);
 			bestWorkingMove = cached.valuedMove;
+			notifyObservers(new WorkingResponseSelectedEvent(bestWorkingMove.move.getContents().toString()));
 			depth = maxSearchDepth = maxSearchActualDepth = nextStartDepth;
 		} else { // this state was not previously explored due to alpha-beta
 			// pruning; to ensure non-random moves, start at root
@@ -325,6 +329,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 							principalMovesCache, endTime, false);
 					if (!preemptiveSearch) {
 						bestWorkingMove = move;
+						if (bestWorkingMove.move != null)
+							notifyObservers(new WorkingResponseSelectedEvent(bestWorkingMove.move.getContents().toString()));
 					}
 					searchEndTime = System.currentTimeMillis();
 					Log.println('i', "Turn " + rootDepth + ", depth " + depth
