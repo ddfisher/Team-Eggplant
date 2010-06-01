@@ -42,7 +42,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected int cacheHits, cacheMisses;
 	protected EggplantConfigPanel config = new EggplantConfigPanel();
 	protected ExpansionEvaluator expansionEvaluator;
-	protected PropNetAnalyticsHeuristic heuristic;
+	protected Heuristic heuristic;
 	protected OpeningBook openingBook;
 	protected EndgameBook endBook;
 	protected int maxSearchDepth;

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.HashMap;
 
 import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.StateMachineFactory;
@@ -109,8 +109,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	private Move[] moveIndex;
 	
 	/** Latch mechanism */
-	private ArrayList<TreeMap<Integer, int[]>> sameTurnEffects;
-	private ArrayList<TreeMap<Integer, int[]>> nextTurnEffects;
+	private ArrayList<HashMap<Integer, int[]>> sameTurnEffects;
+	private ArrayList<HashMap<Integer, int[]>> nextTurnEffects;
 	private List<Integer> trueLatches;
 	private List<Integer> falseLatches;
 	private Set<Proposition> satisfiedLatches;
@@ -361,14 +361,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 						for (int otherProp : nextTurnEffects.get(latch).keySet()) {
 							relevantPropositions.remove(propIndex[otherProp]);
 						}
-						/*
-						for (int otherProp = 0; otherProp < numProps; otherProp++) {
-							if (sameTurnEffects[latch][otherProp][1] != 0 || nextTurnEffects[latch][otherProp][1] != 0) {
-								if (relevantPropositions.remove(propIndex[otherProp])) {
-									Log.println('l', "Removed " + propIndex[otherProp]);
-								}
-							}
-						}*/
 					}
 				}
 			}
@@ -723,11 +715,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		Log.println('l', "Begin latch calculations");
 		//sameTurnEffects = new int[numProps][numProps][2];
 		//nextTurnEffects = new int[numProps][numProps][2];
-		sameTurnEffects = new ArrayList<TreeMap<Integer, int[]>>();
-		nextTurnEffects = new ArrayList<TreeMap<Integer, int[]>>();
+		sameTurnEffects = new ArrayList<HashMap<Integer, int[]>>();
+		nextTurnEffects = new ArrayList<HashMap<Integer, int[]>>();
 		for (int propNum = 0; propNum < numProps; propNum++) {
-			sameTurnEffects.add(new TreeMap<Integer, int[]>());
-			nextTurnEffects.add(new TreeMap<Integer, int[]>());
+			sameTurnEffects.add(new HashMap<Integer, int[]>());
+			nextTurnEffects.add(new HashMap<Integer, int[]>());
 		}
 		
 		Set<Integer> goalNums = new HashSet<Integer>();
@@ -800,7 +792,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					}
 					sameTurnAr[0] = -1;
 					sameTurnAr[1] = 1;
-					TreeMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
+					HashMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
 					for (Integer i : map.keySet()) {
 						sameTurnAr2 = map.get(i);
 						for (int tf = 0; tf < 2; tf++) {
@@ -842,7 +834,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 						sameTurnEffects.get(propNum).put(nextPropNum, sameTurnAr);
 					}
 					sameTurnAr[0] = -1;
-					TreeMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
+					HashMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
 					for (Integer i : map.keySet()) {
 						sameTurnAr2 = map.get(i);
 						if (sameTurnAr2[0] != 0) {
@@ -881,7 +873,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 						sameTurnEffects.get(propNum).put(nextPropNum, sameTurnAr);
 					}
 					sameTurnAr[1] = 1;
-					TreeMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
+					HashMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
 					for (Integer i : map.keySet()) {
 						sameTurnAr2 = map.get(i);
 						if (sameTurnAr2[1] != 0) {
@@ -922,7 +914,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					}
 					sameTurnAr[0] = 1;
 					sameTurnAr[1] = -1;
-					TreeMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
+					HashMap<Integer, int[]> map = sameTurnEffects.get(nextPropNum); 
 					for (Integer i : map.keySet()) {
 						sameTurnAr2 = map.get(i);
 						for (int tf = 0; tf < 2; tf++) {
@@ -987,7 +979,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				for (int tf = 0; tf < 2; tf++) {
 					if (nextTurnEffects.get(index).get(propNum)[tf] != 0) {
 						int effectOnPropNum = (nextTurnEffects.get(index).get(propNum)[tf] == 1) ? 1 : 0;
-						TreeMap<Integer, int[]> map = sameTurnEffects.get(propNum);
+						HashMap<Integer, int[]> map = sameTurnEffects.get(propNum);
 						for (Integer nextPropNum : map.keySet()) {
 							int value = map.get(nextPropNum)[effectOnPropNum];
 							if (value != 0) {
@@ -1017,7 +1009,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		satisfiedLatches = new HashSet<Proposition>();
 		relevantPropositions = new HashSet<Proposition>(this.propMap.keySet());
 		for (int index = 0; index < numProps; index++) {
-			TreeMap<Integer, int[]> nextMap = nextTurnEffects.get(index);
+			HashMap<Integer, int[]> nextMap = nextTurnEffects.get(index);
 			if (nextMap.containsKey(index)) {
 				int[] ar = nextMap.get(index);
 				if (ar[0] == -1) {
