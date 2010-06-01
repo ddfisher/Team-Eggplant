@@ -89,6 +89,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				generateBooleanPropNetStateMachine();
 			}
 		}).start();
+		try {
+			Thread.sleep(3000);
+		}catch(Exception ex) {
+			
+		}
 		Log.println('y', "After thread init");
 		// initialize cache, evaluators
 		long st, en;

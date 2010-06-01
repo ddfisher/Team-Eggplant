@@ -104,6 +104,7 @@ public final class PropNet implements Serializable
 	{
 	    this.roles = roles;
 		this.components = components;
+		
 		this.propositions = null;
 		this.basePropositions = null;
 		this.inputPropositions = null;

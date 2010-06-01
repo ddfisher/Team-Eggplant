@@ -22,14 +22,13 @@ import util.gdl.grammar.GdlSentence;
 import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
+import util.propnet.architecture.PropNet;
 import util.propnet.architecture.components.And;
-import util.propnet.architecture.components.Constant;
 import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
 import util.propnet.architecture.components.Proposition;
 import util.propnet.architecture.components.Transition;
 import util.propnet.factory.CachedPropNetFactory;
-import util.propnet.factory.PropNetFactory;
 import util.statemachine.BooleanMachineState;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
@@ -150,8 +149,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		this.description = description;
 		this.pnet = new BooleanPropNet(CachedPropNetFactory.create(description));
 		this.rolesList = computeRoles(description);
-		// this.pnet.renderToFile(ORIGINAL_PNET_PATH);
 		initializeFromPropNet(this.pnet);
+		//this.pnet.renderToFile(ORIGINAL_PNET_PATH);
 		Log.println('q', this.toString());
 	}
 	

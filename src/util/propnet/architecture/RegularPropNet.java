@@ -354,7 +354,25 @@ public final class RegularPropNet {
 
 		return null;
 	}
-	
+	/**
+	 * Returns a representation of the PropNet in .dot format.
+	 * 
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString()
+	{
+		StringBuilder sb = new StringBuilder();
+
+		sb.append("digraph propNet\n{\n");
+		for ( Component component : components )
+		{
+			sb.append("\t" + component.toString() + "\n");
+		}
+		sb.append("}");
+
+		return sb.toString();
+	}
 	/**
      * Outputs the propnet in .dot format to a particular file.
      * This can be viewed with tools like Graphviz and ZGRViewer.
