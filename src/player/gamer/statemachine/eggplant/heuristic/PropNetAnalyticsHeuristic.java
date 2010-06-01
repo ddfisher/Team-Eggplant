@@ -36,8 +36,8 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 	public int eval(StateMachine machine, MachineState state, Role role,
 			int alpha, int beta, int depth, int absDepth, long timeout)
 			throws MoveDefinitionException, TimeUpException {
-		int baselineSum = 0;
-		int baselineCount = 0;
+		double baselineSum = 0;
+		double baselineCount = 0;
 		int latchEval = 0, goalEval = 0, rootStateGoalEval = 0;
 		if (latchHeuristic != null) {
 			if (currStateLatchEval >= 0) { // Goal not already determined
@@ -61,10 +61,10 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 		}
 		for (int i = 0; i < heuristics.length; i++){
 			baselineSum += heuristics[i].eval(machine, state, role, alpha, beta, depth, absDepth, timeout) * weights[i];
-			baselineCount++;
+			baselineCount += weights[i];
 		}
 		//Log.println('u', latchEval + " " + goalEval + " " + currStateGoalEval + " " + rootStateGoalEval);
-		int ret = baselineSum / baselineCount;
+		int ret = (int) (baselineSum / baselineCount);
 		if (ret >= maxGoal) {
 			ret = maxGoal - 1;
 		}
@@ -94,7 +94,7 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 		}
 		try {
 			currStateLatchEval = latchHeuristic.eval(bpnsm, (BooleanMachineState)state);
-			currStateGoalEval = goalHeuristic.eval(bpnsm, state, role, alpha, beta, depth, absDepth, 0);
+			currStateGoalEval = goalHeuristic.eval(bpnsm, state, role, alpha, beta, depth, absDepth, -1);
 		} catch (TimeUpException ex) { // Will never happen
 			return;
 		}		

@@ -147,10 +147,8 @@ public final class BooleanPropNet {
 			
 			totalNumFiltered += numFiltered = condenseIdenticalOutputs(components, filteredComponents);
 			if (numFiltered > 0) {
-				
+				Log.println('t', "Filtered " + numFiltered + " identical outputs");
 				hasFiltered = true;
-				components.removeAll(filteredComponents);
-				Log.println('t', "Filtered " + numFiltered + " identical outputs: " + components);
 				components = new HashSet<Component>(filteredComponents);
 			}
 			

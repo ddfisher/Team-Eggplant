@@ -291,7 +291,6 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		long searchEndTime;
 		try {
 			if (!hasWon) {
-				Log.println('x', "Current state evaluates " + heuristic.eval(machine, state, role, alpha, beta, depth, rootDepth, 0));
 				while (depth <= maxSearchDepth) {
 					// Check for update to statemachine
 					if (updateStateMachine) {

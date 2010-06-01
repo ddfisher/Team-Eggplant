@@ -385,8 +385,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					}
 				}
 			}
-			Log.println('l', satisfiedLatches.size() + " satified latches: " + satisfiedLatches);
-			Log.println('l', relevantPropositions.size() + " relevant props");
+			Log.println('l', satisfiedLatches.size() + " satified latches, " + relevantPropositions.size() + " relevant props");
 
 		} catch (Exception ex) {
 			ex.printStackTrace();
@@ -1017,23 +1016,20 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		falseLatches = new ArrayList<Integer>();
 		satisfiedLatches = new HashSet<Proposition>();
 		relevantPropositions = new HashSet<Proposition>(this.propMap.keySet());
-		StringBuilder latches = new StringBuilder(); //TODO remove
 		for (int index = 0; index < numProps; index++) {
 			TreeMap<Integer, int[]> nextMap = nextTurnEffects.get(index);
 			if (nextMap.containsKey(index)) {
 				int[] ar = nextMap.get(index);
 				if (ar[0] == -1) {
 					falseLatches.add(index);
-					latches.append("F" + propIndex[index].toString() + ",");
 				}
 				if (ar[1] == 1) {
 					trueLatches.add(index);
-					latches.append("T" + propIndex[index].toString() + ",");
 				}
 			}
 		}
 		long end = System.currentTimeMillis();
-		Log.println('l', trueLatches.size() + " true latches and " + falseLatches.size() + " false latches found in " + (end - start) + " ms: " + latches);
+		Log.println('l', trueLatches.size() + " true latches and " + falseLatches.size() + " false latches found in " + (end - start) + " ms");
 		
 	}
 /*
