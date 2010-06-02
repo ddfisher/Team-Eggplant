@@ -61,6 +61,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected boolean updateStateMachine;
 	protected Object updateStateMachineLock;
 	
+	private Thread compilationThread;
+	
 	private final boolean KEEP_TIME = false;
 	private final long GRACE_PERIOD = 300;
 	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.1f;
@@ -103,9 +105,33 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		updateStateMachine = false;
 		updateStateMachineLock = new Object();
 		Log.println('y', "Before thread init");
-		(new Thread() {
+		compilationThread = new Thread() {
 			public void run() {
 				generateBooleanPropNetStateMachine();
+			}
+		};
+		compilationThread.start();
+		
+		(new Thread() {
+			public void run() {
+				while (true) {
+					try {
+						Thread.sleep(60000);
+					} catch (InterruptedException ex) {
+						
+					}
+					
+					if (compilationThread.isAlive()) {
+						if (rootDepth >= 25 && nextStartDepth <= 2) {
+							Log.println('y', "Killing compilation thread");
+							compilationThread.stop();
+						}
+					}
+					else {
+						Log.println('y', "Killing timer thread");
+						break;
+					}
+				}
 			}
 		}).start();
 		
