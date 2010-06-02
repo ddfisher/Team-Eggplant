@@ -1,13 +1,10 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
-
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;

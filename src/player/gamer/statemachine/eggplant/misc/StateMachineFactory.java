@@ -2,11 +2,9 @@ package player.gamer.statemachine.eggplant.misc;
 
 import java.util.concurrent.PriorityBlockingQueue;
 
-import player.gamer.Gamer;
 import player.gamer.statemachine.eggplant.EggplantPrimaryGamer;
 import util.statemachine.StateMachine;
 import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
-import util.statemachine.implementation.prover.ProverStateMachine;
 import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
 
 public class StateMachineFactory {

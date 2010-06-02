@@ -1,13 +1,12 @@
 package player.gamer.statemachine.eggplant.misc;
 
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 
 public class Log {
 	// Set this string only in Log, to avoid messy code
 	private static final String outFlags = "itmqyxluhj";
-	private static final String logFlags = "itmqyxl";
+	private static final String logFlags = "";
 	
 
 	/*

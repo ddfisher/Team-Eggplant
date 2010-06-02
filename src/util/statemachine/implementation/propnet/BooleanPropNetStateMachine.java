@@ -158,7 +158,6 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		this.rolesList = computeRoles(description);
 		initializeFromPropNet(this.pnet, false);
 		this.pnet.renderToFile(ORIGINAL_PNET_PATH);
-		Log.println('q', this.toString());
 	}
 	
 	public void initializeFactor(Set<Component> components, List<Role> roles) {
@@ -335,13 +334,13 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			// All input props start as false
 
 			for (GdlTerm does : doeses) {
-				Log.println('c', "Marking move with " + does);
+				//DEBUG  Log.println('c', "Marking move with " + does);
 				props[inputPropMap.get(does)] = true;
 			}
 
-			Log.println('c', "Before propagate: " + Arrays.toString(props));
+			//DEBUG  Log.println('c', "Before propagate: " + Arrays.toString(props));
 			operator.propagate(props);
-			Log.println('c', "After propagate: " + Arrays.toString(props));
+			//DEBUG  Log.println('c', "After propagate: " + Arrays.toString(props));
 			return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
 
 		} catch (Exception ex) {
@@ -469,7 +468,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			}
 		}
 		
-		Log.println('p', "Order: " + order);
+		//DEBUG  Log.println('p', "Order: " + order);
 		return order;
 	}
 
@@ -800,8 +799,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					Proposition nextProp = (Proposition) output.getSingleOutput();
 					if (!propMap.containsKey(nextProp))
 						continue;
-					int nextPropNum = propMap.get(nextProp);	
-					Log.println('b', "Reached " + output + " " + nextProp + " " + nextPropNum);
+					//int nextPropNum = propMap.get(nextProp);	
+					//DEBUG  Log.println('b', "Reached " + output + " " + nextProp + " " + nextPropNum);
 				}
 				if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1) {
 					Proposition nextProp = (Proposition) output.getSingleOutput();
@@ -984,7 +983,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					}
 					nextTurnAr[0] = -1;
 					nextTurnAr[1] = 1;
-					Log.println('v', "From " + propNum + " to " + nextPropNum);
+					//DEBUG  Log.println('v', "From " + propNum + " to " + nextPropNum);
 				}
 			}			
 		}
@@ -999,7 +998,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				
 				int propNum = queue.remove(0);
 				visited[propNum] = true;
-				Log.println('v', "At index " + index + " " + queue + " " + propIndex[index] + " " + propIndex[index].getOutputs() + " processing " + propIndex[propNum]);
+				//DEBUG  Log.println('v', "At index " + index + " " + queue + " " + propIndex[index] + " " + propIndex[index].getOutputs() + " processing " + propIndex[propNum]);
 			
 				for (int tf = 0; tf < 2; tf++) {
 					if (nextTurnEffects.get(index).get(propNum)[tf] != 0) {
@@ -1616,6 +1615,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				findHighestLevel(referenceMachine.propIndex[inputProp], highestLevel, referenceMachine.propIndex[inputProp]);
 			}
 
+			/*
 			String temp = "";
 			for (Proposition reachableProp : highestLevel.keySet()) {
 				if (highestLevel.get(reachableProp).size() > 1) {
@@ -1629,7 +1629,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				}
 			}
 			Log.println('g', "Input lists " + temp);
-
+			*/
 
 			for (Proposition reachableProp : highestLevel.keySet()) {
 				if (highestLevel.get(reachableProp).size() > 1) {
@@ -1695,7 +1695,8 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			while (true) {
 				List<Component> willVisit = new LinkedList<Component>();
 				while (!toVisit.isEmpty()) {
-					Component curr = toVisit.remove(0);	
+					Component curr = toVisit.remove(0);
+					/*
 					int factor = -1;
 					for (int i = 0; i < factors.size(); i++) {
 						if (factors.get(i).components.contains(curr)) {
@@ -1703,9 +1704,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 							break;
 						}
 					}
+					*/
 
 					if (!alreadyVisited.contains(curr)) {
-						Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+						//DEBUG  Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
 
 						alreadyVisited.add(curr);
 						for (Component next : curr.getOutputs()) {
@@ -1713,7 +1715,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 						}
 					}
 					else {
-						Log.println('g', String.format("%" + (depth + 1) + "s :%2d: visited " + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+						//DEBUG  Log.println('g', String.format("%" + (depth + 1) + "s :%2d: visited " + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
 					}
 				}
 				if (willVisit.isEmpty()) {
@@ -1742,7 +1744,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				List<Component> willVisit = new LinkedList<Component>();
 				while (!toVisit.isEmpty()) {
 					Component curr = toVisit.remove(0);	
-
+					/*
 					int factor = -1;
 					for (int i = 0; i < factors.size(); i++) {
 						if (factors.get(i).components.contains(curr)) {
@@ -1750,8 +1752,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 							break;
 						}
 					}
+					*/
 
-					Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+					//DEBUG  Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
 
 					alreadyVisited.add(curr);
 					for (Component next : curr.getInputs()) {
@@ -1800,10 +1803,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		if (numFactorsFound[0] == factors.size()) {
 			return;
 		}
-		Log.println('g', "exploring " + prop.getName() + " with goal " + goalProp.getName());
+		//DEBUG  Log.println('g', "exploring " + prop.getName() + " with goal " + goalProp.getName());
 		for (Factor factor : factors) {
 			if (factor.internalProps.contains(prop)) { // Proposition intersects factored tree; should only happen once
-				Log.println('g', "Found goal " + prop.getName());
+				//DEBUG  Log.println('g', "Found goal " + prop.getName());
 				if (!factor.goalProps.containsKey(role)) {
 					factor.goalProps.put(role, new HashSet<Proposition>());
 				}
@@ -1831,10 +1834,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 	
 	private void reverseDFS(Proposition prop, Factor factor, BooleanPropNetStateMachine referenceMachine, int depth) {
-		Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Ex: " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + " input"));
+		//DEBUG  Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Ex: " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + " input"));
 		int index = referenceMachine.propMap.get(prop);
 		if (index >= inputPropStart && index < internalPropStart) {
-			Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Reached " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + " input"));
+			//DEBUG  Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Reached " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + " input"));
 			factor.inputProps.add(prop);
 			factor.components.add(prop);
 			return;
@@ -1864,11 +1867,11 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		else {
 			continueSearching = false;
 		}
-		Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Reached " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + (continueSearching ? "" : " stopping")));
+		//DEBUG  Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Reached " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + (continueSearching ? "" : " stopping")));
 		if (continueSearching) { // Not a spurious proposition
 			Component comp = prop.getSingleInput();
 			factor.components.add(comp);
-			Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Expanding " + comp.getClass().getName() + comp.hashCode() + " " + comp.getInputs().size() + " inputs"));
+			//DEBUG  Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Expanding " + comp.getClass().getName() + comp.hashCode() + " " + comp.getInputs().size() + " inputs"));
 			for (Component input : comp.getInputs()) {
 				reverseDFS((Proposition)input, factor, referenceMachine, depth + 1);
 			}
