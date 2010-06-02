@@ -12,8 +12,11 @@ import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluat
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
 import player.gamer.statemachine.eggplant.heuristic.LatchHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.MobilityType;
 import player.gamer.statemachine.eggplant.heuristic.MonteCarloHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.OpponentFocusHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.PropNetAnalyticsHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.SimpleMobilityHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.SimpleOpponentMobilityHeuristic;
@@ -224,6 +227,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			while (true) {
 				try {
 					if (machine instanceof BooleanPropNetStateMachine) {
+						Log.println('i', "Updating latches");
 						((BooleanPropNetStateMachine) machine).updateSatisfiedLatches(state);
 					}
 					
@@ -597,7 +601,12 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 	
 	private Heuristic getHeuristic() {
-		return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.5});
+		MobilityHeuristic mob = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers);
+		OpponentFocusHeuristic opp = new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers);
+		mob.setAvgGoal((int)avgGoal, minGoal, maxGoal);
+		opp.setAvgGoal((int)avgGoal, minGoal, maxGoal);
+		return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {
+				mob, opp, new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.1, 0.3, 0.6});
 	}
 
 

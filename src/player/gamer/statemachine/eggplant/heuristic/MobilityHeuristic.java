@@ -21,9 +21,9 @@ public class MobilityHeuristic implements Heuristic {
 	private int[] samples;
 	private int numPlayers;
 	private int depthLimit;
-	private int avgGoal;
-	private int minGoal;
-	private int maxGoal;
+	protected int avgGoal;
+	protected int minGoal;
+	protected int maxGoal;
 	protected final MobilityType type;
 	private final int BRANCH_QUO = 3;
 	private final int AVG_DEFAULT = 50;

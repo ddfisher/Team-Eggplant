@@ -38,21 +38,12 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 			throws MoveDefinitionException, TimeUpException {
 		double baselineSum = 0;
 		double baselineCount = 0;
-		int latchEval = 0, goalEval = 0, rootStateGoalEval = 0;
+		int latchEval = 0, goalEval = 0;
 		if (latchHeuristic != null) {
 			if (currStateLatchEval >= 0) { // Goal not already determined
 				latchEval = latchHeuristic.eval((BooleanPropNetStateMachine)machine, (BooleanMachineState)state);
 				if (latchEval < 0) { // Goal now determined
-					
-					latchEval = ~latchEval;
-					/*
-					if (latchEval <= minGoal) {
-						latchEval = minGoal + 1;
-					}
-					if (latchEval >= maxGoal) {
-						latchEval = maxGoal + 1;
-					}*/
-					return latchEval;
+					return ~latchEval;
 				}
 				else {
 					// Either latchEval == rootStateLatchEval (has not prevented any goals)
@@ -64,8 +55,7 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 		}
 		if (goalHeuristic != null) {
 			goalEval = goalHeuristic.eval(machine, state, role, alpha, beta, depth, absDepth, timeout);
-			//rootStateGoalEval = rootStateGoalHeuristic.eval(machine, state, role, alpha, beta, depth, absDepth, timeout);
-			baselineSum += goalEval; // - currStateGoalEval + rootStateGoalEval;
+			baselineSum += goalEval;
 			baselineCount++;
 		}
 		for (int i = 0; i < heuristics.length; i++){
@@ -90,25 +80,17 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 		if (!(machine instanceof BooleanPropNetStateMachine && state instanceof BooleanMachineState)) {
 			latchHeuristic = null;
 			goalHeuristic = null;
-			rootStateGoalHeuristic = null;
-			return;
 		}
-		BooleanPropNetStateMachine bpnsm = (BooleanPropNetStateMachine)machine;
-		if (latchHeuristic == null) {
-			latchHeuristic = new LatchHeuristic(bpnsm, bpnsm.getRoleIndices().get(role));
-		}
-		goalHeuristic = new GoalHeuristic(bpnsm, bpnsm.getRoleIndices().get(role));
-		if (rootStateGoalHeuristic == null) {
-			rootStateGoalHeuristic = goalHeuristic;
-		}
-		try {
+		else {
+			BooleanPropNetStateMachine bpnsm = (BooleanPropNetStateMachine)machine;
+			if (latchHeuristic == null) {
+				latchHeuristic = new LatchHeuristic(bpnsm, bpnsm.getRoleIndices().get(role));
+			}
+			goalHeuristic = new GoalHeuristic(bpnsm, bpnsm.getRoleIndices().get(role));
 			currStateLatchEval = latchHeuristic.eval(bpnsm, (BooleanMachineState)state);
-			currStateGoalEval = goalHeuristic.eval(bpnsm, state, role, alpha, beta, depth, absDepth, -1);
-		} catch (TimeUpException ex) { // Will never happen
-			return;
-		}	
-		for (int i = 0; i < heuristics.length; i++) {
-			heuristics[i].update(machine, state, role, alpha, beta, depth, absDepth);
+		}
+		for (Heuristic heuristic : super.heuristics) {
+			heuristic.update(machine, state, role, alpha, beta, depth, absDepth);
 		}
 	}
 	
