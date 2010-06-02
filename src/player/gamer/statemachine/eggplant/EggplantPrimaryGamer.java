@@ -1,6 +1,7 @@
 package player.gamer.statemachine.eggplant;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -9,9 +10,14 @@ import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluat
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
 import player.gamer.statemachine.eggplant.heuristic.Heuristic;
 import player.gamer.statemachine.eggplant.heuristic.LatchHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.MonteCarloHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.PropNetAnalyticsHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.SimpleMobilityHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.SimpleOpponentMobilityHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
+import player.gamer.statemachine.eggplant.metagaming.HeuristicEvaluator;
+import player.gamer.statemachine.eggplant.metagaming.LogisticClassifier;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
 import player.gamer.statemachine.eggplant.misc.Log;
@@ -22,6 +28,8 @@ import player.gamer.statemachine.eggplant.misc.ValuedMove;
 import player.gamer.statemachine.eggplant.ui.EggplantConfigPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantDetailPanel;
 import player.gamer.statemachine.eggplant.ui.EggplantMoveSelectionEvent;
+import player.gamer.statemachine.reflex.event.ReflexMoveSelectionEvent;
+import player.proxy.WorkingResponseSelectedEvent;
 import util.statemachine.MachineState;
 import util.statemachine.Move;
 import util.statemachine.Role;
@@ -60,7 +68,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	protected Object updateStateMachineLock;
 	
 	private final boolean KEEP_TIME = true;
-	private final long GRACE_PERIOD = 200;
+	private final long GRACE_PERIOD = 300;
 	private final float PRINCIPAL_MOVE_DEPTH_FACTOR = 0.1f;
 	private final float DEPTH_INITIAL_OFFSET = 0.5f;
 	private int heuristicUpdateInterval = 0;
@@ -81,6 +89,26 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			throws TransitionDefinitionException, MoveDefinitionException,
 			GoalDefinitionException {
 		Log.println('i', "Starting metagame");
+		
+//		HeuristicEvaluator evaluator = new HeuristicEvaluator();
+//		Heuristic[] hArr = {new SimpleMobilityHeuristic(), new SimpleOpponentMobilityHeuristic()};
+//		evaluator.evaluateHeuristic(hArr, 100, getStateMachine(), getCurrentState(), getRole());
+//		int turn = 0;
+//		double[][] turnValues;
+//		int[] turnGoals;
+//		do {
+//			turnValues = evaluator.getTurnLevels(turn);
+//			turnGoals = evaluator.getTurnGoals(turn);
+//			System.out.println("Turn " + turn + ": " + Arrays.deepToString(turnValues));
+//			System.out.println("Turn " + turn + ": " + Arrays.toString(turnGoals));
+//			LogisticClassifier log = new LogisticClassifier();
+//			log.learnCoefficients(turnValues, turnGoals);
+//			double[] inputs = {8.0, 1.0};
+//			System.out.println("Prediction: " + (100*log.value(inputs)));
+//			turn++;
+//		} while (turnValues != null);
+//		System.exit(0);
+		
 		updateStateMachine = false;
 		updateStateMachineLock = new Object();
 		Log.println('y', "Before thread init");
@@ -128,11 +156,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		*/
 		
 		//((BooleanPropNetStateMachine)machine).speedTest();
-
+		
 		endBook = new EndgameBook(numPlayers);
 		// endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start +
 		// (timeout - start) / 2);
-		heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
+		heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.5});
 
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 		Log.println('y', "Beginning metagame evaluation with machine " + machine);
@@ -166,7 +194,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				role = getRole();
 				
 				findGoalBounds(machine, role);
-				heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
+				heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.5});
 				Log.println('y', "End switching to " + newMachine);
 			}
 		}
@@ -257,9 +285,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				timeLog.add("Selecting move at depth " + rootDepth + " took "
 						+ (stop - start) + " ms");
 			}
-			notifyObservers(new EggplantMoveSelectionEvent(
-					bestWorkingMove.move, bestWorkingMove.value, stop - start,
-					statesSearched, leafNodesSearched, cacheHits, cacheMisses));
+//			notifyObservers(new EggplantMoveSelectionEvent(
+//					bestWorkingMove.move, bestWorkingMove.value, stop - start,
+//					statesSearched, leafNodesSearched, cacheHits, cacheMisses));
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -281,6 +309,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		if (principalMovesCache.containsKey(state)) {
 			CacheValue cached = principalMovesCache.get(state);
 			bestWorkingMove = cached.valuedMove;
+			notifyObservers(new WorkingResponseSelectedEvent(bestWorkingMove.move.getContents().toString()));
 			depth = maxSearchDepth = maxSearchActualDepth = nextStartDepth;
 		} else { // this state was not previously explored due to alpha-beta
 			// pruning; to ensure non-random moves, start at root
@@ -313,6 +342,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 							principalMovesCache, endTime, false);
 					if (!preemptiveSearch) {
 						bestWorkingMove = move;
+						if (bestWorkingMove.move != null)
+							notifyObservers(new WorkingResponseSelectedEvent(bestWorkingMove.move.getContents().toString()));
 					}
 					searchEndTime = System.currentTimeMillis();
 					Log.println('i', "Turn " + rootDepth + ", depth " + depth

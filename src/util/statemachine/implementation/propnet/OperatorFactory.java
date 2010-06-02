@@ -108,6 +108,7 @@ public class OperatorFactory {
 			throws CannotCompileException {
 		StringBuilder body = new StringBuilder();
 		body.append("public int " + MONTE_CARLO + "(boolean[] props) {\n");
+		body.append("int depth = 0;\n");
 		body.append("while(true) {\n");
 			body.append("java.util.Arrays.fill(props, " + inputStart + ", " + (inputStart + numInputs) + ", false);\n");
 			body.append("for (int role = 0; role < " + numRoles + "; role++) {\n");
@@ -135,8 +136,9 @@ public class OperatorFactory {
 
 			body.append("propagateInternal(props);\n");
 			body.append("if (props[" + terminalIndex + "])\n");
-				body.append("return 1;\n");
+				body.append("return depth;\n");
 			body.append("transition(props);\n");
+			body.append("depth++;\n");
 		body.append("}\n");
 		body.append("}\n");
 		Log.println('c', body.toString());

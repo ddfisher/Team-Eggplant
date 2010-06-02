@@ -1,4 +1,4 @@
-package player.gamer.statemachine.eggplant.heuristic;
+package player.gamer.statemachine.eggplant.metagaming;
 
 import java.util.Random;
 
@@ -24,6 +24,13 @@ public class LogisticClassifier {
 		double total = savedCoefficients[0];
 		for (int i = 0; i < inputs.length; i++) total += inputs[i] * savedCoefficients[i+1];
 		return sigmoid(total) >= .5;
+	}
+	
+	public double value(double[] inputs) {
+		if (savedCoefficients == null || inputs.length != savedCoefficients.length-1) return -1;
+		double total = savedCoefficients[0];
+		for (int i = 0; i < inputs.length; i++) total += inputs[i] * savedCoefficients[i+1];
+		return sigmoid(total);
 	}
 	
 	public boolean converged() {
@@ -157,7 +164,7 @@ public class LogisticClassifier {
 		}
 	}
 	
-	public static void printCoefficients(double[] co) {
+	private static void printCoefficients(double[] co) {
 		if (co == null) {
 			System.out.println("no saved coefficients");
 			return;

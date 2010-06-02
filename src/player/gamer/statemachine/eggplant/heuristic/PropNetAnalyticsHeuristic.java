@@ -106,7 +106,10 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 			currStateGoalEval = goalHeuristic.eval(bpnsm, state, role, alpha, beta, depth, absDepth, -1);
 		} catch (TimeUpException ex) { // Will never happen
 			return;
-		}		
+		}	
+		for (int i = 0; i < heuristics.length; i++) {
+			heuristics[i].update(machine, state, role, alpha, beta, depth, absDepth);
+		}
 	}
 	
 }

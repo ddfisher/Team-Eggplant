@@ -1463,7 +1463,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			sum = ((NativeOperator)operator).multiMonte(initBasePropositionsFromState(state), probes);
 		} else {
 			for (int i = 0; i < probes; i++) {
-				MachineState newState = monteCarlo(state, 0);
+				MachineState newState = monteCarlo(state, null);
 				if (newState != null) {
 					try {
 						sum += getGoal(newState, mainRole);
@@ -1482,44 +1482,14 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 
 	
-	public BooleanMachineState monteCarlo(MachineState state, int maxDepth) {
+	public BooleanMachineState monteCarlo(MachineState state, int[] depth) {
 		boolean[] props = initBasePropositionsFromState(state);
-		operator.monteCarlo(props);
+		int d = operator.monteCarlo(props);
+		if (depth != null)
+			depth[0] = d;
 		return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
-		/*
-		if (operator instanceof NativeOperator) {
-			boolean[] props = initBasePropositionsFromState(state);
-			((NativeOperator)operator).monteCarlo(props);
-			return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
-		} else {
-			boolean[] props = initBasePropositionsFromState(state);
-			int[] input = new int[legalPropMap.length];
-			while (true) {
-				boolean legal = false;
-				while (!legal) {
-					Arrays.fill(props, inputPropStart, internalPropStart, false); // set all input props to false
-					for (int role = 0; role < legalPropMap.length; role++) { // set one random input prop to true for each role
-						int index = random.nextInt(legalPropMap[role].length);
-						int inputIndex = legalInputMap[legalPropMap[role][index]];
-						props[inputIndex] = true;
-						input[role] = inputIndex;
-					}
-					operator.propagateInternal(props);
-
-					if (props[terminalIndex]) {
-						return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
-					}
-
-					legal = true;
-					for (int role = 0; role < legalPropMap.length; role++) {
-						legal = legal && props[legalInputMap[input[role]]];
-					}
-				}
-				operator.transition(props);
-			}
-		}
-		*/
 	}
+	
 		
 	@Override
 	public String toString() {
