@@ -14,7 +14,6 @@ import util.propnet.factory.flattener.PropNetFlattener;
  * The PropNetFactory class defines the creation of PropNets from game
  * descriptions.
  */
-@SuppressWarnings("unused")
 public final class PropNetFactory
 {
 	/**

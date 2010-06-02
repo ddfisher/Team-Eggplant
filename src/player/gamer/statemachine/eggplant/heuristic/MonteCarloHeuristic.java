@@ -12,7 +12,7 @@ import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 
 public class MonteCarloHeuristic implements Heuristic {
 	private final int MIN_REASONABLE_TRIALS = 8;
-	private final float targetTime = 0.07f;
+	private final float targetTime = 0.05f;
 	private final float targetDepth = 10.0f;
 	private final int testProbes = 100;
 	private int numTrials, targetTrials;
@@ -84,7 +84,7 @@ public class MonteCarloHeuristic implements Heuristic {
 			
 			numTrials = Math.round(targetTime/avgTime * targetTrials); //TODO: find more intelligent function
 			weight = numTrials/avgDepth;
-			Log.println('j', "+++++++++++++++ Average time: " + avgTime + "\tAverage depth: " + avgDepth + "\tNum Trials: " + numTrials);
+			Log.println('j', "Average time: " + avgTime + "\tAverage depth: " + avgDepth + "\tNum Trials: " + numTrials);
 			if (numTrials < MIN_REASONABLE_TRIALS)
 				numTrials = 0;
 		} else {

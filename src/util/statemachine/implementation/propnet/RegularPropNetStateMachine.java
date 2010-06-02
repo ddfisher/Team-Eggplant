@@ -320,7 +320,6 @@ public class RegularPropNetStateMachine extends StateMachine {
 			minions[i] = new RegularPropNetStateMachine();
 			minions[i].initialize(factors.get(i).components, roles);			
 			Log.println('f', "Factor " + i + " : " + minions[i].toString());
-			MachineState initialState = minions[i].getInitialState();
 		}
 		
 		return minions;

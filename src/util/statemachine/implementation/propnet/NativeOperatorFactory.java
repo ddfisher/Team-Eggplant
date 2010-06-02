@@ -10,9 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javassist.CannotCompileException;
-import javassist.CtClass;
-
 import player.gamer.statemachine.eggplant.misc.Log;
 import util.propnet.architecture.Component;
 import util.propnet.architecture.components.And;

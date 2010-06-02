@@ -1,7 +1,5 @@
 package player.gamer.statemachine.eggplant.misc;
 
-import util.statemachine.StateMachine;
-
 @SuppressWarnings("serial")
 public class UpdateMachineException extends Exception {
 	

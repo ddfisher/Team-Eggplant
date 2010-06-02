@@ -20,6 +20,7 @@ public class LatchHeuristic implements Heuristic {
 	private final int goalSum;
 	
 	public LatchHeuristic(BooleanPropNetStateMachine machine, int role) {
+		
 		preventingLatches = new HashMap<Integer, int[]>();
 		determiningLatches = new HashMap<Integer, int[]>();
 		int[][][] goalPropMap = machine.getGoalPropMap();
@@ -32,7 +33,6 @@ public class LatchHeuristic implements Heuristic {
 			sum += goals[goal][1];
 		}
 		this.goalSum = sum;
-		
 		for (int goal = 0; goal < goals.length; goal++) {
 			int goalNum = goals[goal][0];
 			Map<Integer, int[]> affectingLatches = machine.getLatchesOn(goalNum);

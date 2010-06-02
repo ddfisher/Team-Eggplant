@@ -1,11 +1,8 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
-
-import player.gamer.statemachine.eggplant.heuristic.MobilityHeuristic.BranchingData;
 
 import util.statemachine.MachineState;
 import util.statemachine.Move;
@@ -37,7 +34,12 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 				int ev = judgeRelevantMobility(avg);
 				return (ev > 0) ? ev : (alpha + beta) / 2;
 			default: 
-				avg = machine.getLegalJointMoves(state).size() / machine.getLegalMoves(state, role).size();
+				try {
+					avg = machine.getLegalJointMoves(state).size() / machine.getLegalMoves(state, role).size();
+				}
+				catch (Exception e) {
+					System.err.println(state + " " + machine + " " + machine.isTerminal(state));
+				}
 				int eval = judgeMobility(avg, getIndex(depth + absDepth));
 				/*System.out.println("opp res " + (eval > 0 ? eval : (alpha + beta) / 2) + " for bf " + avg 
 						+ " against avg " + avgBranchingFactor(getIndex(depth + absDepth)) + " at depth " + (depth + absDepth) + "\n");*/
@@ -83,9 +85,14 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 	public void update(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int depth, int absDepth) 
 	throws MoveDefinitionException {
-		int pmSize = machine.getLegalMoves(state, role).size();
-		int oppSize = machine.getLegalJointMoves(state).size() / pmSize;
-		updateAvg(oppSize, depth + absDepth);
+		try {
+			int pmSize = machine.getLegalMoves(state, role).size();
+			int oppSize = machine.getLegalJointMoves(state).size() / pmSize;
+			updateAvg(oppSize, depth + absDepth);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			System.err.println(state + " " + machine + " " + machine.isTerminal(state));
+		}
 	}
 
 }

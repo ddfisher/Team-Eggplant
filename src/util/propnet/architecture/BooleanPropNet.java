@@ -72,7 +72,6 @@ import util.statemachine.implementation.propnet.PropNetRole;
  * 
  * @author Sam Schreiber
  */
-@SuppressWarnings("serial")
 public final class BooleanPropNet {
 	
 	/** References to every component in the PropNet. */
@@ -673,14 +672,14 @@ loop:	for (Component component : components) {
 					}
 				}
 				
-				Log.println('s', "Before filtering #" + numFiltered + ": " + above + " " + below);
-				Log.println('s', "Debug #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs() + " " + below.getOutputs());
+				//DEBUG  Log.println('s', "Before filtering #" + numFiltered + ": " + above + " " + below);
+				//DEBUG  Log.println('s', "Debug #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs() + " " + below.getOutputs());
 				
 				// Rewire the connections: all of below's outputs become above's outputs
 				Set<Component> aboveOutputs = above.getOutputs();
-				Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
+				//DEBUG  Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
 				for (Component connector : belowOutputs) {
-					Log.println('s', "Processing " + connector);
+					//DEBUG  Log.println('s', "Processing " + connector);
 					aboveOutputs.add(connector);
 					connector.addInput(above);
 					connector.getInputs().remove(below);
@@ -689,8 +688,8 @@ loop:	for (Component component : components) {
 				// At this point, component points to below points to belowOutputs; can be removed
 				filteredComponents.remove(component);
 				filteredComponents.remove(below);
-				Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
-				Log.println('s', "After filtering #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs());
+				//DEBUG  Log.println('s', "Filtering #" + numFiltered + ": " + aboveOutputs + "; " + belowOutputs);
+				//DEBUG  Log.println('s', "After filtering #" + numFiltered + ": " + above.getInputs() + " " + above.getOutputs());
 				numFiltered++;
 			}
 		}
@@ -916,10 +915,5 @@ loop:	for (Component component : components) {
 			}
 		}
 		return numPruned;
-	}
-	
-	private void sever(Component upstream, Component downstream) {
-		upstream.getOutputs().remove(downstream);
-		downstream.getInputs().remove(upstream);
 	}
 }

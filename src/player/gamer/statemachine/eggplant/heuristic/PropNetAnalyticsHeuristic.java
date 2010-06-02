@@ -2,7 +2,6 @@ package player.gamer.statemachine.eggplant.heuristic;
 
 import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
-import util.propnet.architecture.BooleanPropNet;
 import util.statemachine.BooleanMachineState;
 import util.statemachine.MachineState;
 import util.statemachine.Role;
@@ -14,9 +13,7 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 
 	private GoalHeuristic goalHeuristic;
 	private LatchHeuristic latchHeuristic;
-	private GoalHeuristic rootStateGoalHeuristic;
 	private int currStateLatchEval;
-	private int currStateGoalEval;
 	private int minGoal;
 	private int maxGoal;
 	
