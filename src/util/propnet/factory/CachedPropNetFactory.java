@@ -27,8 +27,10 @@ public final class CachedPropNetFactory
 		try {
 			theNet = PropNetCache.loadNetworkFromCache(description);
 		} catch (StackOverflowError ex) {
+			ex.printStackTrace();
 			theNet = null;
 		} catch (Exception ex) {
+			ex.printStackTrace();
 			theNet = null;
 		}
         if(theNet != null) return theNet;
