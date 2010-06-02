@@ -87,6 +87,10 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 	throws MoveDefinitionException {
 		try {
 			int pmSize = machine.getLegalMoves(state, role).size();
+			if (pmSize == 0) {
+				System.out.println("ZERO PLAYER MOVES");
+				return;
+			}
 			int oppSize = machine.getLegalJointMoves(state).size() / pmSize;
 			updateAvg(oppSize, depth + absDepth);
 		} catch (Exception ex) {

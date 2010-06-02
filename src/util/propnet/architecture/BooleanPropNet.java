@@ -792,10 +792,12 @@ loop:	for (Component component : components) {
 				constantValue = component.getValue();
 				constantProp = (Proposition) component.getSingleOutput();
 			}
+			
 			if (component instanceof Proposition && component.getInputs().size() != 1 && !isSpecialNode((Proposition) component)) {
 				constantValue = false;
 				constantProp = (Proposition) component;
 			}
+			
 			if (constantProp == null) {
 				continue;
 			}

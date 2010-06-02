@@ -377,7 +377,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				if (principalMovesCache.containsKey(state))
 					bestWorkingMove = principalMovesCache.get(state).valuedMove;
 			} else if (hasWon) {
-				Log.println('i', "Found a win at depth " + (rootDepth + depth)
+				Log.println('i', "Found a win at depth " + bestWorkingMove.depth
 						+ ". Move towards win: " + bestWorkingMove);
 // DEBUG		Log.println('i', "Cache (size " + principalMovesCache.size() + "): " + principalMovesCache);
 				if (depth == 1) {
@@ -601,6 +601,8 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		if (StateMachineFactory.getCurrentMachineDescription() != StateMachineFactory.CACHED_BPNSM_FACTOR) {
 			return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {
 					mob, opp, new MonteCarloHeuristic(20, (int)avgGoal)}, new double[] {0.2, 0.2, 0.6});
+//			return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {
+//					mob, opp}, new double[] {0.2, 0.2});
 		}
 		else {
 			return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {

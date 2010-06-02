@@ -81,6 +81,7 @@ public class MonteCarloHeuristic implements Heuristic {
 				if (curTime > 0) {
 					if (targetTime*i/(float)curTime < MIN_REASONABLE_TRIALS) {
 						numTrials = 0;
+						Log.println('j', "Monte Carlo Disabled after " + (i+1) + " probes; time taken " + curTime + " ms" );
 						return;
 					}
 				}
