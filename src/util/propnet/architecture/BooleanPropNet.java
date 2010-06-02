@@ -111,7 +111,7 @@ public final class BooleanPropNet {
 	/** A reference to the single, unique, TerminalProposition. */
 	private final int terminalIndex;
 	
-	public static final int GOAL_SCALE_FACTOR = 1;
+	public static final int GOAL_SCALE_FACTOR = 1000;
 
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
@@ -495,7 +495,9 @@ public final class BooleanPropNet {
 			prop.getOutputs().remove(connector);
 			if (!isSpecialNode((Proposition)prop) && prop.getOutputs().size() == 0) { // continue processing
 				filteredComponents.remove(prop);
-				count += removeIslands(prop.getSingleInput(), filteredComponents); 
+				if (prop.getInputs().size() > 0) {
+					count += removeIslands(prop.getSingleInput(), filteredComponents);
+				}
 			}
 		}
 		count++;
@@ -785,92 +787,102 @@ loop:	for (Component component : components) {
 		int numFiltered = 0;
 		
 		for (Component component : components) {
+			Proposition constantProp = null;
+			boolean constantValue = false;
 			if (component instanceof Constant) {
-				boolean constantValue = component.getValue();
-				Proposition constantProp = (Proposition) component.getSingleOutput();
-				Set<Component> toSever = new HashSet<Component>();
-				Set<Component> toTrue = new HashSet<Component>();
-				Set<Component> toFalse = new HashSet<Component>();
-				for (Component output : constantProp.getOutputs()) {
-					if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1) {
-						if (constantValue) {
-							toTrue.add(output);
-						}
-						else {
-							toFalse.add(output);
-						}
+				constantValue = component.getValue();
+				constantProp = (Proposition) component.getSingleOutput();
+			}
+			if (component instanceof Proposition && component.getInputs().size() != 1 && !isSpecialNode((Proposition) component)) {
+				constantValue = false;
+				constantProp = (Proposition) component;
+			}
+			if (constantProp == null) {
+				continue;
+			}
+			
+			Set<Component> toSever = new HashSet<Component>();
+			Set<Component> toTrue = new HashSet<Component>();
+			Set<Component> toFalse = new HashSet<Component>();
+			for (Component output : constantProp.getOutputs()) {
+				if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1) {
+					if (constantValue) {
+						toTrue.add(output);
 					}
-					else if (output instanceof And) {
-						if (constantValue) {
-							toSever.add(output);
-						}
-						else {
-							toFalse.add(output);
-						}
-					}
-					else if (output instanceof Or) {
-						if (constantValue) {
-							toTrue.add(output);
-						}
-						else {
-							toSever.add(output);
-						}
-					}
-					else if (output instanceof Not) {
-						if (constantValue) {
-							toFalse.add(output);
-						}
-						else {
-							toTrue.add(output);
-						}
+					else {
+						toFalse.add(output);
 					}
 				}
-				
-				for (Component connectorSevered : toSever) {
-					connectorSevered.getInputs().remove(constantProp);
-					constantProp.getOutputs().remove(connectorSevered);
+				else if (output instanceof And) {
+					if (constantValue) {
+						toSever.add(output);
+					}
+					else {
+						toFalse.add(output);
+					}
 				}
-				for (Component connectorTrued : toTrue) {
-					
-					Proposition propTrued = (Proposition) connectorTrued.getSingleOutput();
-					
-					propTrued.getInputs().remove(connectorTrued);
-					connectorTrued.getOutputs().remove(propTrued);
-					
-					Component trueComponent = new Constant(true);
-					trueComponent.addOutput(propTrued);
-					propTrued.addInput(trueComponent);
-					
-					filteredComponents.add(trueComponent);
-					
-					connectorTrued.getInputs().remove(constantProp);
-					constantProp.getOutputs().remove(connectorTrued);
-					
-					numFiltered += removeIslands(connectorTrued, filteredComponents);
+				else if (output instanceof Or) {
+					if (constantValue) {
+						toTrue.add(output);
+					}
+					else {
+						toSever.add(output);
+					}
 				}
-				for (Component connectorFalsed : toFalse) {
-					Proposition propFalsed = (Proposition) connectorFalsed.getSingleOutput();
-					
-					propFalsed.getInputs().remove(connectorFalsed);
-					connectorFalsed.getOutputs().remove(propFalsed);
-					
-					Component falseComponent = new Constant(false);
-					falseComponent.addOutput(propFalsed);
-					propFalsed.addInput(falseComponent);
-					
-					filteredComponents.add(falseComponent);
-					
-					connectorFalsed.getInputs().remove(constantProp);
-					constantProp.getOutputs().remove(connectorFalsed);
-					
-					numFiltered += removeIslands(connectorFalsed, filteredComponents);
-				}					
-				
-				if (!isSpecialNode(constantProp) && constantProp.getOutputs().size() == 0) {
-					filteredComponents.remove(constantProp);
-					filteredComponents.remove(component);
-					numFiltered++;
+				else if (output instanceof Not) {
+					if (constantValue) {
+						toFalse.add(output);
+					}
+					else {
+						toTrue.add(output);
+					}
 				}
+			}
+
+			for (Component connectorSevered : toSever) {
+				connectorSevered.getInputs().remove(constantProp);
+				constantProp.getOutputs().remove(connectorSevered);
+			}
+			for (Component connectorTrued : toTrue) {
+
+				Proposition propTrued = (Proposition) connectorTrued.getSingleOutput();
+
+				propTrued.getInputs().remove(connectorTrued);
+				connectorTrued.getOutputs().remove(propTrued);
+
+				Component trueComponent = new Constant(true);
+				trueComponent.addOutput(propTrued);
+				propTrued.addInput(trueComponent);
+
+				filteredComponents.add(trueComponent);
+
+				connectorTrued.getInputs().remove(constantProp);
+				constantProp.getOutputs().remove(connectorTrued);
+
+				numFiltered += removeIslands(connectorTrued, filteredComponents);
+			}
+			for (Component connectorFalsed : toFalse) {
+				Proposition propFalsed = (Proposition) connectorFalsed.getSingleOutput();
+
+				propFalsed.getInputs().remove(connectorFalsed);
+				connectorFalsed.getOutputs().remove(propFalsed);
+
+				Component falseComponent = new Constant(false);
+				falseComponent.addOutput(propFalsed);
+				propFalsed.addInput(falseComponent);
+
+				filteredComponents.add(falseComponent);
+
+				connectorFalsed.getInputs().remove(constantProp);
+				constantProp.getOutputs().remove(connectorFalsed);
+
+				numFiltered += removeIslands(connectorFalsed, filteredComponents);
+			}					
+
+			if (!isSpecialNode(constantProp) && constantProp.getOutputs().size() == 0) {
+				filteredComponents.remove(constantProp);
+				filteredComponents.remove(component);
+				numFiltered++;
 			}
 		}
 		return numFiltered;

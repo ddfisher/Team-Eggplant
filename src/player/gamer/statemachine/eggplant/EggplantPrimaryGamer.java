@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import org.python.modules.synchronize;
+
 import player.gamer.statemachine.StateMachineGamer;
 import player.gamer.statemachine.eggplant.expansion.DepthLimitedExpansionEvaluator;
 import player.gamer.statemachine.eggplant.expansion.ExpansionEvaluator;
@@ -160,7 +162,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		endBook = new EndgameBook(numPlayers);
 		// endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start +
 		// (timeout - start) / 2);
-		heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.5});
+		heuristic = getHeuristic();
 
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
 		Log.println('y', "Beginning metagame evaluation with machine " + machine);
@@ -194,7 +196,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				role = getRole();
 				
 				findGoalBounds(machine, role);
-				heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.5});
+				heuristic = getHeuristic();
 				Log.println('y', "End switching to " + newMachine);
 			}
 		}
@@ -204,24 +206,6 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		}
 	}
 
-	private void findGoalBounds(StateMachine machine, Role role) {
-		int[] values;
-		if (machine instanceof BooleanPropNetStateMachine) { 
-			values = ((BooleanPropNetStateMachine)machine).getGoalValues(role);
-		}
-		else {
-			values = new int[]{0, 100};
-		}
-		minGoal = values[0];
-		maxGoal = values[values.length - 1];
-		int total = 0;
-		for (int i = 0; i < values.length; i++)
-			total += values[i];
-		avgGoal = total / (double) values.length;
-		Log.println('i', "Min: " + minGoal + ", max: " + maxGoal + ", avg: "
-				+ avgGoal);
-	}
-
 	@Override
 	public Move stateMachineSelectMove(long timeout)
 			throws TransitionDefinitionException, MoveDefinitionException,
@@ -229,7 +213,6 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		long start = System.currentTimeMillis();
 		leafNodesSearched = statesSearched = pvStatesSearched = 0;
 		cacheHits = cacheMisses = 0;
-
 		StateMachine machine = getStateMachine();
 		MachineState state = getCurrentState();
 		Role role = getRole();
@@ -273,7 +256,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 						role = getRole();
 						
 						findGoalBounds(machine, role);
-						heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
+						heuristic = getHeuristic();
 					}
 				}
 			}
@@ -327,7 +310,11 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			if (!hasWon) {
 				while (depth <= maxSearchDepth) {
 					// Check for update to statemachine
-					if (updateStateMachine) {
+					boolean shouldUpdate = false;
+					synchronized (updateStateMachineLock) {
+						shouldUpdate = updateStateMachine;
+					}
+					if (shouldUpdate) {
 						throw new UpdateMachineException(true);
 					}
 
@@ -590,6 +577,29 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			updateStateMachine = true;
 		}
 	}
+
+	private void findGoalBounds(StateMachine machine, Role role) {
+		int[] values;
+		if (machine instanceof BooleanPropNetStateMachine) { 
+			values = ((BooleanPropNetStateMachine)machine).getGoalValues(role);
+		}
+		else {
+			values = new int[]{0, 100};
+		}
+		minGoal = values[0];
+		maxGoal = values[values.length - 1];
+		int total = 0;
+		for (int i = 0; i < values.length; i++)
+			total += values[i];
+		avgGoal = total / (double) values.length;
+		Log.println('i', "Min: " + minGoal + ", max: " + maxGoal + ", avg: "
+				+ avgGoal);
+	}
+	
+	private Heuristic getHeuristic() {
+		return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.5});
+	}
+
 
 	public void printTimeLog() {
 		if (!KEEP_TIME) {

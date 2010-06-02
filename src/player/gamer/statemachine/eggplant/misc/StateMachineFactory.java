@@ -40,12 +40,12 @@ public class StateMachineFactory {
 	
 	public static void pushMachine(int priority, StateMachine machine) {
 		try {
-			StateMachine currentMachine = getCurrentMachine();
+			int currentMachinePriority = getCurrentMachineDescription();
 			pq.add(new PrioritizedStateMachine(priority, machine));
-			StateMachine newMachine = getCurrentMachine();
-			Log.println('y', "Pushed: " + newMachine);
-			if (currentMachine != newMachine) {
-				delegate.signalUpdateMachine();
+			int newMachinePriority = getCurrentMachineDescription();
+			Log.println('y', "Pushed: " + machine);
+			if (currentMachinePriority != newMachinePriority) {
+				delegate.signalUpdateMachine();				
 			}
 		} catch (Exception ex) {
 			ex.printStackTrace();

@@ -1,5 +1,6 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
+import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
 import util.statemachine.MachineState;
 import util.statemachine.Role;
@@ -10,8 +11,8 @@ import util.statemachine.exceptions.TransitionDefinitionException;
 import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 
 public class MonteCarloHeuristic implements Heuristic {
-	private final int MIN_REASONABLE_TRIALS = 10;
-	private final float targetTime = 0.03f;
+	private final int MIN_REASONABLE_TRIALS = 8;
+	private final float targetTime = 0.07f;
 	private final float targetDepth = 10.0f;
 	private final int testProbes = 100;
 	private int numTrials, targetTrials;
@@ -34,7 +35,7 @@ public class MonteCarloHeuristic implements Heuristic {
 		if (numTrials != 0) {
 			if (machine instanceof BooleanPropNetStateMachine) {
 				long sum = ((BooleanPropNetStateMachine) machine).multiMonte(state, numTrials);
-				return (int) ( (sum + avgGoal) / (numTrials+1));
+				return (int) ( (sum + avgGoal) / (numTrials + 1));
 			}
 			int successfulTrials = 0;
 			int sum = 0;
@@ -60,7 +61,7 @@ public class MonteCarloHeuristic implements Heuristic {
 				}
 			}
 			if (successfulTrials == 0) {
-				return 0;
+				return avgGoal;
 			}
 			return sum / successfulTrials;
 		}
@@ -83,7 +84,7 @@ public class MonteCarloHeuristic implements Heuristic {
 			
 			numTrials = Math.round(targetTime/avgTime * targetTrials); //TODO: find more intelligent function
 			weight = numTrials/avgDepth;
-			System.out.println("+++++++++++++++ Average time: " + avgTime + "\tAverage depth: " + avgDepth + "\tNum Trials: " + numTrials);
+			Log.println('j', "+++++++++++++++ Average time: " + avgTime + "\tAverage depth: " + avgDepth + "\tNum Trials: " + numTrials);
 			if (numTrials < MIN_REASONABLE_TRIALS)
 				numTrials = 0;
 		} else {

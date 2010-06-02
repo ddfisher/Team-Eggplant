@@ -6,7 +6,7 @@ import java.io.PrintStream;
 
 public class Log {
 	// Set this string only in Log, to avoid messy code
-	private static final String outFlags = "itmqyxluh";
+	private static final String outFlags = "itmqyxluhj";
 	private static final String logFlags = "itmqyxl";
 	
 
@@ -20,6 +20,7 @@ public class Log {
 	 *   g = Factoring debug
 	 *   h = Factoring
 	 *   i = iterative deepening
+	 *   j = Multi monte
 	 *   l = Latch detection
 	 *   m = Code generation, Monte carlo
 	 *   o = opening book
