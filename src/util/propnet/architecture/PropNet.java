@@ -63,6 +63,13 @@ import util.statemachine.Role;
 @SuppressWarnings("serial")
 public final class PropNet implements Serializable
 {
+private static final long serialVersionUID = -6425163053203784512L;
+	
+	public void addComponent(Component c)
+	{
+		components.add(c);
+		if (c instanceof Proposition) propositions.add((Proposition)c);
+	}
 	/** References to every component in the PropNet. */
 	private final Set<Component> components;
 	

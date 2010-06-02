@@ -12,7 +12,7 @@ import util.statemachine.implementation.propnet.BooleanPropNetStateMachine;
 
 public class MonteCarloHeuristic implements Heuristic {
 	private final int MIN_REASONABLE_TRIALS = 8;
-	private final float targetTime = 0.05f;
+	private final float targetTime = 0.5f;
 	private final float targetDepth = 10.0f;
 	private final int testProbes = 100;
 	private int numTrials, targetTrials;
@@ -77,16 +77,26 @@ public class MonteCarloHeuristic implements Heuristic {
 			for (int i = 0; i < testProbes; i++) {
 				((BooleanPropNetStateMachine) machine).monteCarlo(state, probeDepth);
 				totalDepth += probeDepth[0];
+				long curTime = System.currentTimeMillis() - startTime - 1;
+				if (curTime > 0) {
+					if (targetTime*i/(float)curTime < MIN_REASONABLE_TRIALS) {
+						numTrials = 0;
+						return;
+					}
+				}
 			}
 			long endTime = System.currentTimeMillis();
 			float avgDepth = totalDepth / (float) testProbes;
-			float avgTime = (endTime - startTime) / (float) testProbes;
+			float totalTime = (endTime - startTime);
 			
-			numTrials = Math.round(targetTime/avgTime * targetTrials); //TODO: find more intelligent function
+			numTrials = Math.round(testProbes/totalTime * targetTime); //TODO: find more intelligent function
 			weight = numTrials/avgDepth;
-			Log.println('j', "Average time: " + avgTime + "\tAverage depth: " + avgDepth + "\tNum Trials: " + numTrials);
+//			Log.println('j', machine.toString());
+			Log.println('j', "Total time: " + totalTime + "\tAverage depth: " + avgDepth + "\tNum Trials: " + numTrials);
 			if (numTrials < MIN_REASONABLE_TRIALS)
 				numTrials = 0;
+			if (numTrials > targetTrials)
+				numTrials = targetTrials;
 		} else {
 			numTrials = 0;
 		}

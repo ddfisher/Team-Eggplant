@@ -574,7 +574,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		opp.setAvgGoal((int)avgGoal, minGoal, maxGoal);
 		if (StateMachineFactory.getCurrentMachineDescription() != StateMachineFactory.CACHED_BPNSM_FACTOR) {
 			return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {
-					mob, opp, new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.2, 0.2, 0.6});
+					mob, opp, new MonteCarloHeuristic(20, (int)avgGoal)}, new double[] {0.2, 0.2, 0.6});
 		}
 		else {
 			return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {
