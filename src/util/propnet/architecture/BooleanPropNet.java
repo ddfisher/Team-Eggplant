@@ -195,6 +195,7 @@ public final class BooleanPropNet {
 					String constantName = ((GdlConstant) proposition.getName()).getValue();
 					if (constantName.equals("INIT")) {
 						initProposition = proposition;
+						allPropositions.add(initProposition);
 					}
 					else if (constantName.equals("terminal")) {
 						terminalProposition = proposition;
@@ -227,14 +228,57 @@ public final class BooleanPropNet {
 				}
 			}
 		}
-		propIndex = new Proposition[1 + allPropositions.size()]; // 1 for init, which is special case
 
-		Log.println('t', "Filtered " + totalNumFiltered + " / " + (1 + allPropositions.size() + totalNumFiltered) + " props = " + ( 100.0 * totalNumFiltered / (1 + allPropositions.size() + totalNumFiltered) )  + "%; now " + ( 1 + allPropositions.size() ) + " remaining");
+		components = new HashSet<Component>(filteredComponents);
+		/*
+		// Assert no dangling components
+		Set<Proposition> unfilteredPropositions = new HashSet<Proposition>();
+		for (Component component : components) {
+			if (component instanceof Proposition) {
+				unfilteredPropositions.add((Proposition) component);
+				continue;
+			}
+			// Verify that output is valid
+
+			Component output = component.getSingleOutput();
+			if (!allPropositions.contains(output)) {
+				sever(component, output);
+				for (Component input : component.getInputs()) {
+					sever(input, component);
+				}
+				filteredComponents.remove(component);
+				continue;
+			}
+			
+			Iterator<Component> inputIterator = component.getInputs().iterator();
+			while (inputIterator.hasNext()) {
+				Component input = inputIterator.next();
+				if (!allPropositions.contains(input)) {
+					input.getOutputs().remove(component);
+					inputIterator.remove();
+				}
+			}
+			if (component.getInputs().size() == 0) { // no more inputs
+				filteredComponents.remove(component);
+				continue;
+			}
+		}
+		unfilteredPropositions.removeAll(allPropositions);
+		filteredComponents.removeAll(unfilteredPropositions);
+		
+		Log.println('t', "Removed " + unfilteredPropositions.size() + " unused props"); 
+		*/
+		this.components = components = filteredComponents;
+		
+		propIndex = new Proposition[allPropositions.size()]; // 1 for init, which is special case
+
+		Log.println('t', "Filtered " + totalNumFiltered + " / " + (allPropositions.size() + totalNumFiltered) + " props = " + ( 100.0 * totalNumFiltered / (allPropositions.size() + totalNumFiltered) )  + "%; now " + (allPropositions.size() ) + " props, " + this.components.size() + " components remaining");
 		// Setup init
 		int index = 0;
 		propIndex[index] = initProposition;
 		initIndex = index;
 		propMap.put(initProposition, initIndex);
+		allPropositions.remove(initProposition);
 		index++;
 		
 		// Setup base props
@@ -858,5 +902,10 @@ loop:	for (Component component : components) {
 			}
 		}
 		return numFiltered;
+	}
+	
+	private void sever(Component upstream, Component downstream) {
+		upstream.getOutputs().remove(downstream);
+		downstream.getInputs().remove(upstream);
 	}
 }

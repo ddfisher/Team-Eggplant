@@ -43,7 +43,16 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 			if (currStateLatchEval >= 0) { // Goal not already determined
 				latchEval = latchHeuristic.eval((BooleanPropNetStateMachine)machine, (BooleanMachineState)state);
 				if (latchEval < 0) { // Goal now determined
-					return ~latchEval;
+					
+					latchEval = ~latchEval;
+					/*
+					if (latchEval <= minGoal) {
+						latchEval = minGoal + 1;
+					}
+					if (latchEval >= maxGoal) {
+						latchEval = maxGoal + 1;
+					}*/
+					return latchEval;
 				}
 				else {
 					// Either latchEval == rootStateLatchEval (has not prevented any goals)
@@ -55,8 +64,8 @@ public class PropNetAnalyticsHeuristic extends WeightedHeuristic {
 		}
 		if (goalHeuristic != null) {
 			goalEval = goalHeuristic.eval(machine, state, role, alpha, beta, depth, absDepth, timeout);
-			rootStateGoalEval = rootStateGoalHeuristic.eval(machine, state, role, alpha, beta, depth, absDepth, timeout);
-			baselineSum += goalEval - currStateGoalEval + rootStateGoalEval;
+			//rootStateGoalEval = rootStateGoalHeuristic.eval(machine, state, role, alpha, beta, depth, absDepth, timeout);
+			baselineSum += goalEval; // - currStateGoalEval + rootStateGoalEval;
 			baselineCount++;
 		}
 		for (int i = 0; i < heuristics.length; i++){

@@ -174,7 +174,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 					break;
 				} catch (Exception ex) {
 					if (ex instanceof UpdateMachineException) {
-						throw (UpdateMachineException)ex;
+						throw (UpdateMachineException) ex;
 					}
 					else {
 						ex.printStackTrace();
@@ -192,8 +192,23 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				machine = getStateMachine();
 				state = getCurrentState();
 				role = getRole();
+
+				if ((StateMachineFactory.getCurrentMachineDescription() == StateMachineFactory.CACHED_BPNSM_JAVASSIST ||
+					 StateMachineFactory.getCurrentMachineDescription() == StateMachineFactory.CACHED_BPNSM_NATIVE)
+					 && ex.isUpgrade()) {
+					Log.println('y', "Beginning factoring to " + newMachine);
+					StateMachine[] factors = ((BooleanPropNetStateMachine)machine).factor();
+					if (factors == null) {
+						Log.println('h', "No factors found");
+					}
+					else {
+						Log.println('h', factors.length + " factors found");
+					}
+				}
+				
 				findGoalBounds(machine, role);
 				heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.5});
+				Log.println('y', "End switching to " + newMachine);
 			}
 		}
 		if (KEEP_TIME) {
@@ -232,8 +247,10 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		MachineState state = getCurrentState();
 		Role role = getRole();
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
-
-		try { //TODO: do the try-catch clauses really need to be arranged in this manner?
+		if (rootDepth == 0) {
+			nextStartDepth += 2;
+		}
+		try {
 			while (true) {
 				try {
 					if (machine instanceof BooleanPropNetStateMachine) {
@@ -267,6 +284,18 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 						machine = getStateMachine();
 						state = getCurrentState();
 						role = getRole();
+						if ((StateMachineFactory.getCurrentMachineDescription() == StateMachineFactory.CACHED_BPNSM_JAVASSIST ||
+								 StateMachineFactory.getCurrentMachineDescription() == StateMachineFactory.CACHED_BPNSM_NATIVE)
+								 && ex.isUpgrade()) {
+								Log.println('y', "Beginning factoring to " + newMachine);
+								StateMachine[] factors = ((BooleanPropNetStateMachine)machine).factor();
+								if (factors == null) {
+									Log.println('h', "No factors found");
+								}
+								else {
+									Log.println('h', factors.length + " factors found");
+								}
+							}
 						findGoalBounds(machine, role);
 						heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
 					}
@@ -288,8 +317,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		}
 		if (bestWorkingMove.move != null)
 			return bestWorkingMove.move;
-		else
-			return new ValuedMove(-2, machine.getRandomMove(state, role)).move;
+		return new ValuedMove(-2, machine.getRandomMove(state, role)).move;
 	}
 
 	protected void iterativeDeepening(StateMachine machine, MachineState state, Role role, int alpha, int beta, boolean preemptiveSearch, 
