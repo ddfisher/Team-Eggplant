@@ -85,9 +85,14 @@ public class OpponentMobilityHeuristic extends MobilityHeuristic {
 	public void update(StateMachine machine, MachineState state, Role role, 
 			int alpha, int beta, int depth, int absDepth) 
 	throws MoveDefinitionException {
-		int pmSize = machine.getLegalMoves(state, role).size();
-		int oppSize = machine.getLegalJointMoves(state).size() / pmSize;
-		updateAvg(oppSize, depth + absDepth);
+		try {
+			int pmSize = machine.getLegalMoves(state, role).size();
+			int oppSize = machine.getLegalJointMoves(state).size() / pmSize;
+			updateAvg(oppSize, depth + absDepth);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			System.err.println(state + " " + machine + " " + machine.isTerminal(state));
+		}
 	}
 
 }

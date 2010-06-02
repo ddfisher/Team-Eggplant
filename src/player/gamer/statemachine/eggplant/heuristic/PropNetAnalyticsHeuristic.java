@@ -1,5 +1,6 @@
 package player.gamer.statemachine.eggplant.heuristic;
 
+import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.TimeUpException;
 import util.statemachine.BooleanMachineState;
 import util.statemachine.MachineState;

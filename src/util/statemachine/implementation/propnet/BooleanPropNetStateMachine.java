@@ -289,33 +289,28 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public List<Move> getLegalMoves(MachineState state, Role role) throws MoveDefinitionException {
-		try {
-			List<Move> legalMoves = new LinkedList<Move>();
+		List<Move> legalMoves = new LinkedList<Move>();
 
-			int roleIndex = roleMap.get(role);
-			
-			int[] legals = legalPropMap[roleIndex];			
+		int roleIndex = roleMap.get(role);
+		
+		int[] legals = legalPropMap[roleIndex];			
 
-			boolean[] props = initBasePropositionsFromState(state);
-			
-			// Clear initial moves
-			for (int i = 0; i < legals.length; i++) {
-				props[legals[i]] = false;
-			}
-			for (int i = 0; i < legals.length; i++) {
-				int inputIndex = legalInputMap[legals[i]];
-				props[inputIndex] = true;
-				operator.propagateLegalOnly(props, roleIndex, i);
-				if (props[legals[i]]) {
-					legalMoves.add(moveIndex[inputIndex]);
-				}
-				props[inputIndex] = false;
-			}
-			return legalMoves;
-		} catch (Exception ex) {
-			ex.printStackTrace();
+		boolean[] props = initBasePropositionsFromState(state);
+		
+		// Clear initial moves
+		for (int i = 0; i < legals.length; i++) {
+			props[legals[i]] = false;
 		}
-		return null;
+		for (int i = 0; i < legals.length; i++) {
+			int inputIndex = legalInputMap[legals[i]];
+			props[inputIndex] = true;
+			operator.propagateLegalOnly(props, roleIndex, i);
+			if (props[legals[i]]) {
+				legalMoves.add(moveIndex[inputIndex]);
+			}
+			props[inputIndex] = false;
+		}
+		return legalMoves;
 	}
 
 	/**
@@ -323,30 +318,24 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public MachineState getNextState(MachineState state, List<Move> moves)
-			throws TransitionDefinitionException {
-		try {
-			// Set up the base propositions
-			boolean[] props = initBasePropositionsFromState(state);
+	throws TransitionDefinitionException {
+		// Set up the base propositions
+		boolean[] props = initBasePropositionsFromState(state);
 
-			// Set up the input propositions
-			List<GdlTerm> doeses = toDoes(moves);
-			
-			// All input props start as false
+		// Set up the input propositions
+		List<GdlTerm> doeses = toDoes(moves);
 
-			for (GdlTerm does : doeses) {
-				//DEBUG  Log.println('c', "Marking move with " + does);
-				props[inputPropMap.get(does)] = true;
-			}
+		// All input props start as false
 
-			//DEBUG  Log.println('c', "Before propagate: " + Arrays.toString(props));
-			operator.propagate(props);
-			//DEBUG  Log.println('c', "After propagate: " + Arrays.toString(props));
-			return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
-
-		} catch (Exception ex) {
-			ex.printStackTrace();
+		for (GdlTerm does : doeses) {
+			//DEBUG  Log.println('c', "Marking move with " + does);
+			props[inputPropMap.get(does)] = true;
 		}
-		return null;
+
+		//DEBUG  Log.println('c', "Before propagate: " + Arrays.toString(props));
+		operator.propagate(props);
+		//DEBUG  Log.println('c', "After propagate: " + Arrays.toString(props));
+		return new BooleanMachineState(Arrays.copyOfRange(props, basePropStart, inputPropStart), propIndex);
 	}
 	
 	// Must be called only once per turn!
@@ -642,7 +631,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
 			
 			if (rolesList.size() == 1) { // Try to factor only on single-player games 
-				Log.println('y', "Factoring done!");
+				Log.println('y', "Factoring started!");
 				factor();
 				Log.println('y', "Factoring done!");
 			}

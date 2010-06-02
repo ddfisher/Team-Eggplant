@@ -157,6 +157,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		while (true) {
 			try {
 				try {
+					Log.println('i', "Beginning heuristic update");
 					heuristic.update(machine, state, role, minGoal - 1, maxGoal + 1,
 							0, rootDepth);
 					iterativeDeepening(machine, state, role, minGoal - 1, maxGoal + 1,
@@ -566,12 +567,19 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 	}
 	
 	private Heuristic getHeuristic() {
+		
 		MobilityHeuristic mob = new MobilityHeuristic(MobilityType.ONE_STEP, numPlayers);
 		OpponentFocusHeuristic opp = new OpponentFocusHeuristic(MobilityType.ONE_STEP, numPlayers);
 		mob.setAvgGoal((int)avgGoal, minGoal, maxGoal);
 		opp.setAvgGoal((int)avgGoal, minGoal, maxGoal);
-		return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {
-				mob, opp, new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.2, 0.2, 0.6});
+		if (StateMachineFactory.getCurrentMachineDescription() != StateMachineFactory.CACHED_BPNSM_FACTOR) {
+			return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {
+					mob, opp, new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.2, 0.2, 0.6});
+		}
+		else {
+			return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {
+					mob}, new double[] {0.2});
+		}
 	}
 
 
