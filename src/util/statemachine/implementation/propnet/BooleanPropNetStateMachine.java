@@ -615,21 +615,25 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		operatorLock = new Object();
 
+		long javassistStart = System.currentTimeMillis();
 		Log.println('y', "Javassist started!");
 		javassistOperator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
 				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 		setOperator(true);
 		Log.println('y', "Javassist done!");
+		long javassistEnd = System.currentTimeMillis();
 		
 		if (!isFactor) {
 			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_JAVASSIST, this);
-			Log.println('y', "Native started!");
-			nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
-					goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
-			setOperator(false);
-			Log.println('y', "Native done!");
-			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
-			
+			if (javassistEnd - javassistStart < 1000 * 30) { 
+				Log.println('y', "Native started!");
+				nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
+						goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
+				setOperator(false);
+				Log.println('y', "Native done!");
+				StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
+			}
+
 			if (rolesList.size() == 1) { // Try to factor only on single-player games 
 				Log.println('y', "Factoring started!");
 				factor();
