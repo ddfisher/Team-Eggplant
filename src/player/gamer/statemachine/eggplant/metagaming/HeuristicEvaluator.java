@@ -43,7 +43,7 @@ public class HeuristicEvaluator {
 					results[i] = heuristics[i].eval(machine, currState, role, -1, -1, level.size(), level.size(), System.currentTimeMillis() + 1000);
 				}
 				level.add(results);
-				currState = machine.getNextState(currState, machine.getRandomJointMove(currState));
+				currState = machine.getRandomNextState(currState);
 			} catch (MoveDefinitionException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -112,7 +112,7 @@ public class HeuristicEvaluator {
 	private double[] toDouble(int[] arr) {
 		double[] newArr = new double[arr.length];
 		for (int i = 0; i < arr.length; i++) {
-			newArr[i] = arr[i] + rand.nextDouble()/100; //FIXME: Remove stupid hack.
+			newArr[i] = arr[i];
 		}
 		return newArr;
 	}
