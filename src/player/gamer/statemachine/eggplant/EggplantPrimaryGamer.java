@@ -146,7 +146,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 					break;
 				} catch (Exception ex) {
 					if (ex instanceof UpdateMachineException) {
-						throw (UpdateMachineException)ex;
+						throw (UpdateMachineException) ex;
 					}
 					else {
 						ex.printStackTrace();
@@ -164,8 +164,23 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 				machine = getStateMachine();
 				state = getCurrentState();
 				role = getRole();
+
+				if ((StateMachineFactory.getCurrentMachineDescription() == StateMachineFactory.CACHED_BPNSM_JAVASSIST ||
+					 StateMachineFactory.getCurrentMachineDescription() == StateMachineFactory.CACHED_BPNSM_NATIVE)
+					 && ex.isUpgrade()) {
+					Log.println('y', "Beginning factoring to " + newMachine);
+					StateMachine[] factors = ((BooleanPropNetStateMachine)machine).factor();
+					if (factors == null) {
+						Log.println('h', "No factors found");
+					}
+					else {
+						Log.println('h', factors.length + " factors found");
+					}
+				}
+				
 				findGoalBounds(machine, role);
 				heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
+				Log.println('y', "End switching to " + newMachine);
 			}
 		}
 		if (KEEP_TIME) {
@@ -204,7 +219,9 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		MachineState state = getCurrentState();
 		Role role = getRole();
 		bestWorkingMove = new ValuedMove(-2, machine.getRandomMove(state, role));
-
+		if (rootDepth == 0) {
+			nextStartDepth += 2;
+		}
 		try {
 			while (true) {
 				try {
@@ -239,6 +256,18 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 						machine = getStateMachine();
 						state = getCurrentState();
 						role = getRole();
+						if ((StateMachineFactory.getCurrentMachineDescription() == StateMachineFactory.CACHED_BPNSM_JAVASSIST ||
+								 StateMachineFactory.getCurrentMachineDescription() == StateMachineFactory.CACHED_BPNSM_NATIVE)
+								 && ex.isUpgrade()) {
+								Log.println('y', "Beginning factoring to " + newMachine);
+								StateMachine[] factors = ((BooleanPropNetStateMachine)machine).factor();
+								if (factors == null) {
+									Log.println('h', "No factors found");
+								}
+								else {
+									Log.println('h', factors.length + " factors found");
+								}
+							}
 						findGoalBounds(machine, role);
 						heuristic = new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {new NullHeuristic((int)avgGoal)}, new double[] {1.0});
 					}

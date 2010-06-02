@@ -137,6 +137,14 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		mainRole = role;
 	}
 	
+	public BooleanPropNetStateMachine(BooleanPropNetStateMachine copy) {
+		this.basePropMap = new HashMap<GdlTerm, Integer>(copy.basePropMap);
+		this.basePropStart = copy.basePropStart;
+		this.defaultOrdering = new LinkedList<Proposition>(copy.defaultOrdering);
+		this.description = copy.description;
+		this.falseLatches = copy.falseLatches;
+	}
+	
 	/**
 	 * Initializes the PropNetStateMachine. You should compute the topological
 	 * ordering here. Additionally you can compute the initial state here, if
@@ -149,19 +157,19 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		this.description = description;
 		this.pnet = new BooleanPropNet(CachedPropNetFactory.create(description));
 		this.rolesList = computeRoles(description);
-		initializeFromPropNet(this.pnet);
-		//this.pnet.renderToFile(ORIGINAL_PNET_PATH);
+		initializeFromPropNet(this.pnet, false);
+		this.pnet.renderToFile(ORIGINAL_PNET_PATH);
 		Log.println('q', this.toString());
 	}
 	
-	public void initialize(Set<Component> components, List<Role> roles) {
+	public void initializeFactor(Set<Component> components, List<Role> roles) {
 		this.description = null;
 		this.pnet = new BooleanPropNet(components);
 		this.rolesList = roles;
-		initializeFromPropNet(this.pnet);
+		initializeFromPropNet(this.pnet, true);
 	}
 
-	private void initializeFromPropNet(BooleanPropNet pnet) {
+	private void initializeFromPropNet(BooleanPropNet pnet, boolean isFactor) {
 		propIndex = pnet.getPropIndex();
 		numProps = propIndex.length;
 		propMap = pnet.getPropMap();
@@ -195,10 +203,10 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		if (mainRole == null)
 			mainRole = roleIndex[0];
 
-		calculatePropEffects();
-		
-		initOperator();
-		
+		if (!isFactor) {
+			calculatePropEffects();
+			initOperator(isFactor);
+		}
 	}
 
 	/**
@@ -288,7 +296,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 
 			int roleIndex = roleMap.get(role);
 			
-			int[] legals = legalPropMap[roleIndex];
+			int[] legals = legalPropMap[roleIndex];			
 
 			boolean[] props = initBasePropositionsFromState(state);
 			
@@ -343,8 +351,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		return null;
 	}
 	
+	// Must be called only once per turn!
 	public void updateSatisfiedLatches(MachineState state) {
-		if (satisfiedLatches.size() == trueLatches.size() + falseLatches.size())
+		if (trueLatches.size() + falseLatches.size() == 0)
 			return;
 		try {
 			// Set up the base propositions
@@ -352,9 +361,12 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 			operator.propagateInternal(props);
 
-			for (int latch : trueLatches) {
+			Iterator<Integer> trueIterator = trueLatches.iterator();
+			while (trueIterator.hasNext()) {
+				Integer latch = trueIterator.next();
 				if (props[latch]) {
 					if (satisfiedLatches.add(propIndex[latch])) {
+						trueIterator.remove();
 						for (int otherProp : sameTurnEffects.get(latch).keySet()) {
 							relevantPropositions.remove(propIndex[otherProp]);
 						}
@@ -364,10 +376,12 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					}
 				}
 			}
-			for (int latch : falseLatches) {
+			Iterator<Integer> falseIterator = falseLatches.iterator();
+			while (falseIterator.hasNext()) {
+				Integer latch = falseIterator.next();
 				if (!props[latch]) {
-					satisfiedLatches.add(propIndex[latch]);
 					if (satisfiedLatches.add(propIndex[latch])) {
+						falseIterator.remove();
 						for (int otherProp : sameTurnEffects.get(latch).keySet()) {
 							relevantPropositions.remove(propIndex[otherProp]);
 						}
@@ -377,6 +391,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 					}
 				}
 			}
+			
 			Log.println('l', satisfiedLatches.size() + " satified latches, " + relevantPropositions.size() + " relevant props");
 
 		} catch (Exception ex) {
@@ -574,7 +589,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 	}
 
-	private void initOperator() {
+	private void initOperator(boolean isFactor) {
 		List<Proposition> transitionOrdering = new ArrayList<Proposition>();
 		for (int i = basePropStart; i < inputPropStart; i++) {
 			transitionOrdering.add(propIndex[i]);
@@ -618,13 +633,18 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		setOperator(true);
 		Log.println('u', "Javassist done!");
 		
-		StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_JAVASSIST, this);
-		
-		nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
-				goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
-		setOperator(false);
-		Log.println('u', "Native done!");
-		StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
+		if (!isFactor) {
+			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_JAVASSIST, this);			
+			nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
+					goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
+			setOperator(false);
+			Log.println('u', "Native done!");
+			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
+			
+			// factor();
+			Log.println('u', "Factoring done!");
+			
+		}
 	}
 	
 	public void setOperator(boolean toJavassist) {
@@ -677,10 +697,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 				continue;
 			}
 			Component connector = prop.getSingleInput();
-			int initialInputSize = connector.getInputs().size();
+			//int initialInputSize = connector.getInputs().size();
 			Set<Component> inputs = new HashSet<Component>(connector.getInputs());
 			inputs.retainAll(relevantPropositions);
-			if (inputs.size() != initialInputSize);
 			//inputs.removeAll(satisfiedLatches);
 			//Log.println('x', "Processing " + prop + " " + significance[propNum][0] + "," + significance[propNum][1] + " with connector " + connector + " to " + inputs);
 			if (connector instanceof And) {
@@ -775,7 +794,9 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			for (Component output : prop.getOutputs()) {
 				{
 					Proposition nextProp = (Proposition) output.getSingleOutput();
-					int nextPropNum = propMap.get(nextProp);
+					if (!propMap.containsKey(nextProp))
+						continue;
+					int nextPropNum = propMap.get(nextProp);	
 					Log.println('b', "Reached " + output + " " + nextProp + " " + nextPropNum);
 				}
 				if ((output instanceof And || output instanceof Or) && output.getInputs().size() == 1) {
@@ -1511,261 +1532,293 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		Log.println('g', "Starting factoring with " + this.toString());
 		
-		BooleanPropNetStateMachine referenceMachine = new BooleanPropNetStateMachine(mainRole);
-		referenceMachine.initialize(description);
-				
-		Map<Proposition, List<Proposition>> lowestLevel = new HashMap<Proposition, List<Proposition>>();
-		findLowestLevel(referenceMachine.propIndex[referenceMachine.terminalIndex], lowestLevel, new LinkedList<Proposition>());
-		
-		List<Factor> factors = new ArrayList<Factor>();
-		for (Proposition prop : lowestLevel.keySet()) { // tentative root 
-			Factor factor = new Factor(prop);
-			factors.add(factor);
-			
-			// Reverse DFS
-			reverseDFS(prop, factor, referenceMachine, 0);
-		}
-		
-		// Merge if necessary
-		for (int i = 0; i < factors.size(); i++) {
-			for (int j = i + 1; j < factors.size(); j++) {
-				HashSet<Proposition> copy = new HashSet<Proposition>(factors.get(i).internalProps);
-				copy.retainAll(factors.get(j).internalProps);
-				if (copy.size() > 0) { // Should merge
-										
-					// Find most recent ancestor
-					List<Proposition> trail1 = lowestLevel.get(factors.get(i).terminalProp);
-					List<Proposition> trail2 = lowestLevel.get(factors.get(j).terminalProp);
-					while (!trail2.contains(trail1.get(0))) {
-						trail1.remove(0);
-					}
-					Proposition ancestor = trail1.get(0);
-					Factor newFactor = new Factor(ancestor);
-					
-					// Find all factors that have this as an ancestor
-					for (int k = 0; k < factors.size(); k++) {
-						if (lowestLevel.get(factors.get(k).terminalProp).contains(ancestor)) {
-							lowestLevel.remove(factors.get(k).terminalProp);
-							factors.remove(k);
-							k--;
-						}
-					}
-					factors.add(newFactor);
-					reverseDFS(ancestor, newFactor, referenceMachine, 0);
-					Log.println('g', "Merged into " + newFactor);
-					// lowestLevel.put(ancestor, trail1); // Throw this back into the pool of factors
-					
-					// Hacky way to reset loop
-					i = -1;
-					break;
-				}
-			}
-		}
-		
-		// Sanity check: assert that all base and internal propositions in each factor are exclusive
-		for (int i = 0; i < factors.size(); i++) {
-			for (int j = i + 1; j < factors.size(); j++) {
-				HashSet<Proposition> copy = new HashSet<Proposition>(factors.get(i).internalProps);
-				copy.retainAll(factors.get(j).internalProps);
-				assert(copy.size() == 0);
-				copy = new HashSet<Proposition>(factors.get(i).baseProps);
-				copy.retainAll(factors.get(j).baseProps);
-				assert(copy.size() == 0);
-			}
-		}
-		
-		// Set name of each factor's root to terminal 
-		for (Factor factor : factors) {
-			factor.terminalProp.setName(referenceMachine.propIndex[referenceMachine.terminalIndex].getName());
-		}
-		
-		// TODO By assumption, goals are disjunctively factorable and descendants of terminal
-		
-		// Add goals
-		for (int role = 0; role < referenceMachine.goalPropMap.length; role++) {
-			for (int[] goalProp : referenceMachine.goalPropMap[role]) {
-				int[] numFactorsFound = new int[]{0};
-				addGoals(referenceMachine.propIndex[goalProp[0]], referenceMachine.propIndex[goalProp[0]], factors, referenceMachine.roleIndex[role], new LinkedList<Component>(), numFactorsFound);
-			}
-		}
-		
-		// Ensure all inputs are present first
-		for (Factor factor : factors) {
-			for (int role = 0; role < referenceMachine.legalPropMap.length; role++) {
-				int[] legals = referenceMachine.legalPropMap[role];
-				for (int legal = 0; legal < legals.length; legal++) {
-					if (!factor.inputProps.contains(referenceMachine.propIndex[referenceMachine.legalInputMap[legals[legal]]])) {
-						factor.inputProps.add(referenceMachine.propIndex[referenceMachine.legalInputMap[legals[legal]]]);
-						factor.components.add(referenceMachine.propIndex[referenceMachine.legalInputMap[legals[legal]]]);
-						factor.components.add(referenceMachine.propIndex[legals[legal]]);
-					}
-				}
-			}
-		}
-		
-		// Input consolidation
-		
-		Map<Proposition, List<Proposition>> highestLevel = new HashMap<Proposition, List<Proposition>>();
-		for (int inputProp = inputPropStart; inputProp < internalPropStart; inputProp++) {
-			findHighestLevel(referenceMachine.propIndex[inputProp], highestLevel, referenceMachine.propIndex[inputProp]);
-		}
-		
-		String temp = "";
-		for (Proposition reachableProp : highestLevel.keySet()) {
-			if (highestLevel.get(reachableProp).size() > 1) {
-				temp += reachableProp.getName() + " in factor ";
-				for (int j = 0; j < factors.size(); j++) {
-					if (factors.get(j).internalProps.contains(reachableProp)) {
-						temp += j;
-					}
-				}
-				temp += " " + highestLevel.get(reachableProp).size() + ";";
-			}
-		}
-		Log.println('g', "Input lists " + temp);
-		
+		BooleanPropNetStateMachine referenceMachine = this;
+		try {		
+			Map<Proposition, List<Proposition>> lowestLevel = new HashMap<Proposition, List<Proposition>>();
+			findLowestLevel(referenceMachine.propIndex[referenceMachine.terminalIndex], lowestLevel, new LinkedList<Proposition>());
 
-		for (Proposition reachableProp : highestLevel.keySet()) {
-			if (highestLevel.get(reachableProp).size() > 1) {
-				for (Factor factor : factors) {
-					if (factor.internalProps.contains(reachableProp)) {
-						// Keep only one path
-						Component connector = reachableProp.getSingleInput();
-						Component randomInputPath = connector.getInputs().iterator().next();
-						for (Component input : connector.getInputs()) {
-							//Log.println('g', "Removing " + input + " " + randomInputPath + " " + input.hashCode() + " in factor " + k);
-							if (input == randomInputPath) {
-								continue;
+			List<Factor> factors = new ArrayList<Factor>();
+			for (Proposition prop : lowestLevel.keySet()) { // tentative root 
+				Factor factor = new Factor(prop);
+				factors.add(factor);
+
+				// Reverse DFS
+				reverseDFS(prop, factor, referenceMachine, 0);
+			}
+
+			// Merge if necessary
+			for (int i = 0; i < factors.size(); i++) {
+				for (int j = i + 1; j < factors.size(); j++) {
+					HashSet<Proposition> copy = new HashSet<Proposition>(factors.get(i).internalProps);
+					copy.retainAll(factors.get(j).internalProps);
+					if (copy.size() > 0) { // Should merge
+
+						// Find most recent ancestor
+						List<Proposition> trail1 = lowestLevel.get(factors.get(i).terminalProp);
+						List<Proposition> trail2 = lowestLevel.get(factors.get(j).terminalProp);
+						while (!trail2.contains(trail1.get(0))) {
+							trail1.remove(0);
+						}
+						Proposition ancestor = trail1.get(0);
+						Factor newFactor = new Factor(ancestor);
+
+						// Find all factors that have this as an ancestor
+						for (int k = 0; k < factors.size(); k++) {
+							if (lowestLevel.get(factors.get(k).terminalProp).contains(ancestor)) {
+								lowestLevel.remove(factors.get(k).terminalProp);
+								factors.remove(k);
+								k--;
 							}
-							Component currentToHide = input;
-							factor.components.remove(currentToHide);
-							while (true) {
-								currentToHide = currentToHide.getSingleInput();
-								factor.components.remove(currentToHide);
-								if (currentToHide.getInputs().size() == 0) { // Reached an input prop
-									factor.inputProps.remove(currentToHide);
-									break;
+						}
+						factors.add(newFactor);
+						reverseDFS(ancestor, newFactor, referenceMachine, 0);
+						Log.println('g', "Merged into " + newFactor);
+						// lowestLevel.put(ancestor, trail1); // Throw this back into the pool of factors
+
+						// Hacky way to reset loop
+						i = -1;
+						break;
+					}
+				}
+			}
+
+			boolean isWellFactored = factors.size() > 1;
+
+			if (!isWellFactored) {
+				return null;
+			}
+			// Sanity check: assert that all base and internal propositions in each factor are exclusive
+			for (int i = 0; i < factors.size(); i++) {
+				for (int j = i + 1; j < factors.size(); j++) {
+					HashSet<Proposition> copy = new HashSet<Proposition>(factors.get(i).internalProps);
+					copy.retainAll(factors.get(j).internalProps);
+					if (copy.size() != 0) {
+						isWellFactored = false;
+					}
+					copy = new HashSet<Proposition>(factors.get(i).baseProps);
+					copy.retainAll(factors.get(j).baseProps);
+					if (copy.size() != 0) {
+						isWellFactored = false;
+					}
+				}
+			}
+
+			if (!isWellFactored) {
+				return null;
+			}
+			// Set name of each factor's root to terminal 
+			for (Factor factor : factors) {
+				factor.terminalProp.setName(referenceMachine.propIndex[referenceMachine.terminalIndex].getName());
+			}
+
+			// TODO By assumption, goals are disjunctively factorable and descendants of terminal
+
+			// Add goals
+			for (int role = 0; role < referenceMachine.goalPropMap.length; role++) {
+				for (int[] goalProp : referenceMachine.goalPropMap[role]) {
+					int[] numFactorsFound = new int[]{0};
+					addGoals(referenceMachine.propIndex[goalProp[0]], referenceMachine.propIndex[goalProp[0]], factors, referenceMachine.roleIndex[role], new LinkedList<Component>(), numFactorsFound);
+				}
+			}
+/*
+			// Ensure all inputs are present first
+			for (Factor factor : factors) {
+				for (int role = 0; role < referenceMachine.legalPropMap.length; role++) {
+					int[] legals = referenceMachine.legalPropMap[role];
+					for (int legal = 0; legal < legals.length; legal++) {
+						if (!factor.inputProps.contains(referenceMachine.propIndex[referenceMachine.legalInputMap[legals[legal]]])) {
+							factor.inputProps.add(referenceMachine.propIndex[referenceMachine.legalInputMap[legals[legal]]]);
+							factor.components.add(referenceMachine.propIndex[referenceMachine.legalInputMap[legals[legal]]]);
+							factor.components.add(referenceMachine.propIndex[legals[legal]]);
+						}
+					}
+				}
+			}
+*/
+			// Input consolidation
+
+			Map<Proposition, List<Proposition>> highestLevel = new HashMap<Proposition, List<Proposition>>();
+			for (int inputProp = inputPropStart; inputProp < internalPropStart; inputProp++) {
+				findHighestLevel(referenceMachine.propIndex[inputProp], highestLevel, referenceMachine.propIndex[inputProp]);
+			}
+
+			String temp = "";
+			for (Proposition reachableProp : highestLevel.keySet()) {
+				if (highestLevel.get(reachableProp).size() > 1) {
+					temp += reachableProp.getName() + " in factor ";
+					for (int j = 0; j < factors.size(); j++) {
+						if (factors.get(j).internalProps.contains(reachableProp)) {
+							temp += j;
+						}
+					}
+					temp += " " + highestLevel.get(reachableProp).size() + ";";
+				}
+			}
+			Log.println('g', "Input lists " + temp);
+
+
+			for (Proposition reachableProp : highestLevel.keySet()) {
+				if (highestLevel.get(reachableProp).size() > 1) {
+					for (Factor factor : factors) {
+						if (factor.internalProps.contains(reachableProp)) {
+							// Keep only one path
+							Component connector = reachableProp.getSingleInput();
+							Component randomInputPath = connector.getInputs().iterator().next();
+							for (Component input : connector.getInputs()) {
+								//Log.println('g', "Removing " + input + " " + randomInputPath + " " + input.hashCode() + " in factor " + k);
+								if (input == randomInputPath) {
+									continue;
 								}
+								Component currentToHide = input;
+								while (true) {
+									factor.components.remove(currentToHide);
+									factor.inputProps.remove(currentToHide);
+									if (currentToHide.getInputs().size() != 0) {
+										currentToHide = currentToHide.getSingleInput();
+									}
+									else {
+										break;
+									}
+								}
+								
 							}
 						}
 					}
 				}
 			}
-		}
-		
-		// Add legals
-		for (Factor factor : factors) {
-			for (Proposition inputProp : factor.inputProps) {
-				// Find legal corresponding to each goal
-				Proposition legalProp = referenceMachine.propIndex[referenceMachine.legalInputMap[referenceMachine.propMap.get(inputProp)]];
-				reverseDFS(legalProp, factor, referenceMachine, 0);
-				factor.legalInputMap.put(legalProp, inputProp);
-				factor.legalInputMap.put(inputProp, legalProp);
+
+			// Add legals
+			Set<Proposition> allLegals = new HashSet<Proposition>();
+			for (int inputProp = referenceMachine.inputPropStart; inputProp < referenceMachine.internalPropStart; inputProp++) {
+				allLegals.add(referenceMachine.propIndex[referenceMachine.legalInputMap[inputProp]]);
 			}
-		}
-		/*
+			Log.println('h', "Filtering " + allLegals.size() + " legals");
+			for (Factor factor : factors) {
+				factor.components.removeAll(allLegals);
+				for (Proposition inputProp : factor.inputProps) {
+					// Find legal corresponding to each goal
+					Proposition legalProp = referenceMachine.propIndex[referenceMachine.legalInputMap[referenceMachine.propMap.get(inputProp)]];
+					reverseDFS(legalProp, factor, referenceMachine, 0);
+					factor.legalInputMap.put(legalProp, inputProp);
+					factor.legalInputMap.put(inputProp, legalProp);
+					factor.components.add(legalProp);
+				}
+			}
+			/*
 		for (int i = 0; i < factors.size(); i++) {
 			Log.println('g', "Factor " + i + " has " + factors.get(i).inputProps.size() + " inputs");
 			factors.get(i).legalInputMap = referenceMachine.legalInputMap;
 		}
-		*/
-		
-		// TODO Fix Init hack around
-		
-		Set<Component> alreadyVisited = new HashSet<Component>();
-		List<Component> toVisit = new LinkedList<Component>();
-		// BFS
-		int depth = 0;
-		toVisit.add(referenceMachine.propIndex[referenceMachine.initIndex]);
-		while (true) {
-			List<Component> willVisit = new LinkedList<Component>();
-			while (!toVisit.isEmpty()) {
-				Component curr = toVisit.remove(0);	
-				int factor = -1;
-				for (int i = 0; i < factors.size(); i++) {
-					if (factors.get(i).components.contains(curr)) {
-						factor = i;
-						break;
-					}
-				}
+			 */
 
-				if (!alreadyVisited.contains(curr)) {
-					Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
-				
+			// TODO Fix Init hack around
+
+			Set<Component> alreadyVisited = new HashSet<Component>();
+			List<Component> toVisit = new LinkedList<Component>();
+			// BFS
+			int depth = 0;
+			toVisit.add(referenceMachine.propIndex[referenceMachine.initIndex]);
+			while (true) {
+				List<Component> willVisit = new LinkedList<Component>();
+				while (!toVisit.isEmpty()) {
+					Component curr = toVisit.remove(0);	
+					int factor = -1;
+					for (int i = 0; i < factors.size(); i++) {
+						if (factors.get(i).components.contains(curr)) {
+							factor = i;
+							break;
+						}
+					}
+
+					if (!alreadyVisited.contains(curr)) {
+						Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+
+						alreadyVisited.add(curr);
+						for (Component next : curr.getOutputs()) {
+							willVisit.add(next);
+						}
+					}
+					else {
+						Log.println('g', String.format("%" + (depth + 1) + "s :%2d: visited " + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+					}
+				}
+				if (willVisit.isEmpty()) {
+					break;
+				}
+				toVisit = willVisit;
+				depth++;
+			}
+
+			// Add entire init subtree to all factors
+			for (Factor factor : factors) {
+				factor.components.addAll(alreadyVisited);
+				for (Component comp : alreadyVisited) {
+					if (comp instanceof Proposition) {
+						factor.internalProps.add((Proposition) comp);
+					}
+				}
+			}
+
+			alreadyVisited = new HashSet<Component>();
+			toVisit = new LinkedList<Component>();
+			// BFS
+			depth = 0;
+			toVisit.add(referenceMachine.propIndex[referenceMachine.terminalIndex]);
+			while (true) {
+				List<Component> willVisit = new LinkedList<Component>();
+				while (!toVisit.isEmpty()) {
+					Component curr = toVisit.remove(0);	
+
+					int factor = -1;
+					for (int i = 0; i < factors.size(); i++) {
+						if (factors.get(i).components.contains(curr)) {
+							factor = i;
+							break;
+						}
+					}
+
+					Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+
 					alreadyVisited.add(curr);
-					for (Component next : curr.getOutputs()) {
-						willVisit.add(next);
+					for (Component next : curr.getInputs()) {
+						if (!alreadyVisited.contains(next)) {
+							willVisit.add(next);
+						}
 					}
 				}
-				else {
-					Log.println('g', String.format("%" + (depth + 1) + "s :%2d: visited " + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + curr.hashCode() + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
+				if (willVisit.isEmpty()) {
+					break;
 				}
+				toVisit = willVisit;
+				depth++;
 			}
-			if (willVisit.isEmpty()) {
-				break;
-			}
-			toVisit = willVisit;
-			depth++;
-		}
-		
-		// Add entire init subtree to all factors
-		for (Factor factor : factors) {
-			factor.components.addAll(alreadyVisited);
-			for (Component comp : alreadyVisited) {
-				if (comp instanceof Proposition) {
-					factor.internalProps.add((Proposition) comp);
+			Log.println('h', factors.size() + " factors found");
+			
+			// Generate the new statemachines
+			BooleanPropNetStateMachine[] minions = new BooleanPropNetStateMachine[factors.size()];
+			for (int i = 0; i < factors.size(); i++) {
+				minions[i] = new BooleanPropNetStateMachine(mainRole);
+				minions[i].initializeFactor(factors.get(i).components, rolesList);
+				minions[i].pnet.renderToFile(PNET_FOLDER + File.separator + "factor" + i + ".dot");
+				if (i == 0) {
+					minions[i].calculatePropEffects();
+					minions[i].initOperator(true);
+					StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_FACTOR, minions[i]);
 				}
-			}
-		}
-		
-		alreadyVisited = new HashSet<Component>();
-		toVisit = new LinkedList<Component>();
-		// BFS
-		depth = 0;
-		toVisit.add(referenceMachine.propIndex[referenceMachine.terminalIndex]);
-		while (true) {
-			List<Component> willVisit = new LinkedList<Component>();
-			while (!toVisit.isEmpty()) {
-				Component curr = toVisit.remove(0);	
-				
-				int factor = -1;
-				for (int i = 0; i < factors.size(); i++) {
-					if (factors.get(i).components.contains(curr)) {
-						factor = i;
-						break;
-					}
-				}
-				
-				Log.println('g', String.format("%" + (depth + 1) + "s :%2d:" + (curr instanceof Proposition ? ((Proposition) curr).getName() : curr.getClass().getName()) + " with " + curr.getInputs().size() + " inputs, " + curr.getOutputs().size() + " outputs", " ", factor));
-				
-				alreadyVisited.add(curr);
-				for (Component next : curr.getInputs()) {
-					if (!alreadyVisited.contains(next)) {
-						willVisit.add(next);
+				Log.println('f', "Factor " + i + " : " + minions[i].toString());
+				for (int role = 0; role < minions[i].legalPropMap.length; role++) {
+					for (int legal = 0; legal < minions[i].legalPropMap[role].length; legal++) {
+						Log.println('f', "Factor " + i + " legal " + legal + " for " + role + " : " + minions[i].propIndex[minions[i].legalPropMap[role][legal]] + " " + minions[i].legalInputMap[minions[i].legalPropMap[role][legal]]);
 					}
 				}
 			}
-			if (willVisit.isEmpty()) {
-				break;
-			}
-			toVisit = willVisit;
-			depth++;
+
+			return minions;
 		}
-		// Generate the new statemachines
-		BooleanPropNetStateMachine[] minions = new BooleanPropNetStateMachine[factors.size()];
-		for (int i = 0; i < factors.size(); i++) {
-			minions[i] = new BooleanPropNetStateMachine(mainRole);
-			minions[i].initialize(factors.get(i).components, rolesList);
-			minions[i].pnet.renderToFile(PNET_FOLDER + File.separator + "factor" + i + ".dot");			
-			Log.println('f', "Factor " + i + " : " + minions[i].toString());
-			for (int role = 0; role < minions[i].legalPropMap.length; role++) {
-				for (int legal = 0; legal < minions[i].legalPropMap[role].length; legal++) {
-					Log.println('f', "Factor " + i + " legal " + legal + " for " + role + " : " + minions[i].propIndex[minions[i].legalPropMap[role][legal]] + " " + minions[i].legalInputMap[minions[i].legalPropMap[role][legal]]);
-				}
-			}
+		catch (Exception ex) { // Don't let factoring break anything
+			ex.printStackTrace();
+			return null;
 		}
-		
-		return minions;
 	}
 	
 	// Has the potential to search the entire supertree of goalProp
@@ -1804,6 +1857,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 	}
 	
 	private void reverseDFS(Proposition prop, Factor factor, BooleanPropNetStateMachine referenceMachine, int depth) {
+		Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Ex: " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + " input"));
 		int index = referenceMachine.propMap.get(prop);
 		if (index >= inputPropStart && index < internalPropStart) {
 			Log.println('g', String.format("%" + (depth + 1) + "s%s", " ", "Reached " + prop.getName() + prop.hashCode() + " " + prop.getInputs().size() + " inputs, " + prop.getOutputs().size() + " outputs, " + " input"));

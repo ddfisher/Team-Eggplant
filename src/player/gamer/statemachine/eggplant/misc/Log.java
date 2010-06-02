@@ -6,8 +6,8 @@ import java.io.PrintStream;
 
 public class Log {
 	// Set this string only in Log, to avoid messy code
-	private static final String outFlags = "itmqyxlu";
-	private static final String logFlags = "itmqyxld";
+	private static final String outFlags = "itmqyxluh";
+	private static final String logFlags = "itmqyxl";
 	
 
 	/*

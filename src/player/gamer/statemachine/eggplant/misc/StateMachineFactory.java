@@ -12,9 +12,10 @@ import util.statemachine.implementation.prover.cache.CachedProverStateMachine;
 public class StateMachineFactory {
 	/** All possible priorities. Lower is preferred */ 
 	
-	public static final int CACHED_BPNSM_NATIVE = 0;
-	public static final int CACHED_BPNSM_JAVASSIST = 10;
-	public static final int CACHED_PROVER = 20;
+	public static final int CACHED_BPNSM_FACTOR = 0;
+	public static final int CACHED_BPNSM_NATIVE = 10;
+	public static final int CACHED_BPNSM_JAVASSIST = 20;
+	public static final int CACHED_PROVER = 30;
 	
 	private static class PrioritizedStateMachine implements Comparable<PrioritizedStateMachine>{
 		private final int priority;
@@ -39,8 +40,12 @@ public class StateMachineFactory {
 	
 	public static void pushMachine(int priority, StateMachine machine) {
 		try {
+			StateMachine currentMachine = getCurrentMachine();
 			pq.add(new PrioritizedStateMachine(priority, machine));
-			delegate.signalUpdateMachine();
+			StateMachine newMachine = getCurrentMachine();
+			if (currentMachine != newMachine) {
+				delegate.signalUpdateMachine();
+			}
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -64,6 +69,16 @@ public class StateMachineFactory {
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			return new CachedProverStateMachine();
+		}
+	}
+	
+	public static int getCurrentMachineDescription() {
+		try {
+			PrioritizedStateMachine firstMachine = pq.peek();
+			return firstMachine.priority;
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			return CACHED_PROVER;
 		}
 	}
 	
