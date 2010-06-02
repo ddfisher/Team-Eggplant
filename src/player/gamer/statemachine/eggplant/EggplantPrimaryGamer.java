@@ -1,6 +1,7 @@
 package player.gamer.statemachine.eggplant;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -11,7 +12,11 @@ import player.gamer.statemachine.eggplant.heuristic.Heuristic;
 import player.gamer.statemachine.eggplant.heuristic.LatchHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.NullHeuristic;
 import player.gamer.statemachine.eggplant.heuristic.PropNetAnalyticsHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.SimpleMobilityHeuristic;
+import player.gamer.statemachine.eggplant.heuristic.SimpleOpponentMobilityHeuristic;
 import player.gamer.statemachine.eggplant.metagaming.EndgameBook;
+import player.gamer.statemachine.eggplant.metagaming.HeuristicEvaluator;
+import player.gamer.statemachine.eggplant.metagaming.LogisticClassifier;
 import player.gamer.statemachine.eggplant.metagaming.OpeningBook;
 import player.gamer.statemachine.eggplant.misc.CacheValue;
 import player.gamer.statemachine.eggplant.misc.Log;
@@ -83,6 +88,26 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 			throws TransitionDefinitionException, MoveDefinitionException,
 			GoalDefinitionException {
 		Log.println('i', "Starting metagame");
+		
+//		HeuristicEvaluator evaluator = new HeuristicEvaluator();
+//		Heuristic[] hArr = {new SimpleMobilityHeuristic(), new SimpleOpponentMobilityHeuristic()};
+//		evaluator.evaluateHeuristic(hArr, 100, getStateMachine(), getCurrentState(), getRole());
+//		int turn = 0;
+//		double[][] turnValues;
+//		int[] turnGoals;
+//		do {
+//			turnValues = evaluator.getTurnLevels(turn);
+//			turnGoals = evaluator.getTurnGoals(turn);
+//			System.out.println("Turn " + turn + ": " + Arrays.deepToString(turnValues));
+//			System.out.println("Turn " + turn + ": " + Arrays.toString(turnGoals));
+//			LogisticClassifier log = new LogisticClassifier();
+//			log.learnCoefficients(turnValues, turnGoals);
+//			double[] inputs = {8.0, 1.0};
+//			System.out.println("Prediction: " + (100*log.value(inputs)));
+//			turn++;
+//		} while (turnValues != null);
+//		System.exit(0);
+		
 		updateStateMachine = false;
 		updateStateMachineLock = new Object();
 		Log.println('y', "Before thread init");
@@ -130,7 +155,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		*/
 		
 		//((BooleanPropNetStateMachine)machine).speedTest();
-
+		
 		endBook = new EndgameBook(numPlayers);
 		// endBook.buildEndgameBook(machine, state, role, 6, 4, 8, start +
 		// (timeout - start) / 2);
