@@ -111,7 +111,7 @@ public final class BooleanPropNet {
 	/** A reference to the single, unique, TerminalProposition. */
 	private final int terminalIndex;
 	
-	public static final int GOAL_SCALE_FACTOR = 1000;
+	public static final int GOAL_SCALE_FACTOR = 1;
 
 	/**
 	 * Creates a new PropNet from a list of Components, along with indices over
@@ -145,6 +145,8 @@ public final class BooleanPropNet {
 		do {
 			hasFiltered = false;
 			
+			
+			
 			totalNumFiltered += numFiltered = condenseIdenticalOutputs(components, filteredComponents);
 			if (numFiltered > 0) {
 				Log.println('t', "Filtered " + numFiltered + " identical outputs");
@@ -169,6 +171,13 @@ public final class BooleanPropNet {
 			totalNumFiltered += numFiltered = condenseConstants(components, filteredComponents);
 			if (numFiltered > 0) {
 				Log.println('t', "Filtered " + numFiltered + " constants");
+				hasFiltered = true;
+				components = new HashSet<Component>(filteredComponents);
+			}
+			
+			numFiltered = pruneSpuriousConnections(components, filteredComponents);
+			if (numFiltered > 0) {
+				Log.println('t', "Pruned " + numFiltered + " connections");
 				hasFiltered = true;
 				components = new HashSet<Component>(filteredComponents);
 			}
@@ -230,44 +239,7 @@ public final class BooleanPropNet {
 		}
 
 		components = new HashSet<Component>(filteredComponents);
-		/*
-		// Assert no dangling components
-		Set<Proposition> unfilteredPropositions = new HashSet<Proposition>();
-		for (Component component : components) {
-			if (component instanceof Proposition) {
-				unfilteredPropositions.add((Proposition) component);
-				continue;
-			}
-			// Verify that output is valid
-
-			Component output = component.getSingleOutput();
-			if (!allPropositions.contains(output)) {
-				sever(component, output);
-				for (Component input : component.getInputs()) {
-					sever(input, component);
-				}
-				filteredComponents.remove(component);
-				continue;
-			}
-			
-			Iterator<Component> inputIterator = component.getInputs().iterator();
-			while (inputIterator.hasNext()) {
-				Component input = inputIterator.next();
-				if (!allPropositions.contains(input)) {
-					input.getOutputs().remove(component);
-					inputIterator.remove();
-				}
-			}
-			if (component.getInputs().size() == 0) { // no more inputs
-				filteredComponents.remove(component);
-				continue;
-			}
-		}
-		unfilteredPropositions.removeAll(allPropositions);
-		filteredComponents.removeAll(unfilteredPropositions);
 		
-		Log.println('t', "Removed " + unfilteredPropositions.size() + " unused props"); 
-		*/
 		this.components = components = filteredComponents;
 		
 		propIndex = new Proposition[allPropositions.size()]; // 1 for init, which is special case
@@ -902,6 +874,36 @@ loop:	for (Component component : components) {
 			}
 		}
 		return numFiltered;
+	}
+	
+	private int pruneSpuriousConnections(Set<Component> components, Set<Component> filteredComponents) {
+		int numPruned = 0;
+		for (Component component : components) {
+			boolean pruned = false;
+			// Check for dangling inputs
+			Iterator<Component> inputIterator = component.getInputs().iterator();
+			while (inputIterator.hasNext()) {
+				Component input = inputIterator.next();
+				if (!filteredComponents.contains(input)) {
+					inputIterator.remove();
+					pruned = true;
+				}
+			}
+			
+			// Check for dangling inputs
+			Iterator<Component> outputIterator = component.getOutputs().iterator();
+			while (outputIterator.hasNext()) {
+				Component output = outputIterator.next();
+				if (!filteredComponents.contains(output)) {
+					outputIterator.remove();
+					pruned = true;
+				}
+			}
+			if (pruned) {
+				numPruned++;
+			}
+		}
+		return numPruned;
 	}
 	
 	private void sever(Component upstream, Component downstream) {

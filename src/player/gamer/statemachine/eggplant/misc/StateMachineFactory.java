@@ -43,6 +43,7 @@ public class StateMachineFactory {
 			StateMachine currentMachine = getCurrentMachine();
 			pq.add(new PrioritizedStateMachine(priority, machine));
 			StateMachine newMachine = getCurrentMachine();
+			Log.println('y', "Pushed: " + newMachine);
 			if (currentMachine != newMachine) {
 				delegate.signalUpdateMachine();
 			}
@@ -57,6 +58,7 @@ public class StateMachineFactory {
 			if (poppedMachine.priority == CACHED_BPNSM_NATIVE) {
 				((BooleanPropNetStateMachine) poppedMachine.machine).setOperator(true);
 			}
+			Log.println('y', "Popped: " + poppedMachine);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}

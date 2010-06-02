@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.HashMap;
 
 import player.gamer.statemachine.eggplant.misc.Log;
 import player.gamer.statemachine.eggplant.misc.StateMachineFactory;
@@ -22,7 +21,6 @@ import util.gdl.grammar.GdlSentence;
 import util.gdl.grammar.GdlTerm;
 import util.propnet.architecture.BooleanPropNet;
 import util.propnet.architecture.Component;
-import util.propnet.architecture.PropNet;
 import util.propnet.architecture.components.And;
 import util.propnet.architecture.components.Not;
 import util.propnet.architecture.components.Or;
@@ -37,6 +35,7 @@ import util.statemachine.StateMachine;
 import util.statemachine.exceptions.GoalDefinitionException;
 import util.statemachine.exceptions.MoveDefinitionException;
 import util.statemachine.exceptions.TransitionDefinitionException;
+import util.statemachine.implementation.propnet.cache.CachedBooleanPropNetStateMachine;
 import util.statemachine.implementation.prover.query.ProverQueryBuilder;
 
 public class BooleanPropNetStateMachine extends StateMachine {
@@ -627,22 +626,27 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		}
 		
 		operatorLock = new Object();
-		
+
+		Log.println('y', "Javassist started!");
 		javassistOperator = OperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings, goalOrderings,
 				legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex);
 		setOperator(true);
-		Log.println('u', "Javassist done!");
+		Log.println('y', "Javassist done!");
 		
 		if (!isFactor) {
-			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_JAVASSIST, this);			
+			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_JAVASSIST, this);
+			Log.println('y', "Native started!");
 			nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
 					goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
 			setOperator(false);
-			Log.println('u', "Native done!");
+			Log.println('y', "Native done!");
 			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
 			
-			// factor();
-			Log.println('u', "Factoring done!");
+			if (rolesList.size() == 1) { // Try to factor only on single-player games 
+				Log.println('y', "Factoring done!");
+				factor();
+				Log.println('y', "Factoring done!");
+			}
 			
 		}
 	}
@@ -1797,7 +1801,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 			// Generate the new statemachines
 			BooleanPropNetStateMachine[] minions = new BooleanPropNetStateMachine[factors.size()];
 			for (int i = 0; i < factors.size(); i++) {
-				minions[i] = new BooleanPropNetStateMachine(mainRole);
+				minions[i] = new CachedBooleanPropNetStateMachine(mainRole);
 				minions[i].initializeFactor(factors.get(i).components, rolesList);
 				minions[i].pnet.renderToFile(PNET_FOLDER + File.separator + "factor" + i + ".dot");
 				if (i == 0) {
