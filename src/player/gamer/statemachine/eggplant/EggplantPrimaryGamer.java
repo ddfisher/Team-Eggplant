@@ -571,7 +571,7 @@ public class EggplantPrimaryGamer extends StateMachineGamer {
 		mob.setAvgGoal((int)avgGoal, minGoal, maxGoal);
 		opp.setAvgGoal((int)avgGoal, minGoal, maxGoal);
 		return new PropNetAnalyticsHeuristic(minGoal, maxGoal, new Heuristic[] {
-				mob, opp, new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.1, 0.3, 0.6});
+				mob, opp, new MonteCarloHeuristic(10, (int)avgGoal)}, new double[] {0.2, 0.2, 0.6});
 	}
 
 
