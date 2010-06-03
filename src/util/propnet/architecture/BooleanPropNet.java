@@ -143,43 +143,64 @@ public final class BooleanPropNet {
 		
 		do {
 			hasFiltered = false;
-			
-			
-			
-			totalNumFiltered += numFiltered = condenseIdenticalOutputs(components, filteredComponents);
-			if (numFiltered > 0) {
+
+			Log.println('t', "Beginning filtering iteration");
+
+//			try {
+				totalNumFiltered += numFiltered = condenseIdenticalOutputs(components, filteredComponents);
 				Log.println('t', "Filtered " + numFiltered + " identical outputs");
-				hasFiltered = true;
-				components = new HashSet<Component>(filteredComponents);
-			}
-			
-			totalNumFiltered += numFiltered = condenseSingleAndOr(components, filteredComponents);
-			if (numFiltered > 0) {
+				if (numFiltered > 0) {
+					hasFiltered = true;
+					components = new HashSet<Component>(filteredComponents);
+				}
+//			} catch (Exception ex) {
+//				ex.printStackTrace();
+//			}
+
+//			try {
+				totalNumFiltered += numFiltered = condenseSingleAndOr(components, filteredComponents);
 				Log.println('t', "Filtered " + numFiltered + " single and/or");
-				hasFiltered = true;
-				components = new HashSet<Component>(filteredComponents);
-			}
-			
-			totalNumFiltered += numFiltered = condenseBaseProps(components, filteredComponents);
-			if (numFiltered > 0) {
+
+				if (numFiltered > 0) {
+					hasFiltered = true;
+					components = new HashSet<Component>(filteredComponents);
+				}
+//			} catch (Exception ex) {
+//				ex.printStackTrace();
+//			}
+
+//			try {
+				totalNumFiltered += numFiltered = condenseBaseProps(components, filteredComponents);
 				Log.println('t', "Filtered " + numFiltered + " base props");
-				hasFiltered = true;
-				components = new HashSet<Component>(filteredComponents);
-			}
-			
-			totalNumFiltered += numFiltered = condenseConstants(components, filteredComponents);
-			if (numFiltered > 0) {
+				if (numFiltered > 0) {
+					hasFiltered = true;
+					components = new HashSet<Component>(filteredComponents);
+				}
+//			} catch (Exception ex) {
+//				ex.printStackTrace();
+//			}
+
+//			try {
+				totalNumFiltered += numFiltered = condenseConstants(components, filteredComponents);
 				Log.println('t', "Filtered " + numFiltered + " constants");
-				hasFiltered = true;
-				components = new HashSet<Component>(filteredComponents);
-			}
-			
-			numFiltered = pruneSpuriousConnections(components, filteredComponents);
-			if (numFiltered > 0) {
+				if (numFiltered > 0) {
+					hasFiltered = true;
+					components = new HashSet<Component>(filteredComponents);
+				}
+//			} catch (Exception ex) {
+//				ex.printStackTrace();
+//			}
+
+//			try {
+				numFiltered = pruneSpuriousConnections(components, filteredComponents);
 				Log.println('t', "Pruned " + numFiltered + " connections");
-				hasFiltered = true;
-				components = new HashSet<Component>(filteredComponents);
-			}
+				if (numFiltered > 0) {
+					hasFiltered = true;
+					components = new HashSet<Component>(filteredComponents);
+				}
+//			} catch (Exception ex) {
+//				ex.printStackTrace();
+//			}
 			
 		} while (hasFiltered);
 		
@@ -790,6 +811,9 @@ loop:	for (Component component : components) {
 			boolean constantValue = false;
 			if (component instanceof Constant) {
 				constantValue = component.getValue();
+				if (component.getOutputs().size() == 0) {
+					continue;
+				}
 				constantProp = (Proposition) component.getSingleOutput();
 			}
 			

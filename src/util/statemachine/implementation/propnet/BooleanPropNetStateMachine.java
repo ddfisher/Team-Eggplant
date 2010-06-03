@@ -625,13 +625,15 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		if (!isFactor) {
 			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_JAVASSIST, this);
-			if (javassistEnd - javassistStart < 1000 * 30) { 
+			if (javassistEnd - javassistStart < 1000 * 1 && this.pnet.getComponents().size() < 5000) { 
 				Log.println('y', "Native started!");
 				nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
 						goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
-				setOperator(false);
-				Log.println('y', "Native done!");
-				StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
+				if (nativeOperator != null) {
+					setOperator(false);
+					Log.println('y', "Native done!");
+					StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_NATIVE, this);
+				}
 			}
 
 			if (rolesList.size() == 1) { // Try to factor only on single-player games 
