@@ -625,7 +625,7 @@ public class BooleanPropNetStateMachine extends StateMachine {
 		
 		if (!isFactor) {
 			StateMachineFactory.pushMachine(StateMachineFactory.CACHED_BPNSM_JAVASSIST, this);
-			if (javassistEnd - javassistStart < 1000 * 1 && this.pnet.getComponents().size() < 5000) { 
+			if (javassistEnd - javassistStart < 1000 * 10 && this.pnet.getComponents().size() < 5000) { 
 				Log.println('y', "Native started!");
 				nativeOperator = NativeOperatorFactory.buildOperator(propMap, transitionOrdering, defaultOrdering, terminalOrdering, legalOrderings,
 						goalOrderings, legalPropMap, legalInputMap, inputPropStart, inputPropMap.size(), terminalIndex, goalPropMap[roleMap.get(mainRole)]);
